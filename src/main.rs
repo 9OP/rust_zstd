@@ -1,4 +1,4 @@
-extern crate net7212_zstd;
+extern crate net7212;
 
 use std::env;
 
@@ -14,7 +14,7 @@ fn main() {
 
     match command.as_str() {
         "run" => {
-            net7212_zstd::do_something();
+            net7212::do_something();
         }
         _ => {
             println!("Unknown command: {}", command);

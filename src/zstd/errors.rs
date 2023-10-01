@@ -1,10 +1,12 @@
-#[allow(dead_code)]
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
     // Encapsulate an I/O error without adding any more context
     // and add a `impl From<std::io::Error> for Error` implementation.
     #[error(transparent)]
     Io(#[from] std::io::Error),
+
+    #[error("not enough bytes: {requested:#06x} requested out of {available:#06x} available")]
+    NotEnoughBytes { requested: usize, available: usize },
 
     // Custom error originating from this module
     #[error("bad magic found {found:#06x} instead of expected {expected:#06x}")]
