@@ -1,4 +1,5 @@
 use super::parsing;
+use std::collections::HashMap;
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
@@ -7,6 +8,9 @@ pub enum Error {
 
     #[error("Unrecognized magic number: {0}")]
     UnrecognizedMagic(u32),
+
+    #[error("Invalid frame header")]
+    InvalidFrameHeader,
 }
 use Error::*;
 type Result<T, E = Error> = std::result::Result<T, E>;
@@ -29,6 +33,13 @@ pub struct SkippableFrame<'a> {
 // pub struct ZstandardFrame {
 //     header: u32,
 // }
+
+pub struct FrameHeader<'a> {
+    frame_header_descriptor: u8,
+    window_descriptor: Option<u8>,
+    dictionary_id: Option<&'a [u8]>,      // 0-4bytes
+    frame_content_size: Option<&'a [u8]>, // 0-8bytes
+}
 
 pub struct FrameIterator<'a> {
     parser: parsing::ForwardByteParser<'a>,
@@ -74,6 +85,53 @@ impl<'a> Iterator for FrameIterator<'a> {
             return None;
         }
         Some(Frame::parse(&mut self.parser))
+    }
+}
+
+impl<'a> FrameHeader<'a> {
+    pub fn parse(input: &mut parsing::ForwardByteParser<'a>) -> Result<Self> {
+        // Frame_Header_Descriptor 	    1 byte
+        // [Window_Descriptor] 	        0-1 byte
+        // [Dictionary_ID] 	            0-4 bytes
+        // [Frame_Content_Size] 	    0-8 bytes
+        let frame_header_descriptor = input.u8()?;
+
+        // https://www.rfc-editor.org/rfc/rfc8878#section-3.1.1.1.1
+        let frame_content_size_flag = (frame_header_descriptor & 0b1100_0000) >> 6;
+        let single_segment_flag = (frame_header_descriptor & 0b0010_0000) >> 5 == 1;
+        let _content_checksum_flag = (frame_header_descriptor & 0b0000_0100) >> 2;
+        let dictionary_id_flag = frame_header_descriptor & 0b0000_0011;
+
+        // https://www.rfc-editor.org/rfc/rfc8878#section-3.1.1.1.1.2
+        let mut window_descriptor: Option<u8> = None;
+        if !single_segment_flag {
+            window_descriptor = Some(input.u8()?);
+        }
+
+        // https://www.rfc-editor.org/rfc/rfc8878#section-3.1.1.1.1.6
+        let dictionary_id = match dictionary_id_flag {
+            0 => Some(input.slice(0)?),
+            1 => Some(input.slice(1)?),
+            2 => Some(input.slice(2)?),
+            3 => Some(input.slice(4)?),
+            _ => return Err(InvalidFrameHeader),
+        };
+
+        // https://www.rfc-editor.org/rfc/rfc8878#section-3.1.1.1.1.1
+        let frame_content_size = match frame_content_size_flag {
+            0 => Some(input.slice(if single_segment_flag { 1 } else { 0 })?),
+            1 => Some(input.slice(2)?),
+            2 => Some(input.slice(4)?),
+            3 => Some(input.slice(8)?),
+            _ => return Err(InvalidFrameHeader),
+        };
+
+        Ok(FrameHeader {
+            frame_header_descriptor,
+            window_descriptor,
+            dictionary_id,
+            frame_content_size,
+        })
     }
 }
 
