@@ -67,14 +67,12 @@ impl<'a> Frame<'a> {
 
     pub fn decode(self) -> Vec<u8> {
         match self {
-            Frame::SkippableFrame(f) => Vec::from(f.data),
-            Frame::ZstandardFrame(f) => {
-                let mut decoded: Vec<u8> = Vec::new();
-                for block in f.blocks {
-                    decoded.extend(block.decode());
-                }
-                decoded
-            }
+            Frame::SkippableFrame(_) => Vec::new(),
+            Frame::ZstandardFrame(f) => f
+                .blocks
+                .into_iter()
+                .flat_map(|block| block.decode())
+                .collect(),
         }
     }
 }
