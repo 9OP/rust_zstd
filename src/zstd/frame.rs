@@ -53,7 +53,7 @@ impl<'a> Frame<'a> {
     pub fn parse(input: &mut parsing::ForwardByteParser<'a>) -> Result<Self> {
         let magic = input.le_u32()?;
         match magic {
-            STANDARD_MAGIC_NUMBER => todo!(),
+            STANDARD_MAGIC_NUMBER => Ok(Self::ZstandardFrame(ZstandardFrame::parse(input)?)),
             _ => {
                 if magic >> 4 == SKIPPABLE_MAGIC_NUMBER {
                     let len = input.le_u32()? as usize;
