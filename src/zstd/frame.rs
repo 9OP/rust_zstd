@@ -6,6 +6,9 @@ pub enum Error {
     #[error("Frame parsing error: {0}")]
     ParsingError(#[from] parsing::Error),
 
+    #[error(transparent)]
+    BlockError(#[from] block::Error),
+
     #[error("Unrecognized magic number: {0}")]
     UnrecognizedMagic(u32),
 
@@ -34,7 +37,7 @@ pub struct SkippableFrame<'a> {
 pub struct ZstandardFrame<'a> {
     frame_header: FrameHeader<'a>,
     blocks: Vec<block::Block<'a>>,
-    checksum: Option<u8>,
+    checksum: Option<u32>,
 }
 
 #[derive(Debug)]
@@ -65,14 +68,39 @@ impl<'a> Frame<'a> {
     pub fn decode(self) -> Vec<u8> {
         match self {
             Frame::SkippableFrame(f) => Vec::from(f.data),
-            Frame::ZstandardFrame(_f) => todo!(),
+            Frame::ZstandardFrame(f) => {
+                let mut decoded: Vec<u8> = Vec::new();
+                for block in f.blocks {
+                    decoded.extend(block.decode());
+                }
+                decoded
+            }
         }
     }
 }
 
 impl<'a> ZstandardFrame<'a> {
     pub fn parse(input: &mut parsing::ForwardByteParser<'a>) -> Result<Self> {
-        todo!()
+        let frame_header = FrameHeader::parse(input)?;
+        let mut blocks: Vec<block::Block> = Vec::new();
+
+        let mut is_last = false;
+        while !is_last {
+            let (block, _is_last) = block::Block::parse(input)?;
+            is_last = _is_last;
+            blocks.push(block);
+        }
+
+        let mut checksum: Option<u32> = None;
+        if frame_header.content_checksum_flag {
+            checksum = Some(input.le_u32()?);
+        }
+
+        Ok(ZstandardFrame {
+            frame_header,
+            blocks,
+            checksum,
+        })
     }
 }
 

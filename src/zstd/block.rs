@@ -63,13 +63,33 @@ impl<'a> Block<'a> {
         }
     }
 
-    pub fn decode(self) -> Result<Vec<u8>> {
+    pub fn decode(self) -> Vec<u8> {
         match self {
-            Block::Raw(v) => Ok(Vec::from(v)),
-            Block::RLE { byte, repeat } => Ok(vec![byte; repeat]),
+            Block::Raw(v) => Vec::from(v),
+            Block::RLE { byte, repeat } => vec![byte; repeat],
         }
     }
 }
+
+// pub struct BlockIterator<'a> {
+//     parser: parsing::ForwardByteParser<'a>,
+// }
+// impl<'a> BlockIterator<'a> {
+//     pub fn new(data: &'a [u8]) -> Self {
+//         Self {
+//             parser: parsing::ForwardByteParser::new(data),
+//         }
+//     }
+// }
+// impl<'a> Iterator for BlockIterator<'a> {
+//     type Item = Result<Block<'a>>;
+//     fn next(&mut self) -> Option<Self::Item> {
+//         if self.parser.is_empty() {
+//             return None;
+//         }
+//         Some(Block::parse(&mut self.parser))
+//     }
+// }
 
 #[cfg(test)]
 mod tests {
@@ -87,7 +107,7 @@ mod tests {
         assert!(last);
         assert!(matches!(block, Block::Raw(&[0x10, 0x20, 0x30, 0x40])));
         assert_eq!(1, parser.len());
-        let decoded = block.decode().unwrap();
+        let decoded = block.decode();
         assert_eq!(vec![0x10, 0x20, 0x30, 0x40], decoded);
     }
 
@@ -108,7 +128,7 @@ mod tests {
             }
         ));
         assert_eq!(1, parser.len());
-        let decoded = block.decode().unwrap();
+        let decoded = block.decode();
         assert_eq!(196612, decoded.len());
         assert!(decoded.into_iter().all(|b| b == 0x42));
     }
