@@ -1,11 +1,11 @@
 #[derive(Debug, thiserror::Error)]
-pub enum ParsingError {
+pub enum Error {
     // Rename Parsing error and move to parsing file
     #[error("Not enough bytes: {requested:#06x} requested out of {available:#06x} available")]
     NotEnoughBytes { requested: usize, available: usize },
 }
-
-type Result<T, E = ParsingError> = std::result::Result<T, E>;
+use Error::*;
+type Result<T, E = Error> = std::result::Result<T, E>;
 
 pub struct ForwardByteParser<'a>(&'a [u8]);
 
@@ -26,7 +26,7 @@ impl<'a> ForwardByteParser<'a> {
         //     }
         // };
         // equivalent
-        let (first, rest) = self.0.split_first().ok_or(ParsingError::NotEnoughBytes {
+        let (first, rest) = self.0.split_first().ok_or(NotEnoughBytes {
             requested: 1,
             available: 0,
         })?;
@@ -52,7 +52,7 @@ impl<'a> ForwardByteParser<'a> {
                 self.0 = rest;
                 Ok(slice)
             }
-            false => Err(ParsingError::NotEnoughBytes {
+            false => Err(NotEnoughBytes {
                 requested: len,
                 available: self.len(),
             }),
@@ -87,7 +87,7 @@ mod tests {
         assert_eq!(0x34, parser.u8().unwrap());
         assert!(matches!(
             parser.u8(),
-            Err(ParsingError::NotEnoughBytes {
+            Err(NotEnoughBytes {
                 requested: 1,
                 available: 0,
             })
@@ -119,7 +119,7 @@ mod tests {
         assert_eq!(&[0x34], parser.slice(1).unwrap());
         assert!(matches!(
             parser.slice(1),
-            Err(ParsingError::NotEnoughBytes {
+            Err(NotEnoughBytes {
                 requested: 1,
                 available: 0,
             })
@@ -127,7 +127,7 @@ mod tests {
         let mut parser: ForwardByteParser<'_> = ForwardByteParser::new(&[0x12, 0x23, 0x34]);
         assert!(matches!(
             parser.slice(4),
-            Err(ParsingError::NotEnoughBytes {
+            Err(NotEnoughBytes {
                 requested: 4,
                 available: 3,
             })
@@ -141,7 +141,7 @@ mod tests {
         assert_eq!(0x78563412, parser.le_u32().unwrap());
         assert!(matches!(
             parser.le_u32(),
-            Err(ParsingError::NotEnoughBytes {
+            Err(NotEnoughBytes {
                 requested: 1,
                 available: 0,
             })
