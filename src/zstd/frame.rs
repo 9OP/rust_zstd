@@ -1,5 +1,4 @@
 use super::parsing;
-use std::collections::HashMap;
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
@@ -36,9 +35,10 @@ pub struct SkippableFrame<'a> {
 
 pub struct FrameHeader<'a> {
     frame_header_descriptor: u8,
-    window_descriptor: Option<u8>,
-    dictionary_id: Option<&'a [u8]>,      // 0-4bytes
-    frame_content_size: Option<&'a [u8]>, // 0-8bytes
+    window_descriptor: u8,
+    dictionary_id: &'a [u8],      // 0-4bytes
+    frame_content_size: &'a [u8], // 0-8bytes
+    content_checksum_flag: bool,
 }
 
 pub struct FrameIterator<'a> {
@@ -99,30 +99,27 @@ impl<'a> FrameHeader<'a> {
         // https://www.rfc-editor.org/rfc/rfc8878#section-3.1.1.1.1
         let frame_content_size_flag = (frame_header_descriptor & 0b1100_0000) >> 6;
         let single_segment_flag = (frame_header_descriptor & 0b0010_0000) >> 5 == 1;
-        let _content_checksum_flag = (frame_header_descriptor & 0b0000_0100) >> 2;
+        let content_checksum_flag = (frame_header_descriptor & 0b0000_0100) >> 2 == 1;
         let dictionary_id_flag = frame_header_descriptor & 0b0000_0011;
 
         // https://www.rfc-editor.org/rfc/rfc8878#section-3.1.1.1.1.2
-        let mut window_descriptor: Option<u8> = None;
-        if !single_segment_flag {
-            window_descriptor = Some(input.u8()?);
-        }
+        let window_descriptor: u8 = if single_segment_flag { 0 } else { input.u8()? };
 
         // https://www.rfc-editor.org/rfc/rfc8878#section-3.1.1.1.1.6
         let dictionary_id = match dictionary_id_flag {
-            0 => Some(input.slice(0)?),
-            1 => Some(input.slice(1)?),
-            2 => Some(input.slice(2)?),
-            3 => Some(input.slice(4)?),
+            0 => input.slice(0)?,
+            1 => input.slice(1)?,
+            2 => input.slice(2)?,
+            3 => input.slice(4)?,
             _ => return Err(InvalidFrameHeader),
         };
 
         // https://www.rfc-editor.org/rfc/rfc8878#section-3.1.1.1.1.1
         let frame_content_size = match frame_content_size_flag {
-            0 => Some(input.slice(if single_segment_flag { 1 } else { 0 })?),
-            1 => Some(input.slice(2)?),
-            2 => Some(input.slice(4)?),
-            3 => Some(input.slice(8)?),
+            0 => input.slice(if single_segment_flag { 1 } else { 0 })?,
+            1 => input.slice(2)?,
+            2 => input.slice(4)?,
+            3 => input.slice(8)?,
             _ => return Err(InvalidFrameHeader),
         };
 
@@ -131,6 +128,7 @@ impl<'a> FrameHeader<'a> {
             window_descriptor,
             dictionary_id,
             frame_content_size,
+            content_checksum_flag,
         })
     }
 }
@@ -186,4 +184,60 @@ mod tests {
     // fn test_iterate_frame_iterator() {
     //     todo!()
     // }
+
+    #[test]
+    fn test_no_frame_header() {
+        let mut parser = parsing::ForwardByteParser::new(&[]);
+        assert!(matches!(
+            FrameHeader::parse(&mut parser),
+            Err(ParsingError(parsing::Error::NotEnoughBytes {
+                requested: 1,
+                available: 0
+            }))
+        ))
+    }
+
+    #[test]
+    fn test_parse_frame_header() {
+        let mut parser = parsing::ForwardByteParser::new(
+            // 4bytes FCS, no window descriptor, 2bytes dictionary id, checksum flag
+            &[0xA6, 0xDE, 0xAD, 0x10, 0x20, 0x30, 0x40, 0x42],
+        );
+        let frame_header = FrameHeader::parse(&mut parser).unwrap();
+        assert_eq!(frame_header.frame_header_descriptor, 0xA6);
+        assert_eq!(frame_header.content_checksum_flag, true);
+        assert_eq!(frame_header.window_descriptor, 0);
+        assert_eq!(frame_header.dictionary_id, &[0xDE, 0xAD]);
+        assert_eq!(frame_header.frame_content_size, &[0x10, 0x20, 0x30, 0x40]);
+        assert_eq!(parser.len(), 1);
+    }
+
+    #[test]
+    fn test_parse_single_segment_flag() {
+        // SSF True
+        let mut parser = parsing::ForwardByteParser::new(
+            // 0bytes FCS, no window descriptor, no dictionary id, no checksum
+            &[0x20, 0xAD, 0x01],
+        );
+        let frame_header = FrameHeader::parse(&mut parser).unwrap();
+        assert_eq!(frame_header.frame_header_descriptor, 0x20);
+        assert_eq!(frame_header.content_checksum_flag, false);
+        assert_eq!(frame_header.window_descriptor, 0);
+        assert_eq!(frame_header.dictionary_id.len(), 0);
+        assert_eq!(frame_header.frame_content_size, &[0xAD]);
+        assert_eq!(parser.len(), 1);
+
+        // SSF False
+        let mut parser = parsing::ForwardByteParser::new(
+            // 0bytes FCS, window descriptor, no dictionary id, no checksum
+            &[0x0, 0xAD, 0x01],
+        );
+        let frame_header = FrameHeader::parse(&mut parser).unwrap();
+        assert_eq!(frame_header.frame_header_descriptor, 0x0);
+        assert_eq!(frame_header.content_checksum_flag, false);
+        assert_eq!(frame_header.window_descriptor, 0xAD);
+        assert_eq!(frame_header.dictionary_id.len(), 0);
+        assert_eq!(frame_header.frame_content_size.len(), 0);
+        assert_eq!(parser.len(), 1);
+    }
 }
