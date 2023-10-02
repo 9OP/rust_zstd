@@ -11,6 +11,7 @@ pub enum Error {
 use Error::*;
 type Result<T, E = Error> = std::result::Result<T, E>;
 
+#[derive(Debug)]
 pub enum Block<'a> {
     Raw(&'a [u8]),
     RLE { byte: u8, repeat: usize },

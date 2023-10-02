@@ -1,3 +1,4 @@
+use super::block;
 use super::parsing;
 
 #[derive(Debug, thiserror::Error)]
@@ -16,7 +17,7 @@ type Result<T, E = Error> = std::result::Result<T, E>;
 
 #[derive(Debug)]
 pub enum Frame<'a> {
-    ZstandardFrame,
+    ZstandardFrame(ZstandardFrame<'a>),
     SkippableFrame(SkippableFrame<'a>),
 }
 
@@ -29,20 +30,20 @@ pub struct SkippableFrame<'a> {
     data: &'a [u8],
 }
 
-// pub struct ZstandardFrame {
-//     header: u32,
-// }
+#[derive(Debug)]
+pub struct ZstandardFrame<'a> {
+    frame_header: FrameHeader<'a>,
+    blocks: Vec<block::Block<'a>>,
+    checksum: Option<u8>,
+}
 
+#[derive(Debug)]
 pub struct FrameHeader<'a> {
     frame_header_descriptor: u8,
     window_descriptor: u8,
     dictionary_id: &'a [u8],      // 0-4bytes
     frame_content_size: &'a [u8], // 0-8bytes
     content_checksum_flag: bool,
-}
-
-pub struct FrameIterator<'a> {
-    parser: parsing::ForwardByteParser<'a>,
 }
 
 impl<'a> Frame<'a> {
@@ -64,27 +65,14 @@ impl<'a> Frame<'a> {
     pub fn decode(self) -> Vec<u8> {
         match self {
             Frame::SkippableFrame(f) => Vec::from(f.data),
-            Frame::ZstandardFrame => todo!(),
+            Frame::ZstandardFrame(_f) => todo!(),
         }
     }
 }
 
-impl<'a> FrameIterator<'a> {
-    pub fn new(data: &'a [u8]) -> Self {
-        Self {
-            parser: parsing::ForwardByteParser::new(data),
-        }
-    }
-}
-
-impl<'a> Iterator for FrameIterator<'a> {
-    type Item = Result<Frame<'a>>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        if self.parser.is_empty() {
-            return None;
-        }
-        Some(Frame::parse(&mut self.parser))
+impl<'a> ZstandardFrame<'a> {
+    pub fn parse(input: &mut parsing::ForwardByteParser<'a>) -> Result<Self> {
+        todo!()
     }
 }
 
@@ -130,6 +118,29 @@ impl<'a> FrameHeader<'a> {
             frame_content_size,
             content_checksum_flag,
         })
+    }
+}
+
+pub struct FrameIterator<'a> {
+    parser: parsing::ForwardByteParser<'a>,
+}
+
+impl<'a> FrameIterator<'a> {
+    pub fn new(data: &'a [u8]) -> Self {
+        Self {
+            parser: parsing::ForwardByteParser::new(data),
+        }
+    }
+}
+
+impl<'a> Iterator for FrameIterator<'a> {
+    type Item = Result<Frame<'a>>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.parser.is_empty() {
+            return None;
+        }
+        Some(Frame::parse(&mut self.parser))
     }
 }
 
