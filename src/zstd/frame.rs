@@ -22,8 +22,12 @@ const SKIPPABLE_MAGIC_NUMBER: u32 = 0x184D2A5; // last 4bits: 0x0 to 0xF
 
 #[derive(Debug)]
 pub struct SkippableFrame<'a> {
-    magic: u32,
+    pub magic: u32,
     data: &'a [u8],
+}
+
+pub struct FrameIterator<'a> {
+    parser: parsing::ForwardByteParser<'a>,
 }
 
 impl<'a> Frame<'a> {
@@ -40,6 +44,32 @@ impl<'a> Frame<'a> {
                 Err(UnrecognizedMagic(magic))
             }
         }
+    }
+
+    pub fn decode(self) -> Vec<u8> {
+        match self {
+            Frame::SkippableFrame(f) => Vec::from(f.data),
+            Frame::ZstandardFrame => todo!(),
+        }
+    }
+}
+
+impl<'a> FrameIterator<'a> {
+    pub fn new(data: &'a [u8]) -> Self {
+        Self {
+            parser: parsing::ForwardByteParser::new(data),
+        }
+    }
+}
+
+impl<'a> Iterator for FrameIterator<'a> {
+    type Item = Result<Frame<'a>>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.parser.is_empty() {
+            return None;
+        }
+        Some(Frame::parse(&mut self.parser))
     }
 }
 

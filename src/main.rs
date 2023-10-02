@@ -1,23 +1,51 @@
 extern crate net7212;
 
-use std::env;
+use net7212::zstd::frame::FrameIterator;
+
+use clap::Parser;
+use std::{fs, io::Write};
+
+#[derive(Parser, Debug)]
+#[command(version)]
+struct Args {
+    /// File name to decompress
+    file_name: String,
+
+    /// Dump information about frames instead of outputing the result
+    #[arg(short, long, default_value_t = false)]
+    info: bool,
+}
+
+fn read_file(file_name: String) -> Vec<u8> {
+    match fs::read(file_name) {
+        Ok(bytes) => bytes,
+        Err(err) => {
+            println!("{}", err.to_string());
+            std::process::exit(2)
+        }
+    }
+}
 
 fn main() {
-    let args: Vec<String> = env::args().collect();
+    let args = Args::parse();
 
-    if args.len() < 2 {
-        println!("Usage: {} <command>", args[0]);
-        return;
-    }
+    let bytes = read_file(args.file_name);
 
-    let command = &args[1];
+    for it in FrameIterator::new(&bytes.as_slice()) {
+        match it {
+            Ok(v) => {
+                if args.info {
+                    print!("{:#x?}\n", v);
+                    continue;
+                }
 
-    match command.as_str() {
-        "run" => {
-            net7212::do_something();
-        }
-        _ => {
-            println!("Unknown command: {}", command);
+                let data = v.decode();
+                let mut stdout = std::io::stdout().lock();
+                stdout.write_all(data.as_slice()).unwrap();
+            }
+            Err(err) => {
+                panic!("{}", err)
+            }
         }
     }
 }
