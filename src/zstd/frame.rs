@@ -26,6 +26,10 @@ pub struct SkippableFrame<'a> {
     data: &'a [u8],
 }
 
+// pub struct ZstandardFrame {
+//     header: u32,
+// }
+
 pub struct FrameIterator<'a> {
     parser: parsing::ForwardByteParser<'a>,
 }
@@ -114,4 +118,14 @@ mod tests {
             Err(UnrecognizedMagic(0x40302010))
         ));
     }
+
+    // #[test]
+    // fn test_decode_frame() {
+    //     todo!()
+    // }
+
+    // #[test]
+    // fn test_iterate_frame_iterator() {
+    //     todo!()
+    // }
 }

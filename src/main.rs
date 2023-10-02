@@ -44,7 +44,8 @@ fn main() {
                 stdout.write_all(data.as_slice()).unwrap();
             }
             Err(err) => {
-                panic!("{}", err)
+                println!("{}", err.to_string());
+                std::process::exit(1)
             }
         }
     }
