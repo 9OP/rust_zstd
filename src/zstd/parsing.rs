@@ -14,7 +14,7 @@ impl<'a> ForwardByteParser<'a> {
         Self(data)
     }
 
-    /// Pop and return (side-effect)
+    /// Consume and return u8
     pub fn u8(&mut self) -> Result<u8> {
         // let (first, rest) = match self.0.split_first() {
         //     Some(v) => v,
@@ -47,7 +47,11 @@ impl<'a> ForwardByteParser<'a> {
     /// Extract `len` bytes as a slice
     pub fn slice(&mut self, len: usize) -> Result<&'a [u8]> {
         match len <= self.len() {
-            true => Ok(&self.0[0..len]),
+            true => {
+                let (slice, rest) = self.0.split_at(len);
+                self.0 = rest;
+                Ok(slice)
+            }
             false => Err(ParsingError::NotEnoughBytes {
                 requested: len,
                 available: self.len(),
@@ -109,8 +113,18 @@ mod tests {
     #[test]
     fn test_slice() {
         let mut parser: ForwardByteParser<'_> = ForwardByteParser::new(&[0x12, 0x23, 0x34]);
+        assert_eq!(&[] as &[u8], parser.slice(0).unwrap());
         assert_eq!(&[0x12, 0x23], parser.slice(2).unwrap());
-        assert_eq!(&[0x12, 0x23, 0x34], parser.slice(3).unwrap());
+        assert_eq!(1, parser.len());
+        assert_eq!(&[0x34], parser.slice(1).unwrap());
+        assert!(matches!(
+            parser.slice(1),
+            Err(ParsingError::NotEnoughBytes {
+                requested: 1,
+                available: 0,
+            })
+        ));
+        let mut parser: ForwardByteParser<'_> = ForwardByteParser::new(&[0x12, 0x23, 0x34]);
         assert!(matches!(
             parser.slice(4),
             Err(ParsingError::NotEnoughBytes {
@@ -118,6 +132,7 @@ mod tests {
                 available: 3,
             })
         ));
+        assert_eq!(3, parser.len());
     }
 
     #[test]

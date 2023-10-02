@@ -31,11 +31,41 @@ impl<'a> Frame<'a> {
             STANDARD_MAGIC_NUMBER => todo!(),
             _ => {
                 if magic >> 4 == SKIPPABLE_MAGIC_NUMBER {
-                    let data = input.slice(input.len())?;
+                    let len = input.le_u32()? as usize;
+                    let data = input.slice(len)?;
                     return Ok(Self::SkippableFrame(SkippableFrame { magic, data }));
                 }
                 Err(FrameError::UnrecognizedMagic(magic))
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_parse_skippable_frame() {
+        let mut parser = ForwardByteParser::new(&[
+            // Skippable frame with magic 0x184d2a53, length 3, content 0x10 0x20 0x30
+            // and an extra byte at the end.
+            0x53, 0x2a, 0x4d, 0x18, 0x03, 0x00, 0x00, 0x00, 0x10, 0x20, 0x30, 0x40,
+        ]);
+        let Frame::SkippableFrame(skippable) = Frame::parse(&mut parser).unwrap() else {
+            panic!("unexpected frame type")
+        };
+        assert_eq!(0x184d2a53, skippable.magic);
+        assert_eq!(&[0x10, 0x20, 0x30], skippable.data);
+        assert_eq!(1, parser.len());
+    }
+
+    #[test]
+    fn test_error_on_unknown_frame() {
+        let mut parser = ForwardByteParser::new(&[0x10, 0x20, 0x30, 0x40]);
+        assert!(matches!(
+            Frame::parse(&mut parser),
+            Err(FrameError::UnrecognizedMagic(0x40302010))
+        ));
     }
 }
