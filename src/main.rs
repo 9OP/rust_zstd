@@ -19,7 +19,7 @@ fn read_file(file_name: String) -> Vec<u8> {
     match fs::read(file_name) {
         Ok(bytes) => bytes,
         Err(err) => {
-            println!("{}", err.to_string());
+            println!("{}", err);
             std::process::exit(2)
         }
     }
@@ -30,11 +30,11 @@ fn main() {
 
     let bytes = read_file(args.file_name);
 
-    for it in FrameIterator::new(&bytes.as_slice()) {
+    for it in FrameIterator::new(bytes.as_slice()) {
         match it {
             Ok(v) => {
                 if args.info {
-                    print!("{:#x?}\n", v);
+                    println!("{:#x?}", v);
                     continue;
                 }
 
@@ -43,7 +43,7 @@ fn main() {
                 stdout.write_all(data.as_slice()).unwrap();
             }
             Err(err) => {
-                println!("{}", err.to_string());
+                println!("{}", err);
                 std::process::exit(1)
             }
         }
