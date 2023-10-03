@@ -29,7 +29,7 @@ const SKIPPABLE_MAGIC_NUMBER: u32 = 0x184D2A5; // last 4bits: 0x0 to 0xF
 
 #[derive(Debug)]
 pub struct SkippableFrame<'a> {
-    pub magic: u32,
+    magic: u32,
     data: &'a [u8],
 }
 
@@ -82,17 +82,17 @@ impl<'a> ZstandardFrame<'a> {
         let frame_header = FrameHeader::parse(input)?;
         let mut blocks: Vec<block::Block> = Vec::new();
 
-        let mut is_last = false;
-        while !is_last {
-            let (block, _is_last) = block::Block::parse(input)?;
-            is_last = _is_last;
+        let mut last = false;
+        while !last {
+            let (block, is_last) = block::Block::parse(input)?;
+            last = is_last;
             blocks.push(block);
         }
 
-        let mut checksum: Option<u32> = None;
-        if frame_header.content_checksum_flag {
-            checksum = Some(input.le_u32()?);
-        }
+        let checksum = match frame_header.content_checksum_flag {
+            true => Some(input.le_u32()?),
+            false => None,
+        };
 
         Ok(ZstandardFrame {
             frame_header,

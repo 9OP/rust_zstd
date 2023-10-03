@@ -16,16 +16,6 @@ impl<'a> ForwardByteParser<'a> {
 
     /// Consume and return u8
     pub fn u8(&mut self) -> Result<u8> {
-        // let (first, rest) = match self.0.split_first() {
-        //     Some(v) => v,
-        //     None => {
-        //         return Result::Err(Error::NotEnoughBytes {
-        //             requested: 1,
-        //             available: 0,
-        //         })
-        //     }
-        // };
-        // equivalent
         let (first, rest) = self.0.split_first().ok_or(NotEnoughBytes {
             requested: 1,
             available: 0,
@@ -61,16 +51,11 @@ impl<'a> ForwardByteParser<'a> {
 
     /// Consume and return a u32 in little-endian format
     pub fn le_u32(&mut self) -> Result<u32> {
-        let mut result = 0u32;
-        for i in 0..4 as u8 {
-            // OR + LeftShift bitwise
-            // each iteration:
-            //  - OR bitwise, which "copy" self.u8() to the 8LSB of result
-            //  - Byte leftshift, which shift bits to the left by 8bits. 8LSB become 0x0
-            //
-            // little-endian: LSB is first in byte order, at i=0 no leftshift, at i=1 8bits leftshit, at i=2 16bits left shift
-            result |= (self.u8()? as u32) << (i * 8)
-        }
+        let byte_0 = self.u8()? as u32;
+        let byte_1 = self.u8()? as u32;
+        let byte_2 = self.u8()? as u32;
+        let byte_3 = self.u8()? as u32;
+        let result = byte_3 << 24 | byte_2 << 16 | byte_1 << 8 | byte_0;
         Ok(result.to_le())
     }
 }

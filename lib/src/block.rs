@@ -16,14 +16,19 @@ pub enum Block<'a> {
     Raw(&'a [u8]),
     RLE { byte: u8, repeat: usize },
 }
+
 const BLOCK_HEADER_LEN: usize = 3;
+const RAW_BLOCK_FLAG: u8 = 0;
+const RLE_BLOCK_FLAG: u8 = 1;
+const COMPRESSED_BLOCK_FLAG: u8 = 2;
+const RESERVED_BLOCK_FLAG: u8 = 3;
 
 impl<'a> Block<'a> {
     pub fn parse(input: &mut parsing::ForwardByteParser<'a>) -> Result<(Block<'a>, bool)> {
         // TrustMe™ unwrap is safe, we know the len
         let header: &[u8; BLOCK_HEADER_LEN] = input.slice(BLOCK_HEADER_LEN)?.try_into().unwrap();
 
-        // Parse header:
+        // Parse header with bit-mask and bit-shifts:
         //  last_block is LSB bit0
         //  block_type is bits1-2
         //  block_size is bits3-23 (need to Rshift by 3)
@@ -33,32 +38,25 @@ impl<'a> Block<'a> {
             ((header[2] as usize) << 16 | (header[1] as usize) << 8 | (header[0] as usize)) >> 3;
 
         match block_type {
-            // Raw Block
-            0 => {
+            RAW_BLOCK_FLAG => {
                 let raw_data = input.slice(block_size)?;
-                Ok((Block::Raw(raw_data), last_block))
+                let block = Block::Raw(raw_data);
+                Ok((block, last_block))
             }
 
-            // RLE Block
-            1 => {
-                // TODO return error when input.len != 1
-                // Blockformat error
-
-                let byte = input.u8()?; // comsume first byte
-                Ok((
-                    Block::RLE {
-                        repeat: block_size,
-                        byte,
-                    },
-                    last_block,
-                ))
+            RLE_BLOCK_FLAG => {
+                let byte = input.u8()?;
+                let block = Block::RLE {
+                    repeat: block_size,
+                    byte,
+                };
+                Ok((block, last_block))
             }
 
-            // Compressed Block
-            2 => unimplemented!(),
+            COMPRESSED_BLOCK_FLAG => unimplemented!(),
 
-            // Reserved Block
-            3 => Err(ReservedBlockType),
+            RESERVED_BLOCK_FLAG => Err(ReservedBlockType),
+
             _ => Err(ReservedBlockType),
         }
     }
@@ -70,26 +68,6 @@ impl<'a> Block<'a> {
         }
     }
 }
-
-// pub struct BlockIterator<'a> {
-//     parser: parsing::ForwardByteParser<'a>,
-// }
-// impl<'a> BlockIterator<'a> {
-//     pub fn new(data: &'a [u8]) -> Self {
-//         Self {
-//             parser: parsing::ForwardByteParser::new(data),
-//         }
-//     }
-// }
-// impl<'a> Iterator for BlockIterator<'a> {
-//     type Item = Result<Block<'a>>;
-//     fn next(&mut self) -> Option<Self::Item> {
-//         if self.parser.is_empty() {
-//             return None;
-//         }
-//         Some(Block::parse(&mut self.parser))
-//     }
-// }
 
 #[cfg(test)]
 mod tests {
