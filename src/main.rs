@@ -1,9 +1,8 @@
-extern crate net7212;
-
-use net7212::zstd::frame::FrameIterator;
+extern crate zstd_lib;
 
 use clap::Parser;
 use std::{fs, io::Write};
+use zstd_lib::frame::FrameIterator;
 
 #[derive(Parser, Debug)]
 #[command(version)]
