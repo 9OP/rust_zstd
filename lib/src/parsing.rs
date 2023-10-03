@@ -136,6 +136,8 @@ mod tests {
         assert_eq!(5, parser.0.len());
         assert_eq!(0x78563412, parser.le_u32().unwrap());
         assert_eq!(1, parser.0.len());
+
+        // Do not consume u8 when Error
         assert!(matches!(
             parser.le_u32(),
             Err(NotEnoughBytes {
@@ -143,7 +145,6 @@ mod tests {
                 available: 1,
             })
         ));
-        // Failed le_u32 should not consume
         assert_eq!(1, parser.0.len());
     }
 }

@@ -81,7 +81,6 @@ mod tests {
             0x21, 0x0, 0x0, 0x10, 0x20, 0x30, 0x40, 0x50,
         ]);
         let (block, last) = Block::parse(&mut parser).unwrap();
-        dbg!(last);
         assert!(last);
         assert!(matches!(block, Block::Raw(&[0x10, 0x20, 0x30, 0x40])));
         assert_eq!(1, parser.len());
@@ -112,7 +111,7 @@ mod tests {
     }
 
     #[test]
-    fn test_decode_reserved() {
+    fn test_parse_reserved() {
         let mut parser = parsing::ForwardByteParser::new(&[
             // Reserved block
             0x06, 0x0, 0x0,
@@ -121,7 +120,7 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_raw_error_block_size() {
+    fn test_parse_raw_block_not_enough_size() {
         let mut parser = parsing::ForwardByteParser::new(&[
             // Raw block, not last, len 8, content len 3
             0x40, 0x0, 0x0, 0x10, 0x20, 0x30,
@@ -133,12 +132,13 @@ mod tests {
                 available: 3
             }))
         ));
+        assert_eq!(parser.len(), 3);
     }
 
     #[test]
-    fn test_parse_rle_error() {
+    fn test_parse_rle_not_enough_byte() {
         let mut parser = parsing::ForwardByteParser::new(&[
-            // RLE block, not last, no content
+            // RLE block, not last,
             0x02, 0x0, 0x0,
         ]);
         assert!(matches!(
@@ -148,10 +148,11 @@ mod tests {
                 available: 0
             }))
         ));
+        assert_eq!(parser.len(), 0);
     }
 
     #[test]
-    fn test_parse_short_header() {
+    fn test_parse_header_not_enough_byte() {
         let mut parser = parsing::ForwardByteParser::new(&[0x0, 0x0]);
         assert!(matches!(
             Block::parse(&mut parser),
@@ -160,5 +161,6 @@ mod tests {
                 available: 2
             }))
         ));
+        assert_eq!(parser.len(), 2);
     }
 }
