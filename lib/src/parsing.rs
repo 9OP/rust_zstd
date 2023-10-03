@@ -51,11 +51,12 @@ impl<'a> ForwardByteParser<'a> {
 
     /// Consume and return a u32 in little-endian format
     pub fn le_u32(&mut self) -> Result<u32> {
-        let byte_0 = self.u8()? as u32;
-        let byte_1 = self.u8()? as u32;
-        let byte_2 = self.u8()? as u32;
-        let byte_3 = self.u8()? as u32;
-        let result = byte_3 << 24 | byte_2 << 16 | byte_1 << 8 | byte_0;
+        // Consume 4bytes or Err. Do not consume partially !
+        let byte_array = self.slice(4)?;
+        let result = (byte_array[3] as u32) << 24
+            | (byte_array[2] as u32) << 16
+            | (byte_array[1] as u32) << 8
+            | (byte_array[0] as u32);
         Ok(result.to_le())
     }
 }
@@ -67,9 +68,13 @@ mod tests {
     #[test]
     fn test_u8() {
         let mut parser = ForwardByteParser::new(&[0x12, 0x23, 0x34]);
-        assert_eq!(0x12, parser.u8().unwrap());
-        assert_eq!(0x23, parser.u8().unwrap());
-        assert_eq!(0x34, parser.u8().unwrap());
+        assert_eq!(parser.0.len(), 3);
+        assert_eq!(parser.u8().unwrap(), 0x12);
+        assert_eq!(parser.0.len(), 2);
+        assert_eq!(parser.u8().unwrap(), 0x23);
+        assert_eq!(parser.0.len(), 1);
+        assert_eq!(parser.u8().unwrap(), 0x34);
+        assert_eq!(parser.0.len(), 0);
         assert!(matches!(
             parser.u8(),
             Err(NotEnoughBytes {
@@ -82,9 +87,11 @@ mod tests {
     #[test]
     fn test_len() {
         let parser = ForwardByteParser::new(&[0x12, 0x23, 0x34]);
-        assert_eq!(3, parser.len());
+        assert_eq!(parser.len(), 3);
+        let parser = ForwardByteParser::new(&[0x12]);
+        assert_eq!(parser.len(), 1);
         let parser = ForwardByteParser::new(&[]);
-        assert_eq!(0, parser.len());
+        assert_eq!(parser.len(), 0);
     }
 
     #[test]
@@ -100,7 +107,7 @@ mod tests {
         let mut parser: ForwardByteParser<'_> = ForwardByteParser::new(&[0x12, 0x23, 0x34]);
         assert_eq!(&[] as &[u8], parser.slice(0).unwrap());
         assert_eq!(&[0x12, 0x23], parser.slice(2).unwrap());
-        assert_eq!(1, parser.len());
+        assert_eq!(1, parser.0.len());
         assert_eq!(&[0x34], parser.slice(1).unwrap());
         assert!(matches!(
             parser.slice(1),
@@ -117,19 +124,26 @@ mod tests {
                 available: 3,
             })
         ));
-        assert_eq!(3, parser.len());
+        assert_eq!(3, parser.0.len());
+        assert_eq!(&[0x12, 0x23, 0x34], parser.slice(3).unwrap());
+        assert_eq!(0, parser.0.len());
     }
 
     #[test]
     fn test_le_u32() {
-        let mut parser: ForwardByteParser<'_> = ForwardByteParser::new(&[0x12, 0x34, 0x56, 0x78]);
+        let mut parser: ForwardByteParser<'_> =
+            ForwardByteParser::new(&[0x12, 0x34, 0x56, 0x78, 0xFF]);
+        assert_eq!(5, parser.0.len());
         assert_eq!(0x78563412, parser.le_u32().unwrap());
+        assert_eq!(1, parser.0.len());
         assert!(matches!(
             parser.le_u32(),
             Err(NotEnoughBytes {
-                requested: 1,
-                available: 0,
+                requested: 4,
+                available: 1,
             })
         ));
+        // Failed le_u32 should not consume
+        assert_eq!(1, parser.0.len());
     }
 }

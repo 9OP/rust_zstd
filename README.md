@@ -4,5 +4,4 @@ helpers:
 `cargo test --workspace --lib`
 
 ToDo:
-- add pre commit hooks
 - add logs (outside stdout)
