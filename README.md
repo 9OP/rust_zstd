@@ -6,3 +6,4 @@ cargo test --workspace decoders --lib -- --nocapture `
 
 ToDo:
 - add logs (outside stdout)
+- huffman insert is not keeping the tree balanced, correct that

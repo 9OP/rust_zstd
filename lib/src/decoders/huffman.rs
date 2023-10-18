@@ -1,5 +1,13 @@
 use std::fmt;
 
+#[derive(Debug, thiserror::Error)]
+pub enum Error {
+    #[error("Cannot compute missing huffman weight")]
+    ComputeMissingWeight,
+}
+use Error::*;
+type Result<T, E = Error> = std::result::Result<T, E>;
+
 pub enum HuffmanDecoder {
     Absent,
     Symbol(u8),
@@ -26,6 +34,49 @@ impl<'a> HuffmanDecoder {
             tree.insert(symbol, width);
         }
         tree
+    }
+
+    fn compute_missing_weight(weights_sum: u16) -> Result<(u8, u8)> {
+        let mut missing_weight: u8 = 0;
+
+        while missing_weight <= 16 {
+            missing_weight += 1; // missing weight is at least >= 1
+            let prefix = 1 << (missing_weight - 1);
+
+            // opportunistically break out
+            if prefix > weights_sum {
+                return Err(ComputeMissingWeight);
+            }
+
+            // stop when first strictly greater power of 2
+            if (weights_sum + prefix).is_power_of_two() {
+                let max_width = (weights_sum + prefix).trailing_zeros() as u8;
+                return Ok((missing_weight, max_width));
+            }
+        }
+
+        Err(Error::ComputeMissingWeight)
+    }
+
+    pub fn from_weights(weights: Vec<u8>) -> Result<Self> {
+        // Prevent mutating the input
+        let mut weights = weights.clone();
+
+        let weights_sum = weights
+            .iter() // do not consume weights
+            .filter(|w| **w != 0) // remove 0 weights
+            .map(|w| 1 << (w - 1)) // apply 2**(w-1)
+            .sum();
+
+        let (missing_weight, max_width) = Self::compute_missing_weight(weights_sum)?;
+        weights.push(missing_weight);
+
+        let widths = weights
+            .iter()
+            .map(|w| if *w > 0 { max_width + 1 - *w } else { 0 })
+            .collect();
+
+        Ok(Self::from_number_of_bits(widths))
     }
 
     pub fn insert(&mut self, symbol: u8, width: u8) -> bool {
@@ -137,6 +188,33 @@ mod tests {
     fn test_from_number_of_bits() {
         let widths: Vec<u8> = std::iter::repeat(0).take(65).chain([2, 1, 2]).collect();
         let tree = HuffmanDecoder::from_number_of_bits(widths);
+        assert_eq!(
+            format!("{:?}", tree),
+            "HuffmanDecoder { 1: 66, 01: 67, 00: 65 }"
+        );
+    }
+
+    #[test]
+    fn test_compute_missing_weight() {
+        let weight = HuffmanDecoder::compute_missing_weight(3).unwrap();
+        assert_eq!(weight, (1, 2));
+
+        let weight = HuffmanDecoder::compute_missing_weight(4).unwrap();
+        assert_eq!(weight, (3, 3));
+
+        let weight = HuffmanDecoder::compute_missing_weight(24).unwrap();
+        assert_eq!(weight, (4, 5));
+
+        assert!(matches!(
+            HuffmanDecoder::compute_missing_weight(5),
+            Err(ComputeMissingWeight)
+        ));
+    }
+
+    #[test]
+    fn test_from_weights() {
+        let weights: Vec<_> = std::iter::repeat(0).take(65).chain([1, 2]).collect();
+        let tree = HuffmanDecoder::from_weights(weights).unwrap();
         assert_eq!(
             format!("{:?}", tree),
             "HuffmanDecoder { 1: 66, 01: 67, 00: 65 }"
