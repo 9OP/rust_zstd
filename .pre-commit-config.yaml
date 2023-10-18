@@ -3,10 +3,9 @@ repos:
     hooks:
       - id: lib-tests
         name: lib tests
-        entry: cargo
-        args: ["test", "--workspace", "--lib"]
-        language: system
-        files: "^Cargo.toml$"
+        entry: run_unit_tests.sh
+        files: '\.rs$'
+        language: "script"
 
       - id: fmt
         name: fmt
