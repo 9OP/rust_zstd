@@ -15,37 +15,24 @@ struct Args {
     info: bool,
 }
 
-fn read_file(file_name: String) -> Vec<u8> {
-    match fs::read(file_name) {
-        Ok(bytes) => bytes,
-        Err(err) => {
-            println!("{}", err);
-            std::process::exit(2)
-        }
-    }
-}
+fn main() -> eyre::Result<()> {
+    color_eyre::install()?;
 
-fn main() {
     let args = Args::parse();
-
-    let bytes = read_file(args.file_name);
+    let bytes = fs::read(args.file_name)?;
 
     for it in FrameIterator::new(bytes.as_slice()) {
-        match it {
-            Ok(v) => {
-                if args.info {
-                    println!("{:#x?}", v);
-                    continue;
-                }
+        let frame = it?;
 
-                let data = v.decode();
-                let mut stdout = std::io::stdout().lock();
-                stdout.write_all(data.as_slice()).unwrap();
-            }
-            Err(err) => {
-                println!("{}", err);
-                std::process::exit(1)
-            }
+        if args.info {
+            println!("{:#x?}", frame);
+            continue;
         }
+
+        let data = frame.decode();
+        let mut stdout = std::io::stdout().lock();
+        stdout.write_all(data.as_slice()).unwrap();
     }
+
+    Ok(())
 }

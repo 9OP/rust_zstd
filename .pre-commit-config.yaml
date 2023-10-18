@@ -1,7 +1,34 @@
 repos:
-  - hooks:
+  - repo: local
+    hooks:
+      - id: lib-tests
+        name: lib tests
+        entry: cargo
+        args: ["test", "--workspace", "--lib"]
+        language: system
+        files: "^Cargo.toml$"
+
       - id: fmt
+        name: fmt
+        description: Format files with cargo fmt.
+        entry: cargo fmt
+        language: system
+        types: [rust]
+        args: ["--"]
+
       - id: cargo-check
+        name: cargo check
+        description: Check the package for errors.
+        entry: cargo check
+        language: system
+        types: [rust]
+        pass_filenames: false
+
       - id: clippy
-    repo: https://github.com/doublify/pre-commit-rust
-    rev: v1.0
+        name: clippy
+        description: Lint rust sources
+        entry: cargo clippy
+        language: system
+        args: ["--", "-D", "warnings"]
+        types: [rust]
+        pass_filenames: false
