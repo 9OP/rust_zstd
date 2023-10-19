@@ -77,8 +77,6 @@ pub struct BackwardBitParser<'a> {
 }
 
 impl<'a> BackwardBitParser<'a> {
-    /// Create a new backward bit parser. The header is skipped automatically or
-    /// an error is returned if the initial 1 cannot be found in the first 8 bits.
     pub fn new(bitstream: &'a [u8]) -> Result<Self> {
         let (last_byte, rest) = bitstream.split_last().ok_or(NotEnoughBytes {
             requested: 1,

@@ -1,9 +1,16 @@
+use crate::parsing;
 use std::fmt;
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
+    #[error("Block parsing error: {0}")]
+    ParsingError(#[from] parsing::Error),
+
     #[error("Cannot compute missing huffman weight")]
     ComputeMissingWeight,
+
+    #[error("Missing symbol for huffman code")]
+    MissingSymbol,
 }
 use Error::*;
 type Result<T, E = Error> = std::result::Result<T, E>;
@@ -13,7 +20,6 @@ pub enum HuffmanDecoder {
     Symbol(u8),
     Tree(Box<HuffmanDecoder>, Box<HuffmanDecoder>),
 }
-
 use HuffmanDecoder::*;
 
 impl<'a> HuffmanDecoder {
@@ -90,16 +96,28 @@ impl<'a> HuffmanDecoder {
 
         match self {
             Symbol(_) => panic!("invalid Huffman tree decoder"),
-            Tree(lb, rb) => {
-                if lb.insert(symbol, width - 1) {
+            Tree(lhs, rhs) => {
+                if lhs.insert(symbol, width - 1) {
                     return true;
                 }
-                rb.insert(symbol, width - 1)
+                rhs.insert(symbol, width - 1)
             }
             Absent => {
                 *self = Tree(Box::new(Absent), Box::new(Absent));
                 self.insert(symbol, width)
             }
+        }
+    }
+
+    pub fn decode(&self, parser: &mut parsing::BackwardBitParser) -> Result<u8> {
+        match self {
+            Absent => Err(MissingSymbol),
+            Symbol(s) => Ok(*s),
+            Tree(lhs, rhs) => match parser.take(1)? {
+                0 => lhs.decode(parser),
+                1 => rhs.decode(parser),
+                _ => panic!("this is not the bit you are looking for trooper"),
+            },
         }
     }
 
@@ -126,9 +144,9 @@ impl<'a> Iterator for HuffmanDecoderIterator<'a> {
         match decoder {
             Absent => None,
             Symbol(s) => Some((prefix, *s)),
-            Tree(rb, lb) => {
-                self.nodes.push((rb, prefix.clone() + "0"));
-                self.nodes.push((lb, prefix.clone() + "1"));
+            Tree(lhs, rhs) => {
+                self.nodes.push((lhs, prefix.clone() + "0"));
+                self.nodes.push((rhs, prefix.clone() + "1"));
                 self.next()
             }
         }
@@ -219,5 +237,19 @@ mod tests {
             format!("{:?}", tree),
             "HuffmanDecoder { 1: 66, 01: 67, 00: 65 }"
         );
+    }
+
+    #[test]
+    fn test_decode() {
+        // 0 repeated 65 times, 1, 2
+        let weights: Vec<_> = std::iter::repeat(0).take(65).chain([1, 2]).collect();
+        let decoder = HuffmanDecoder::from_weights(weights).unwrap();
+        let mut parser = parsing::BackwardBitParser::new(&[0x97, 0x01]).unwrap();
+        let mut result = String::new();
+        while !parser.is_empty() {
+            let decoded = decoder.decode(&mut parser).unwrap();
+            result.push(decoded as char); // We know they are valid A, B, or C char
+        }
+        assert_eq!(result, "BABCBB");
     }
 }
