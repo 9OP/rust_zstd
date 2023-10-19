@@ -3,6 +3,9 @@ pub enum Error {
     #[error("Not enough bytes: {requested:#06x} requested out of {available:#06x} available")]
     NotEnoughBytes { requested: usize, available: usize },
 
+    #[error("Not enough bits: {requested} requested out of {available} available")]
+    NotEnoughBits { requested: usize, available: usize },
+
     #[error("Bitstream header does not contain any '1'")]
     MalformedBitstream,
 
@@ -115,49 +118,55 @@ impl<'a> BackwardBitParser<'a> {
         self.len() == 0
     }
 
+    fn available_bits(&mut self) -> usize {
+        if self.is_empty() {
+            return 0;
+        }
+        8 * (self.len() - 1) + self.position + 1
+    }
+
     /// Get the given number of bits, or return an error.
     pub fn take(&mut self, len: usize) -> Result<u64> {
-        let div_ceil_by_eight = |n| if n % 8 == 0 { n / 8 } else { (n / 8) + 1 };
-
         // The result contains at most 64 bits (u64)
         if len > 64 {
             return Err(LargeBitsTake { requested: len });
         }
 
-        let requested_bytes = div_ceil_by_eight(len);
-
-        if requested_bytes > self.len() {
-            return Err(NotEnoughBytes {
-                requested: requested_bytes,
-                available: self.len(),
+        if len > self.available_bits() {
+            return Err(NotEnoughBits {
+                requested: len,
+                available: self.available_bits(),
             });
         }
 
+        // extract a subslice of requested bytes for number of bits to take
+        let div_ceil_by_eight = |n| if n % 8 == 0 { n / 8 } else { (n / 8) + 1 };
+        let requested_bytes = div_ceil_by_eight(len);
         let split = self.len() - requested_bytes;
         let (_, slice) = self.bitstream.split_at(split);
+        let slice: Vec<u8> = slice.iter().rev().cloned().collect();
 
         let mut result: u64 = 0;
         let mut bits_remaining = len;
 
-        let slice: Vec<u8> = slice.iter().rev().cloned().collect();
-
         for byte in slice {
-            // read up to position+1 per byte, position in [0,7]
+            // read up to position+1 per byte, position is in [0,7]
             let bits_to_read = std::cmp::min(bits_remaining, self.position + 1);
 
-            // apply position offset, discard LHS bits
+            // apply position offset in order to discard LHS bits
             let offset = 7 - self.position;
             let bits = byte << offset;
 
-            // read bits, discard RHS bits
+            // read bits, shift in order to discard RHS bits
             let bits = bits >> (8 - bits_to_read);
 
-            // shift result to make space for read bits
+            // shift result to make space for new bits
             result <<= bits_to_read;
 
             // merge read bits into result;
             result |= bits as u64;
 
+            // update remaining bits count to read
             bits_remaining -= bits_to_read;
 
             // update position
@@ -316,27 +325,74 @@ mod tests {
 
         #[test]
         fn test_take() {
+            let bitstream: &[u8; 2] = &[0b0011_1100, 0b0001_0111];
+
             // large bits take error, by 1 bit
-            let mut parser = BackwardBitParser::new(&[0b0011_1100, 0b0001_0111]).unwrap();
+            let mut parser = BackwardBitParser::new(bitstream).unwrap();
             assert!(matches!(
                 parser.take(65),
                 Err(LargeBitsTake { requested: 65 })
             ));
 
-            // not enough byte error, by 1 bit
-            let mut parser = BackwardBitParser::new(&[0b0011_1100, 0b0001_0111]).unwrap();
+            // not enough bits error, by 1 bit
+            let mut parser = BackwardBitParser::new(bitstream).unwrap();
             assert!(matches!(
-                parser.take(16 + 1),
-                Err(NotEnoughBytes {
-                    requested: 3,
-                    available: 2
+                parser.take(12 + 1),
+                Err(NotEnoughBits {
+                    requested: 13,
+                    available: 12
                 })
             ));
 
-            let mut parser = BackwardBitParser::new(&[0b0011_1100, 0b0001_0111]).unwrap();
+            // take bits and keep last byte
+            let mut parser = BackwardBitParser::new(bitstream).unwrap();
+            assert_eq!(parser.take(3).unwrap(), 0b011);
+            assert_eq!(parser.bitstream, bitstream);
+            assert_eq!(parser.position, 0);
+
+            // take bits an consume last byte
+            let mut parser = BackwardBitParser::new(bitstream).unwrap();
             assert_eq!(parser.take(10).unwrap(), 0b0111_0011_11);
-            assert_eq!(parser.bitstream, &[0b0011_1100]);
+            assert_eq!(parser.bitstream, &[bitstream[0]]);
             assert_eq!(parser.position, 1);
+
+            // take all bits
+            let mut parser = BackwardBitParser::new(bitstream).unwrap();
+            assert_eq!(parser.take(12).unwrap(), 0b0111_0011_1100);
+            assert_eq!(parser.bitstream, &[]);
+            assert_eq!(parser.position, 7);
+            assert_eq!(parser.take(0).unwrap(), 0);
+            assert!(matches!(
+                parser.take(1),
+                Err(NotEnoughBits {
+                    requested: 1,
+                    available: 0
+                })
+            ));
+
+            // apply multiple take
+            let mut parser = BackwardBitParser::new(bitstream).unwrap();
+            assert_eq!(parser.take(1).unwrap(), 0b0);
+            assert_eq!(parser.take(1).unwrap(), 0b1);
+            assert_eq!(parser.take(1).unwrap(), 0b1);
+            assert_eq!(parser.take(1).unwrap(), 0b1);
+            assert_eq!(parser.take(1).unwrap(), 0b0);
+            assert_eq!(parser.take(1).unwrap(), 0b0);
+            assert_eq!(parser.take(1).unwrap(), 0b1);
+            assert_eq!(parser.take(1).unwrap(), 0b1);
+            assert_eq!(parser.take(1).unwrap(), 0b1);
+            assert_eq!(parser.take(1).unwrap(), 0b1);
+            assert_eq!(parser.take(1).unwrap(), 0b0);
+            assert_eq!(parser.take(1).unwrap(), 0b0);
+            assert!(matches!(
+                parser.take(1),
+                Err(NotEnoughBits {
+                    requested: 1,
+                    available: 0
+                })
+            ));
+            assert_eq!(parser.bitstream, &[]);
+            assert_eq!(parser.position, 7);
         }
     }
 }
