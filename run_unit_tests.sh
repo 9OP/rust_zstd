@@ -3,7 +3,7 @@
 PASS=true
 for DIR in $(echo "$@" | xargs -n1 dirname | sort -u); do
     cargo test --workspace --lib -- --nocapture
-    if [ "$?" -eq 1 ]; then
+    if [ "$?" -ne 0 ]; then
         PASS=false
     fi
 done
