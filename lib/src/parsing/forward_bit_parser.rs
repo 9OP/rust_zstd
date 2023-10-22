@@ -55,6 +55,10 @@ impl<'a> ForwardBitParser<'a> {
 
     /// Get the given number of bits, or return an error.
     pub fn take(&mut self, len: usize) -> Result<u64> {
+        if len == 0 {
+            return Ok(0);
+        }
+
         // The result contains at most 64 bits (u64)
         if len > 64 {
             return Err(LargeBitsTake { requested: len });
@@ -188,9 +192,9 @@ mod tests {
 
         // take bits and keep first byte
         let mut parser = ForwardBitParser::new(bitstream).unwrap();
-        assert_eq!(parser.take(4).unwrap(), 0b1001);
+        assert_eq!(parser.take(5).unwrap(), 0b10010);
         assert_eq!(parser.bitstream, bitstream);
-        assert_eq!(parser.position, 6);
+        assert_eq!(parser.position, 7);
 
         // take bits an consume first byte
         let mut parser = ForwardBitParser::new(bitstream).unwrap();
@@ -238,5 +242,21 @@ mod tests {
         ));
         assert_eq!(parser.bitstream, &[]);
         assert_eq!(parser.position, 0);
+
+        // parse only header
+        let bitstream: &[u8; 1] = &[0b1000_0000];
+        let mut parser = ForwardBitParser::new(bitstream).unwrap();
+        assert!(matches!(
+            parser.take(1),
+            Err(NotEnoughBits {
+                requested: 1,
+                available: 0
+            })
+        ));
+
+        // take 0 on valid non empty bitestream
+        let bitstream: &[u8; 1] = &[0b1001_0000];
+        let mut parser = ForwardBitParser::new(bitstream).unwrap();
+        assert_eq!(parser.take(0).unwrap(), 0b0);
     }
 }

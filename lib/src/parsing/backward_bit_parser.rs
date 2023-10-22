@@ -55,6 +55,10 @@ impl<'a> BackwardBitParser<'a> {
 
     /// Get the given number of bits, or return an error.
     pub fn take(&mut self, len: usize) -> Result<u64> {
+        if len == 0 {
+            return Ok(0);
+        }
+
         // The result contains at most 64 bits (u64)
         if len > 64 {
             return Err(LargeBitsTake { requested: len });
@@ -115,7 +119,7 @@ impl<'a> BackwardBitParser<'a> {
 
         // Last byte has unread bits
         let include_last_byte = self.position != 7;
-        let split = split + if include_last_byte { 1 } else { 0 };
+        let split = if include_last_byte { split + 1 } else { split };
         let (new_bitstream, _) = self.bitstream.split_at(split);
         self.bitstream = new_bitstream;
 
@@ -232,5 +236,21 @@ mod tests {
         ));
         assert_eq!(parser.bitstream, &[]);
         assert_eq!(parser.position, 7);
+
+        // parse only header
+        let bitstream: &[u8; 1] = &[0b000_0001];
+        let mut parser = BackwardBitParser::new(bitstream).unwrap();
+        assert!(matches!(
+            parser.take(1),
+            Err(NotEnoughBits {
+                requested: 1,
+                available: 0
+            })
+        ));
+
+        // take 0 on valid non empty bitestream
+        let bitstream: &[u8; 1] = &[0b1001_0000];
+        let mut parser = BackwardBitParser::new(bitstream).unwrap();
+        assert_eq!(parser.take(0).unwrap(), 0b0);
     }
 }
