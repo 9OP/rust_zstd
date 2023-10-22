@@ -84,7 +84,6 @@ impl<'a> BackwardBitParser<'a> {
         for byte in slice {
             // read up to position+1 per byte, position is in [0,7]
             let bits_to_read = std::cmp::min(bits_remaining, self.position + 1);
-            let read_all_byte_bits = bits_to_read == (self.position + 1);
 
             // apply position offset in order to discard LHS bits
             let offset = 7 - self.position;
@@ -102,14 +101,9 @@ impl<'a> BackwardBitParser<'a> {
             // update remaining bits count to read
             bits_remaining -= bits_to_read;
 
-            // update position
-            if read_all_byte_bits {
-                // all byte's bits are read, reset position for next byte read
-                self.position = 7;
-            } else {
-                // there are still unread bits in current byte, move position
-                self.position -= bits_to_read;
-            }
+            // update position by removing bits read modulo u8
+            // (+8 is a trick to prevent int substrack overflow)
+            self.position = ((self.position + 8) - bits_to_read) % 8;
 
             // no more bits to read, exit
             if bits_remaining == 0 {

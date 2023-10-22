@@ -83,13 +83,12 @@ impl<'a> ForwardBitParser<'a> {
         for byte in slice {
             // read up to 8-position per byte, position is in [0,7]
             let bits_to_read = std::cmp::min(bits_remaining, 8 - self.position);
-            let read_all_byte_bits = bits_to_read == (8 - self.position);
 
             // apply position offset in order to discard RHS bits
             let offset = self.position;
             let bits = byte >> offset;
 
-            // reverse bits
+            // reverse bits order LSB<->MSB
             let bits = bits.reverse_bits();
 
             // read bits, shift in order to discard LHS bits
@@ -104,14 +103,8 @@ impl<'a> ForwardBitParser<'a> {
             // update remaining bits count to read
             bits_remaining -= bits_to_read;
 
-            // update position
-            if read_all_byte_bits {
-                // all byte's bits are read, reset position for next byte read
-                self.position = 0;
-            } else {
-                // there are still unread bits in current byte, move position
-                self.position += bits_to_read;
-            }
+            // update position by adding bits read modulo u8
+            self.position = (self.position + bits_to_read) % 8;
 
             // no more bits to read, exit
             if bits_remaining == 0 {
