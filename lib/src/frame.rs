@@ -13,9 +13,6 @@ pub enum Error {
 
     #[error("Unrecognized magic number: {0}")]
     UnrecognizedMagic(u32),
-
-    #[error("Invalid frame header")]
-    InvalidFrameHeader,
 }
 use Error::*;
 type Result<T, E = Error> = std::result::Result<T, E>;
@@ -30,16 +27,16 @@ const STANDARD_MAGIC_NUMBER: u32 = 0xFD2FB528;
 const SKIPPABLE_MAGIC_NUMBER: u32 = 0x184D2A5; // last 4bits: 0x0 to 0xF
 
 #[derive(Debug)]
-pub struct SkippableFrame<'a> {
-    magic: u32,
-    data: &'a [u8],
-}
-
-#[derive(Debug)]
 pub struct ZstandardFrame<'a> {
     frame_header: FrameHeader<'a>,
     blocks: Vec<block::Block<'a>>,
     checksum: Option<u32>,
+}
+
+#[derive(Debug)]
+pub struct SkippableFrame<'a> {
+    magic: u32,
+    data: &'a [u8],
 }
 
 #[derive(Debug)]
@@ -112,31 +109,27 @@ impl<'a> FrameHeader<'a> {
         // [Frame_Content_Size] 	    0-8 bytes
         let frame_header_descriptor = input.u8()?;
 
-        // https://www.rfc-editor.org/rfc/rfc8878#section-3.1.1.1.1
         let frame_content_size_flag = (frame_header_descriptor & 0b1100_0000) >> 6;
         let single_segment_flag = (frame_header_descriptor & 0b0010_0000) >> 5 == 1;
         let content_checksum_flag = (frame_header_descriptor & 0b0000_0100) >> 2 == 1;
         let dictionary_id_flag = frame_header_descriptor & 0b0000_0011;
 
-        // https://www.rfc-editor.org/rfc/rfc8878#section-3.1.1.1.1.2
         let window_descriptor: u8 = if single_segment_flag { 0 } else { input.u8()? };
 
-        // https://www.rfc-editor.org/rfc/rfc8878#section-3.1.1.1.1.6
         let dictionary_id = match dictionary_id_flag {
             0 => input.slice(0)?,
             1 => input.slice(1)?,
             2 => input.slice(2)?,
             3 => input.slice(4)?,
-            _ => return Err(InvalidFrameHeader),
+            _ => panic!("unexpected dictionary_id_flag {dictionary_id_flag}"),
         };
 
-        // https://www.rfc-editor.org/rfc/rfc8878#section-3.1.1.1.1.1
         let frame_content_size = match frame_content_size_flag {
             0 => input.slice(if single_segment_flag { 1 } else { 0 })?,
             1 => input.slice(2)?,
             2 => input.slice(4)?,
             3 => input.slice(8)?,
-            _ => return Err(InvalidFrameHeader),
+            _ => panic!("unexpected frame_content_size_flag {frame_content_size_flag}"),
         };
 
         Ok(FrameHeader {
@@ -176,107 +169,263 @@ impl<'a> Iterator for FrameIterator<'a> {
 mod tests {
     use super::*;
 
-    #[test]
-    fn test_parse_skippable_frame() {
-        let mut parser = parsing::ForwardByteParser::new(&[
-            // Skippable frame with magic 0x184d2a53, length 3, content 0x10 0x20 0x30
-            // and an extra byte at the end.
-            0x53, 0x2a, 0x4d, 0x18, 0x03, 0x00, 0x00, 0x00, 0x10, 0x20, 0x30, 0x40,
-        ]);
-        let Frame::SkippableFrame(skippable) = Frame::parse(&mut parser).unwrap() else {
-            panic!("unexpected frame type")
-        };
-        assert_eq!(0x184d2a53, skippable.magic);
-        assert_eq!(&[0x10, 0x20, 0x30], skippable.data);
-        assert_eq!(1, parser.len());
+    mod frame {
+        use super::*;
+
+        mod parse {
+            use super::*;
+
+            #[test]
+            fn test_parse_empty() {
+                let mut parser = parsing::ForwardByteParser::new(&[]);
+                assert!(matches!(
+                    Frame::parse(&mut parser),
+                    Err(ParsingError(parsing::Error::NotEnoughBytes {
+                        requested: 4,
+                        available: 0
+                    }))
+                ))
+            }
+
+            #[test]
+            fn test_parse_skippable_frame() {
+                let mut parser = parsing::ForwardByteParser::new(&[
+                    // Skippable frame:
+                    0x53, 0x2a, 0x4d, 0x18, // magic:   0x184d2a53
+                    0x03, 0x00, 0x00, 0x00, // length:  3
+                    0x10, 0x20, 0x30, // content: 0x10 0x20 0x30
+                    0x40, // + extra byte
+                ]);
+                let Frame::SkippableFrame(skippable) = Frame::parse(&mut parser).unwrap() else {
+                    panic!("unexpected frame type")
+                };
+                assert_eq!(skippable.magic, 0x184d2a53);
+                assert_eq!(skippable.data, &[0x10, 0x20, 0x30]);
+                assert_eq!(parser.len(), 1);
+            }
+
+            #[test]
+            fn test_parse_truncated_skippable_frame() {
+                let mut parser = parsing::ForwardByteParser::new(&[
+                    // Skippable frame:
+                    0x50, 0x2a, 0x4d, 0x18, // magic:   0x184d2a50
+                    0x03, 0x00, 0x00, 0x00, // length:  3
+                    0x10, 0x20, // content: 0x10 0x20
+                ]);
+                assert!(matches!(
+                    Frame::parse(&mut parser),
+                    Err(ParsingError(parsing::Error::NotEnoughBytes {
+                        requested: 3,
+                        available: 2
+                    }))
+                ));
+            }
+
+            #[test]
+            fn test_parse_magic_only_skippable_frame() {
+                let mut parser = parsing::ForwardByteParser::new(&[
+                    // Skippable frame:
+                    0x50, 0x2a, 0x4d, 0x18, // magic:   0x184d2a50
+                ]);
+                assert!(matches!(
+                    Frame::parse(&mut parser),
+                    Err(ParsingError(parsing::Error::NotEnoughBytes {
+                        requested: 4,
+                        available: 0
+                    }))
+                ));
+            }
+
+            #[test]
+            fn test_parse_unknown_magic_number() {
+                let mut parser = parsing::ForwardByteParser::new(&[
+                    // Unknown frame: (similar to STANDARD_MAGIC_NUMBER with only last 4bits changing)
+                    0x20, 0xB5, 0x2F, 0xFD, // magic:   0xFD2FB520
+                ]);
+                assert!(matches!(
+                    Frame::parse(&mut parser),
+                    Err(UnrecognizedMagic(0xFD2FB520))
+                ));
+            }
+
+            #[test]
+            fn test_parse_standard_frame() {
+                let mut parser = parsing::ForwardByteParser::new(&[
+                    // Standard frame:
+                    0x28, 0xB5, 0x2F, 0xFD, // magic:   0xFD2FB528
+                    0x4, 0x0, // header + checksum flag
+                    0x1, 0x0, 0x0, // block
+                    0x12, 0x34, 0x56, 0x78, // checksum
+                ]);
+                let Frame::ZstandardFrame(standard) = Frame::parse(&mut parser).unwrap() else {
+                    panic!("unexpected frame type")
+                };
+                assert_eq!(standard.checksum, Some(0x78563412));
+            }
+        }
+
+        mod decode {
+            use super::*;
+
+            #[test]
+            fn test_decode_skippable() {
+                let frame = Frame::SkippableFrame(SkippableFrame {
+                    magic: 0,
+                    data: &[],
+                });
+                assert_eq!(frame.decode(), Vec::new());
+            }
+
+            #[test]
+            fn test_decode_standard() {
+                let frame = Frame::ZstandardFrame(ZstandardFrame {
+                    frame_header: FrameHeader {
+                        frame_header_descriptor: 0,
+                        window_descriptor: 0,
+                        dictionary_id: &[],
+                        frame_content_size: &[],
+                        content_checksum_flag: false,
+                    },
+                    blocks: vec![
+                        block::Block::RLE {
+                            byte: 0xAA,
+                            repeat: 2,
+                        },
+                        block::Block::Raw(&[0xCA, 0xFE]),
+                        block::Block::RLE {
+                            byte: 0xBA,
+                            repeat: 1,
+                        },
+                        block::Block::Raw(&[0xBE]),
+                    ],
+                    checksum: None,
+                });
+                assert_eq!(frame.decode(), vec![0xAA, 0xAA, 0xCA, 0xFE, 0xBA, 0xBE]);
+            }
+        }
     }
 
-    #[test]
-    fn test_parse_truncated_skippable_frame() {
-        let mut parser = parsing::ForwardByteParser::new(&[
-            0x50, 0x2a, 0x4d, 0x18, 0x03, 0x00, 0x00, 0x00, 0x10, 0x20,
-        ]);
-        assert!(matches!(
-            Frame::parse(&mut parser),
-            Err(ParsingError(parsing::Error::NotEnoughBytes {
-                requested: 3,
-                available: 2
-            }))
-        ));
+    mod frame_header {
+        use super::*;
+
+        #[rustfmt::skip]
+        mod parse {
+            use super::*;
+
+            #[test]
+            fn test_decode_null_frame_header() {
+                let mut parser = parsing::ForwardByteParser::new(&[0x0, 0xFF]);
+                let frame_header = FrameHeader::parse(&mut parser).unwrap();
+                assert_eq!(frame_header.frame_header_descriptor, 0x0);
+                assert_eq!(frame_header.content_checksum_flag, false);
+                assert_eq!(frame_header.window_descriptor, 0xFF);
+                assert_eq!(frame_header.dictionary_id, &[]);
+            }
+
+            #[test]
+            fn test_empty_frame_header() {
+                let mut parser = parsing::ForwardByteParser::new(&[]);
+                assert!(matches!(
+                    FrameHeader::parse(&mut parser),
+                    Err(ParsingError(parsing::Error::NotEnoughBytes {
+                        requested: 1,
+                        available: 0
+                    }))
+                ))
+            }
+
+            #[test]
+            fn test_parse_frame_header() {
+                let mut parser = parsing::ForwardByteParser::new(&[
+                    0b1010_0110,            // FCS 4bytes, no window descriptor, 2byte dict id, checksum
+                    0xDE, 0xAD,             // dict id
+                    0x10, 0x20, 0x30, 0x40, // FCS
+                    0x42,                   // +extra byte
+                ]);
+                let frame_header = FrameHeader::parse(&mut parser).unwrap();
+                assert_eq!(frame_header.frame_header_descriptor, 0b1010_0110);
+                assert_eq!(frame_header.content_checksum_flag, true);
+                assert_eq!(frame_header.window_descriptor, 0);
+                assert_eq!(frame_header.dictionary_id, &[0xDE, 0xAD]);
+                assert_eq!(frame_header.frame_content_size, &[0x10, 0x20, 0x30, 0x40]);
+                assert_eq!(parser.len(), 1);
+            }
+
+            #[test]
+            fn test_parse_single_segment_flag_true() {
+                let mut parser = parsing::ForwardByteParser::new(
+                    &[
+                        0b0010_0000, // SSF true
+                        0xAD,        // FCS (SSF)
+                        0x01,        // +extra byte
+                    ],
+                );
+                let frame_header = FrameHeader::parse(&mut parser).unwrap();
+                assert_eq!(frame_header.frame_header_descriptor, 0b0010_0000);
+                assert_eq!(frame_header.content_checksum_flag, false);
+                assert_eq!(frame_header.window_descriptor, 0);
+                assert_eq!(frame_header.dictionary_id.len(), 0);
+                assert_eq!(frame_header.frame_content_size, &[0xAD]);
+                assert_eq!(parser.len(), 1);
+            }
+
+            #[test]
+            fn test_parse_single_segment_flag_false() {
+                let mut parser = parsing::ForwardByteParser::new(
+                    &[
+                        0b0000_0000, // SSF false
+                        0xAD,        // window descriptor (SSF)
+                        0x01,        // +extra byte
+                    ],
+                );
+                let frame_header = FrameHeader::parse(&mut parser).unwrap();
+                assert_eq!(frame_header.frame_header_descriptor, 0x0);
+                assert_eq!(frame_header.content_checksum_flag, false);
+                assert_eq!(frame_header.window_descriptor, 0xAD);
+                assert_eq!(frame_header.dictionary_id.len(), 0);
+                assert_eq!(frame_header.frame_content_size.len(), 0);
+                assert_eq!(parser.len(), 1);
+            }
+        }
     }
 
-    #[test]
-    fn test_error_on_unknown_frame() {
-        let mut parser = parsing::ForwardByteParser::new(&[0x10, 0x20, 0x30, 0x40]);
-        assert!(matches!(
-            Frame::parse(&mut parser),
-            Err(UnrecognizedMagic(0x40302010))
-        ));
-    }
+    mod frame_iterator {
+        use core::panic;
 
-    // #[test]
-    // fn test_decode_frame() {
-    //     todo!()
-    // }
+        use super::*;
 
-    // #[test]
-    // fn test_iterate_frame_iterator() {
-    //     todo!()
-    // }
+        #[test]
+        fn test_iterator_empty() {
+            let mut iterator = FrameIterator::new(&[]);
+            assert!(iterator.next().is_none());
+        }
 
-    #[test]
-    fn test_no_frame_header() {
-        let mut parser = parsing::ForwardByteParser::new(&[]);
-        assert!(matches!(
-            FrameHeader::parse(&mut parser),
-            Err(ParsingError(parsing::Error::NotEnoughBytes {
-                requested: 1,
-                available: 0
-            }))
-        ))
-    }
+        #[test]
+        fn test_iterator() {
+            let mut iterator = FrameIterator::new(&[
+                // Skippable frame:
+                0x53, 0x2a, 0x4d, 0x18, // magic:   0x184d2a53
+                0x03, 0x00, 0x00, 0x00, // length:  3
+                0x10, 0x20, 0x30, // content: 0x10 0x20 0x30
+                // Standard frame:
+                0x28, 0xB5, 0x2F, 0xFD, // magic:   0xFD2FB528
+                0x4, 0x0, // header + checksum flag
+                0x1, 0x0, 0x0, // block
+                0x12, 0x34, 0x56, 0x78, // checksum
+            ]);
 
-    #[test]
-    fn test_parse_frame_header() {
-        let mut parser = parsing::ForwardByteParser::new(
-            // 4bytes FCS, no window descriptor, 2bytes dictionary id, checksum flag
-            &[0xA6, 0xDE, 0xAD, 0x10, 0x20, 0x30, 0x40, 0x42],
-        );
-        let frame_header = FrameHeader::parse(&mut parser).unwrap();
-        assert_eq!(frame_header.frame_header_descriptor, 0xA6);
-        assert_eq!(frame_header.content_checksum_flag, true);
-        assert_eq!(frame_header.window_descriptor, 0);
-        assert_eq!(frame_header.dictionary_id, &[0xDE, 0xAD]);
-        assert_eq!(frame_header.frame_content_size, &[0x10, 0x20, 0x30, 0x40]);
-        assert_eq!(parser.len(), 1);
-    }
+            let Frame::SkippableFrame(frame) = iterator.next().unwrap().unwrap() else {
+                panic!("unexpected frame type")
+            };
+            assert_eq!(frame.magic, 0x184d2a53);
+            assert_eq!(frame.data, &[0x10, 0x20, 0x30]);
 
-    #[test]
-    fn test_parse_single_segment_flag() {
-        // SSF True
-        let mut parser = parsing::ForwardByteParser::new(
-            // 0bytes FCS, no window descriptor, no dictionary id, no checksum
-            &[0x20, 0xAD, 0x01],
-        );
-        let frame_header = FrameHeader::parse(&mut parser).unwrap();
-        assert_eq!(frame_header.frame_header_descriptor, 0x20);
-        assert_eq!(frame_header.content_checksum_flag, false);
-        assert_eq!(frame_header.window_descriptor, 0);
-        assert_eq!(frame_header.dictionary_id.len(), 0);
-        assert_eq!(frame_header.frame_content_size, &[0xAD]);
-        assert_eq!(parser.len(), 1);
+            let Frame::ZstandardFrame(frame) = iterator.next().unwrap().unwrap() else {
+                panic!("unexpected frame type")
+            };
+            assert_eq!(frame.checksum, Some(0x78563412));
 
-        // SSF False
-        let mut parser = parsing::ForwardByteParser::new(
-            // 0bytes FCS, window descriptor, no dictionary id, no checksum
-            &[0x0, 0xAD, 0x01],
-        );
-        let frame_header = FrameHeader::parse(&mut parser).unwrap();
-        assert_eq!(frame_header.frame_header_descriptor, 0x0);
-        assert_eq!(frame_header.content_checksum_flag, false);
-        assert_eq!(frame_header.window_descriptor, 0xAD);
-        assert_eq!(frame_header.dictionary_id.len(), 0);
-        assert_eq!(frame_header.frame_content_size.len(), 0);
-        assert_eq!(parser.len(), 1);
+            assert!(iterator.next().is_none());
+        }
     }
 }

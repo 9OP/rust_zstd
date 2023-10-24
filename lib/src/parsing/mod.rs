@@ -1,8 +1,8 @@
-pub mod backward_bit_parser;
+mod backward_bit_parser;
 // mod bit_parser;
-pub mod error;
-pub mod forward_bit_parser;
-pub mod forward_byte_parser;
+mod error;
+mod forward_bit_parser;
+mod forward_byte_parser;
 
 pub use backward_bit_parser::BackwardBitParser;
 pub use error::{Error, Result};

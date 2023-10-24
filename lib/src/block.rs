@@ -57,7 +57,7 @@ impl<'a> Block<'a> {
 
             RESERVED_BLOCK_FLAG => Err(ReservedBlockType),
 
-            _ => Err(ReservedBlockType),
+            _ => panic!("unexpected block_type {block_type}"),
         }
     }
 
