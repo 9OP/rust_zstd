@@ -73,94 +73,114 @@ impl<'a> Block<'a> {
 mod tests {
     use super::*;
 
-    #[test]
-    fn test_decode_raw_block_last() {
-        let mut parser = parsing::ForwardByteParser::new(&[
-            // Raw block, last block, len 4, content 0x10, 0x20, 0x30, 0x40,
-            // and an extra 0x50 at the end.
-            0x21, 0x0, 0x0, 0x10, 0x20, 0x30, 0x40, 0x50,
-        ]);
-        let (block, last) = Block::parse(&mut parser).unwrap();
-        assert!(last);
-        assert!(matches!(block, Block::Raw(&[0x10, 0x20, 0x30, 0x40])));
-        assert_eq!(1, parser.len());
-        let decoded = block.decode();
-        assert_eq!(vec![0x10, 0x20, 0x30, 0x40], decoded);
+    #[rustfmt::skip]
+    mod parse {
+        use super::*;
+
+        #[test]
+        fn test_parse_raw_block_last() {
+            let mut parser = parsing::ForwardByteParser::new(&[
+                0b0010_0001, 0x0, 0x0, // raw, last, len 4
+                0x10, 0x20, 0x30, 0x40, // content
+                0x50, // +extra byte
+            ]);
+            let (block, last) = Block::parse(&mut parser).unwrap();
+            assert!(last);
+            assert!(matches!(block, Block::Raw(&[0x10, 0x20, 0x30, 0x40])));
+            assert_eq!(parser.len(), 1);
+        }
+
+        #[test]
+        fn test_parse_rle_block_not_last() {
+            let mut parser = parsing::ForwardByteParser::new(&[
+                0x22, 0x0, 0x18, // rle, not last, repeat  0x30004
+                0x42, // content
+                0x50, // +extra byte
+            ]);
+            let (block, last) = Block::parse(&mut parser).unwrap();
+            assert!(!last);
+            assert!(matches!(
+                block,
+                Block::RLE {
+                    byte: 0x42,
+                    repeat: 196612
+                }
+            ));
+            assert_eq!(parser.len(), 1);
+        }
+
+        #[test]
+        fn test_parse_reserved() {
+            let mut parser = parsing::ForwardByteParser::new(&[
+                0b0000_0110, 0x0, 0x0, // reserved
+            ]);
+            assert!(matches!(Block::parse(&mut parser), Err(ReservedBlockType)));
+        }
+
+        #[test]
+        fn test_parse_not_enough_byte() {
+            let mut parser = parsing::ForwardByteParser::new(&[0x0, 0x0]);
+            assert!(matches!(
+                Block::parse(&mut parser),
+                Err(ParsingError(parsing::Error::NotEnoughBytes {
+                    requested: 3,
+                    available: 2
+                }))
+            ));
+            assert_eq!(parser.len(), 2);
+        }
+
+        #[test]
+        fn test_parse_rle_not_enough_byte() {
+            let mut parser = parsing::ForwardByteParser::new(&[
+                0b0000_0010, 0x0, 0x0, // RLE not last
+            ]);
+            assert!(matches!(
+                Block::parse(&mut parser),
+                Err(ParsingError(parsing::Error::NotEnoughBytes {
+                    requested: 1,
+                    available: 0
+                }))
+            ));
+            assert_eq!(parser.len(), 0);
+        }
+
+        #[test]
+        fn test_parse_raw_block_not_enough_size() {
+            let mut parser = parsing::ForwardByteParser::new(&[
+                // Raw block, not last, len 8, content len 3
+                0b0010_0000, 0x0, 0x0, // raw, not last, len 4
+                0x10, 0x20, 0x30, // content
+            ]);
+            assert!(matches!(
+                Block::parse(&mut parser),
+                Err(ParsingError(parsing::Error::NotEnoughBytes {
+                    requested: 4,
+                    available: 3
+                }))
+            ));
+            assert_eq!(parser.len(), 3);
+        }
     }
 
-    #[test]
-    fn test_decode_rle_block_not_last() {
-        let mut parser = parsing::ForwardByteParser::new(&[
-            // RLE block, not last, byte 0x42 and repeat 0x30004,
-            // and an extra 0x50 at the end.
-            0x22, 0x0, 0x18, 0x42, 0x50,
-        ]);
-        let (block, last) = Block::parse(&mut parser).unwrap();
-        assert!(!last);
-        assert!(matches!(
-            block,
-            Block::RLE {
+    mod decode {
+        use super::*;
+
+        #[test]
+        fn test_decode_raw() {
+            let block = Block::Raw(&[0x10, 0x20, 0x30, 0x40]);
+            assert_eq!(block.decode(), vec![0x10, 0x20, 0x30, 0x40]);
+        }
+
+        #[test]
+        fn test_decode_rle() {
+            let block = Block::RLE {
                 byte: 0x42,
-                repeat: 196612
-            }
-        ));
-        assert_eq!(1, parser.len());
-        let decoded = block.decode();
-        assert_eq!(196612, decoded.len());
-        assert!(decoded.into_iter().all(|b| b == 0x42));
-    }
-
-    #[test]
-    fn test_parse_reserved() {
-        let mut parser = parsing::ForwardByteParser::new(&[
-            // Reserved block
-            0x06, 0x0, 0x0,
-        ]);
-        assert!(matches!(Block::parse(&mut parser), Err(ReservedBlockType)));
-    }
-
-    #[test]
-    fn test_parse_raw_block_not_enough_size() {
-        let mut parser = parsing::ForwardByteParser::new(&[
-            // Raw block, not last, len 8, content len 3
-            0x40, 0x0, 0x0, 0x10, 0x20, 0x30,
-        ]);
-        assert!(matches!(
-            Block::parse(&mut parser),
-            Err(ParsingError(parsing::Error::NotEnoughBytes {
-                requested: 8,
-                available: 3
-            }))
-        ));
-        assert_eq!(parser.len(), 3);
-    }
-
-    #[test]
-    fn test_parse_rle_not_enough_byte() {
-        let mut parser = parsing::ForwardByteParser::new(&[
-            // RLE block, not last,
-            0x02, 0x0, 0x0,
-        ]);
-        assert!(matches!(
-            Block::parse(&mut parser),
-            Err(ParsingError(parsing::Error::NotEnoughBytes {
-                requested: 1,
-                available: 0
-            }))
-        ));
-        assert_eq!(parser.len(), 0);
-    }
-
-    #[test]
-    fn test_parse_header_not_enough_byte() {
-        let mut parser = parsing::ForwardByteParser::new(&[0x0, 0x0]);
-        assert!(matches!(
-            Block::parse(&mut parser),
-            Err(ParsingError(parsing::Error::NotEnoughBytes {
-                requested: 3,
-                available: 2
-            }))
-        ));
-        assert_eq!(parser.len(), 2);
+                repeat: 196612,
+            };
+            let decoded = block.decode();
+            assert_eq!(196612, decoded.len());
+            assert!(decoded.into_iter().all(|b| b == 0x42));
+        }
     }
 }
