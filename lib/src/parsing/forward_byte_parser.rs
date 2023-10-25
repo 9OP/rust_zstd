@@ -3,11 +3,22 @@ use super::error::{Error::*, Result};
 pub struct ForwardByteParser<'a>(&'a [u8]);
 
 impl<'a> ForwardByteParser<'a> {
+    /// Create a new ForwardByteParse instance from a byte slice
     pub fn new(data: &'a [u8]) -> Self {
         Self(data)
     }
 
-    /// Consume and return u8
+    /// Consume and return u8 from the byte slice
+    /// or `NotEnoughByte` error when the byte slice is empty.
+    /// # Example
+    /// ```
+    /// # use zstd_lib::parsing::{ForwardByteParser, Error};
+    /// let mut parser = ForwardByteParser::new(&[0x01, 0x02, 0x03]);
+    /// assert_eq!(parser.u8()?, 0x01);
+    /// assert_eq!(parser.u8()?, 0x02);
+    /// assert_eq!(parser.u8()?, 0x03);
+    /// # Ok::<(), Error>(())
+    /// ```
     pub fn u8(&mut self) -> Result<u8> {
         let (first, rest) = self.0.split_first().ok_or(NotEnoughBytes {
             requested: 1,
@@ -18,16 +29,32 @@ impl<'a> ForwardByteParser<'a> {
     }
 
     /// Return the number of bytes still unparsed
+    /// # Example
+    /// ```
+    /// # use zstd_lib::parsing::{ForwardByteParser, Error};
+    /// let mut parser = ForwardByteParser::new(&[0x01, 0x02, 0x03]);
+    /// assert_eq!(parser.len(), 3);
+    /// parser.u8();
+    /// assert_eq!(parser.len(), 2);
+    /// ```
     pub fn len(&self) -> usize {
         self.0.len()
     }
 
-    /// Check if the input is exhausted
+    /// Return `true` if the byte slice is exhausted
+    /// # Example
+    /// ```
+    /// # use zstd_lib::parsing::{ForwardByteParser, Error};
+    /// let mut parser = ForwardByteParser::new(&[0x01]);
+    /// assert_eq!(parser.is_empty(), false);
+    /// parser.u8();
+    /// assert_eq!(parser.is_empty(), true);
+    /// ```
     pub fn is_empty(&self) -> bool {
         self.len() == 0
     }
 
-    /// Extract `len` bytes as a slice
+    /// Return `len` bytes as a sub slice
     pub fn slice(&mut self, len: usize) -> Result<&'a [u8]> {
         match len <= self.len() {
             false => Err(NotEnoughBytes {
