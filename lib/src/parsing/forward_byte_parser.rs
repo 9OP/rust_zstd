@@ -54,7 +54,20 @@ impl<'a> ForwardByteParser<'a> {
         self.len() == 0
     }
 
-    /// Return `len` bytes as a sub slice
+    /// Return `len` bytes as a sub slice or NotEnoughByte when len > parser.len()
+    /// # Example
+    /// ```
+    /// # use zstd_lib::parsing::{ForwardByteParser, Error::{self, *}};
+    /// let mut parser = ForwardByteParser::new(&[0x01, 0x02, 0x03, 0x04]);
+    /// assert_eq!(parser.slice(2)?, &[0x01, 0x02]);
+    /// assert!(matches!(
+    ///     parser.slice(3),
+    ///     Err(NotEnoughBytes {
+    ///         requested: 3,
+    ///         available: 2,
+    /// })));
+    /// # Ok::<(), Error>(())
+    /// ```
     pub fn slice(&mut self, len: usize) -> Result<&'a [u8]> {
         match len <= self.len() {
             false => Err(NotEnoughBytes {
