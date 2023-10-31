@@ -16,26 +16,22 @@ pub fn parse_fse_table(parser: &mut ForwardBitParser) -> Result<(u8, Vec<i16>)> 
     let mut distribution: Vec<i16> = Vec::new();
     let r = 0b0000_0001 << al; // 2^al=R range
 
-    dbg!(&distribution, &r, &al);
-
     let mut sum = 0; // sum of symbols
     while sum < r {
         let m = r - sum; // max value of symbol
         let b = num_bits_needed(m + 1) as usize; // number of bits to encode [0,m+1] values
 
         let mut value = parser.take(b - 1)?;
-
+        dbg!(&value, &b);
         if ((value << 1) + 1) <= m as u64 {
             value = (value << 1) + parser.take(1)?;
         }
-
-        dbg!(&distribution, &m, &b, &value, &sum);
-        println!("======");
 
         let coefficient = value - 1;
         if (sum as u64 + coefficient) > r as u64 {
             return Err(ComputeFseCoefficient);
         }
+
         sum += coefficient as u32;
         distribution.push(coefficient as i16);
 

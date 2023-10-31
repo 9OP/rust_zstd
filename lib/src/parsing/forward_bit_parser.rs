@@ -72,11 +72,8 @@ impl<'a> ForwardBitParser<'a> {
             // apply position offset in order to discard RHS bits
             let bits = bits >> (8 - bits_to_read);
 
-            // shift result to make space for new bits
-            result <<= bits_to_read;
-
             // merge read bits into result;
-            result |= bits as u64;
+            result |= (bits as u64) << (len - bits_remaining);
 
             // update remaining bits count to read
             bits_remaining -= bits_to_read;
@@ -169,18 +166,18 @@ mod tests {
 
         #[test]
         fn test_take_consumme_first_byte() {
-            let bitstream: &[u8; 2] = &[0b1010_0110, 0b0111_0100];
+            let bitstream: &[u8; 2] = &[0b1010_0110, 0b0111_0111];
             let mut parser = ForwardBitParser::new(bitstream);
-            assert_eq!(parser.take(8).unwrap(), 0b1010_0110);
+            assert_eq!(parser.take(10).unwrap(), 0b11_1010_0110);
             assert_eq!(parser.bitstream, &[bitstream[1]]);
-            assert_eq!(parser.position, 0);
+            assert_eq!(parser.position, 2);
         }
 
         #[test]
         fn test_take_all_bits() {
             let bitstream: &[u8; 2] = &[0b1010_0110, 0b0111_0100];
             let mut parser = ForwardBitParser::new(bitstream);
-            assert_eq!(parser.take(16).unwrap(), 0b1010_0110_0111_0100);
+            assert_eq!(parser.take(16).unwrap(), 0b0111_0100_1010_0110);
             assert_eq!(parser.bitstream, &[]);
             assert_eq!(parser.position, 0);
             assert_eq!(parser.take(0).unwrap(), 0);
