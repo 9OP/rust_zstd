@@ -5,3 +5,6 @@ edition = "2021"
 
 [dependencies]
 thiserror = "1.0.49"
+
+[dev-dependencies]
+proptest = "1.3.1"

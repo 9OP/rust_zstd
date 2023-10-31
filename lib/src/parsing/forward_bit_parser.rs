@@ -61,7 +61,10 @@ impl<'a> ForwardBitParser<'a> {
 
         // The result contains at most 64 bits (u64)
         if len > 64 {
-            return Err(LargeBitsTake { requested: len });
+            return Err(LengthOverflow {
+                length: len,
+                range: 64,
+            });
         }
 
         if len > self.available_bits() {
@@ -170,7 +173,10 @@ mod tests {
         let mut parser = ForwardBitParser::new(bitstream).unwrap();
         assert!(matches!(
             parser.take(65),
-            Err(LargeBitsTake { requested: 65 })
+            Err(LengthOverflow {
+                length: 65,
+                range: 64
+            })
         ));
 
         // not enough bits error, by 1 bit

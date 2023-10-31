@@ -9,7 +9,7 @@ pub enum Error {
     #[error("Bitstream header does not contain any '1'")]
     MalformedBitstream,
 
-    #[error("Cannot take {requested} bits at once")]
-    LargeBitsTake { requested: usize },
+    #[error("Length overflow: {length} overflow expected range {range}")]
+    LengthOverflow { length: usize, range: usize },
 }
 pub type Result<T, E = Error> = std::result::Result<T, E>;

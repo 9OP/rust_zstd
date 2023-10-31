@@ -82,7 +82,14 @@ impl<'a> ForwardByteParser<'a> {
         }
     }
 
-    /// Consume and return a u32 in little-endian format
+    /// Consume and return a u32 in little-endian format or NotEnoughByte error.
+    /// # Example
+    /// ```
+    /// # use zstd_lib::parsing::{ForwardByteParser, Error::{self, *}};
+    /// let mut parser = ForwardByteParser::new(&[0x01, 0x02, 0x03, 0x04, 0x05]);
+    /// assert_eq!(parser.le_u32()?, 0x4321);
+    /// # Ok::<(), Error>(())
+    /// ```
     pub fn le_u32(&mut self) -> Result<u32> {
         // Consume 4bytes or Err. Do not consume partially !
         let byte_array = self.slice(4)?;
