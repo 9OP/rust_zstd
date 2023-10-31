@@ -1,5 +1,4 @@
 mod backward_bit_parser;
-// mod bit_parser;
 mod error;
 mod forward_bit_parser;
 mod forward_byte_parser;

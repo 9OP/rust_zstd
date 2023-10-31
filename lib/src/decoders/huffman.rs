@@ -1,19 +1,6 @@
-use crate::parsing;
+use super::error::{Error::*, Result};
+use crate::parsing::BackwardBitParser;
 use std::fmt;
-
-#[derive(Debug, thiserror::Error)]
-pub enum Error {
-    #[error("Block parsing error: {0}")]
-    ParsingError(#[from] parsing::Error),
-
-    #[error("Cannot compute missing huffman weight")]
-    ComputeMissingWeight,
-
-    #[error("Missing symbol for huffman code")]
-    MissingSymbol,
-}
-use Error::*;
-type Result<T, E = Error> = std::result::Result<T, E>;
 
 pub enum HuffmanDecoder {
     Absent,
@@ -61,7 +48,7 @@ impl<'a> HuffmanDecoder {
             }
         }
 
-        Err(Error::ComputeMissingWeight)
+        Err(ComputeMissingWeight)
     }
 
     pub fn from_weights(weights: Vec<u8>) -> Result<Self> {
@@ -109,14 +96,14 @@ impl<'a> HuffmanDecoder {
         }
     }
 
-    pub fn decode(&self, parser: &mut parsing::BackwardBitParser) -> Result<u8> {
+    pub fn decode(&self, parser: &mut BackwardBitParser) -> Result<u8> {
         match self {
             Absent => Err(MissingSymbol),
             Symbol(s) => Ok(*s),
             Tree(lhs, rhs) => match parser.take(1)? {
                 0 => lhs.decode(parser),
                 1 => rhs.decode(parser),
-                _ => panic!("this is not the bit you are looking for trooper"),
+                _ => panic!("unexpected bit value"),
             },
         }
     }
@@ -244,7 +231,7 @@ mod tests {
         // 0 repeated 65 times, 1, 2
         let weights: Vec<_> = std::iter::repeat(0).take(65).chain([1, 2]).collect();
         let decoder = HuffmanDecoder::from_weights(weights).unwrap();
-        let mut parser = parsing::BackwardBitParser::new(&[0x97, 0x01]).unwrap();
+        let mut parser = BackwardBitParser::new(&[0x97, 0x01]).unwrap();
         let mut result = String::new();
         while !parser.is_empty() {
             let decoded = decoder.decode(&mut parser).unwrap();

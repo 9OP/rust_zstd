@@ -1,7 +1,7 @@
 #![allow(dead_code)]
 
-use super::block;
-use super::parsing;
+use crate::block;
+use crate::parsing;
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
