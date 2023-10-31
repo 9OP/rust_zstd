@@ -64,16 +64,13 @@ impl<'a> ForwardBitParser<'a> {
         for byte in slice {
             // read up to 8-position per byte, position is in [0,7]
             let bits_to_read = std::cmp::min(bits_remaining, 8 - self.position);
-
-            // apply position offset in order to discard RHS bits
             let offset = self.position;
-            let bits = byte >> offset;
-
-            // reverse bits order LSB<->MSB
-            let bits = bits.reverse_bits();
 
             // read bits, shift in order to discard LHS bits
-            let bits = bits << (8 - bits_to_read);
+            let bits = byte << (8 - bits_to_read - offset);
+
+            // apply position offset in order to discard RHS bits
+            let bits = bits >> (8 - bits_to_read);
 
             // shift result to make space for new bits
             result <<= bits_to_read;
@@ -108,52 +105,28 @@ impl<'a> ForwardBitParser<'a> {
 mod tests {
     use super::*;
 
-    mod new {
-        use super::*;
-
-        #[test]
-        fn test_new_keep_bytes() {
-            let bitstream: &[u8; 2] = &[0b0000_0110, 0b0111_0100];
-            let parser = ForwardBitParser::new(bitstream);
-            assert_eq!(parser.bitstream, bitstream);
-            assert_eq!(parser.position, 2);
-        }
-
-        #[test]
-        fn test_new_skip_byte() {
-            // skip first byte, move position to 0
-            let bitstream: &[u8; 2] = &[0b1000_0000, 0b0111_0100];
-            let parser = ForwardBitParser::new(bitstream);
-            assert_eq!(parser.bitstream, &[bitstream[1]]);
-            assert_eq!(parser.position, 0);
-        }
-
-        #[test]
-        fn test_new_skip_stream() {
-            // ok on skipped bitstream
-            let bitstream: &[u8; 1] = &[0b1000_0000];
-            let parser = ForwardBitParser::new(bitstream);
-            assert_eq!(parser.bitstream, &[]);
-            assert_eq!(parser.position, 0);
-        }
+    #[test]
+    fn test_new() {
+        let bitstream: &[u8; 2] = &[0b0000_0110, 0b0111_0100];
+        let parser = ForwardBitParser::new(bitstream);
+        assert_eq!(parser.bitstream, bitstream);
+        assert_eq!(parser.position, 0);
     }
 
     #[test]
     fn test_len() {
         let bitstream: &[u8; 2] = &[0b1000_0000, 0b0111_0100];
         let parser = ForwardBitParser::new(bitstream);
-        assert_eq!(parser.len(), 1);
+        assert_eq!(parser.len(), 2);
     }
 
     #[test]
     fn test_available_bits() {
         let bitstream: &[u8; 2] = &[0b1010_0110, 0b0111_0100];
-        let parser = ForwardBitParser::new(bitstream);
-        assert_eq!(parser.available_bits(), 14);
-
-        let parser = ForwardBitParser::new(&[0b1000_0000]);
-        assert_eq!(parser.is_empty(), true);
-        assert_eq!(parser.available_bits(), 0);
+        let mut parser = ForwardBitParser::new(bitstream);
+        assert_eq!(parser.available_bits(), 16);
+        let _ = parser.take(5);
+        assert_eq!(parser.available_bits(), 16 - 5);
     }
 
     mod take {
@@ -177,10 +150,10 @@ mod tests {
             let bitstream: &[u8; 2] = &[0b1010_0110, 0b0111_0100];
             let mut parser = ForwardBitParser::new(bitstream);
             assert!(matches!(
-                parser.take(14 + 1),
+                parser.take(16 + 1),
                 Err(NotEnoughBits {
-                    requested: 15,
-                    available: 14
+                    requested: 17,
+                    available: 16
                 })
             ));
         }
@@ -189,16 +162,16 @@ mod tests {
         fn test_take_keep_first_byte() {
             let bitstream: &[u8; 2] = &[0b1010_0110, 0b0111_0100];
             let mut parser = ForwardBitParser::new(bitstream);
-            assert_eq!(parser.take(5).unwrap(), 0b10010);
+            assert_eq!(parser.take(5).unwrap(), 0b00110);
             assert_eq!(parser.bitstream, bitstream);
-            assert_eq!(parser.position, 7);
+            assert_eq!(parser.position, 5);
         }
 
         #[test]
         fn test_take_consumme_first_byte() {
             let bitstream: &[u8; 2] = &[0b1010_0110, 0b0111_0100];
             let mut parser = ForwardBitParser::new(bitstream);
-            assert_eq!(parser.take(6).unwrap(), 0b100101);
+            assert_eq!(parser.take(8).unwrap(), 0b1010_0110);
             assert_eq!(parser.bitstream, &[bitstream[1]]);
             assert_eq!(parser.position, 0);
         }
@@ -207,7 +180,7 @@ mod tests {
         fn test_take_all_bits() {
             let bitstream: &[u8; 2] = &[0b1010_0110, 0b0111_0100];
             let mut parser = ForwardBitParser::new(bitstream);
-            assert_eq!(parser.take(14).unwrap(), 0b1001_0100_1011_10);
+            assert_eq!(parser.take(16).unwrap(), 0b1010_0110_0111_0100);
             assert_eq!(parser.bitstream, &[]);
             assert_eq!(parser.position, 0);
             assert_eq!(parser.take(0).unwrap(), 0);
@@ -224,6 +197,8 @@ mod tests {
         fn test_take_many() {
             let bitstream: &[u8; 2] = &[0b1010_0110, 0b0111_0100];
             let mut parser = ForwardBitParser::new(bitstream);
+            assert_eq!(parser.take(1).unwrap(), 0b0);
+            assert_eq!(parser.take(1).unwrap(), 0b1);
             assert_eq!(parser.take(1).unwrap(), 0b1);
             assert_eq!(parser.take(1).unwrap(), 0b0);
             assert_eq!(parser.take(1).unwrap(), 0b0);
@@ -250,21 +225,8 @@ mod tests {
         }
 
         #[test]
-        fn test_take_header_only() {
-            let bitstream: &[u8; 1] = &[0b1000_0000];
-            let mut parser = ForwardBitParser::new(bitstream);
-            assert!(matches!(
-                parser.take(1),
-                Err(NotEnoughBits {
-                    requested: 1,
-                    available: 0
-                })
-            ));
-        }
-
-        #[test]
         fn test_take_zero() {
-            let bitstream: &[u8; 1] = &[0b1001_0000];
+            let bitstream: &[u8; 1] = &[0b1111_1111];
             let mut parser = ForwardBitParser::new(bitstream);
             assert_eq!(parser.take(0).unwrap(), 0b0);
         }

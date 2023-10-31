@@ -33,9 +33,9 @@ pub fn parse_fse_table(parser: &mut ForwardBitParser) -> Result<(u8, Vec<i16>)> 
         println!("======");
 
         let coefficient = value - 1;
-        // if (sum as u64 + coefficient) > r as u64 {
-        //     return Err(ComputeFseCoefficient);
-        // }
+        if (sum as u64 + coefficient) > r as u64 {
+            return Err(ComputeFseCoefficient);
+        }
         sum += coefficient as u32;
         distribution.push(coefficient as i16);
 
