@@ -46,7 +46,7 @@ impl<'a> ForwardBitParser<'a> {
         self.len() == 0
     }
 
-    fn available_bits(&mut self) -> usize {
+    fn available_bits(&self) -> usize {
         if self.is_empty() {
             return 0;
         }
@@ -130,132 +130,184 @@ impl<'a> ForwardBitParser<'a> {
 mod tests {
     use super::*;
 
-    #[test]
-    fn test_new() {
-        // update position, keep all bytes
-        let bitstream: &[u8; 2] = &[0b0000_0110, 0b0111_0100];
-        let parser = ForwardBitParser::new(bitstream).unwrap();
-        assert_eq!(parser.bitstream, bitstream);
-        assert_eq!(parser.position, 2);
+    mod new {
+        use super::*;
 
-        // skip first byte, move position to 0
-        let bitstream: &[u8; 2] = &[0b1000_0000, 0b0111_0100];
-        let parser = ForwardBitParser::new(bitstream).unwrap();
-        assert_eq!(parser.bitstream, &[bitstream[1]]);
-        assert_eq!(parser.position, 0);
+        #[test]
+        fn test_new_keep_bytes() {
+            let bitstream: &[u8; 2] = &[0b0000_0110, 0b0111_0100];
+            let parser = ForwardBitParser::new(bitstream).unwrap();
+            assert_eq!(parser.bitstream, bitstream);
+            assert_eq!(parser.position, 2);
+        }
 
-        // ok on skipped bitstream
-        let bitstream: &[u8; 1] = &[0b1000_0000];
-        let parser = ForwardBitParser::new(bitstream).unwrap();
-        assert_eq!(parser.bitstream, &[]);
-        assert_eq!(parser.position, 0);
+        #[test]
+        fn test_new_skip_byte() {
+            // skip first byte, move position to 0
+            let bitstream: &[u8; 2] = &[0b1000_0000, 0b0111_0100];
+            let parser = ForwardBitParser::new(bitstream).unwrap();
+            assert_eq!(parser.bitstream, &[bitstream[1]]);
+            assert_eq!(parser.position, 0);
+        }
 
-        // error on empty bitstream
-        assert!(matches!(
-            ForwardBitParser::new(&[]),
-            Err(NotEnoughBytes {
-                requested: 1,
-                available: 0,
-            })
-        ));
+        #[test]
+        fn test_new_skip_stream() {
+            // ok on skipped bitstream
+            let bitstream: &[u8; 1] = &[0b1000_0000];
+            let parser = ForwardBitParser::new(bitstream).unwrap();
+            assert_eq!(parser.bitstream, &[]);
+            assert_eq!(parser.position, 0);
+        }
 
-        assert!(matches!(
-            ForwardBitParser::new(&[0b0000_0000, 0b0111_0100]),
-            Err(MalformedBitstream)
-        ));
+        #[test]
+        fn test_new_empty_header() {
+            assert!(matches!(
+                ForwardBitParser::new(&[]),
+                Err(NotEnoughBytes {
+                    requested: 1,
+                    available: 0,
+                })
+            ));
+        }
+
+        #[test]
+        fn test_new_malformed_header() {
+            assert!(matches!(
+                ForwardBitParser::new(&[0b0000_0000, 0b0111_0100]),
+                Err(MalformedBitstream)
+            ));
+        }
     }
 
     #[test]
-    fn test_take() {
+    fn test_len() {
+        let bitstream: &[u8; 2] = &[0b1000_0000, 0b0111_0100];
+        let parser = ForwardBitParser::new(bitstream).unwrap();
+        assert_eq!(parser.len(), 1);
+    }
+
+    #[test]
+    fn test_available_bits() {
         let bitstream: &[u8; 2] = &[0b1010_0110, 0b0111_0100];
+        let parser = ForwardBitParser::new(bitstream).unwrap();
+        assert_eq!(parser.available_bits(), 14);
 
-        // large bits take error, by 1 bit
-        let mut parser = ForwardBitParser::new(bitstream).unwrap();
-        assert!(matches!(
-            parser.take(65),
-            Err(LengthOverflow {
-                length: 65,
-                range: 64
-            })
-        ));
+        let parser = ForwardBitParser::new(&[0b1000_0000]).unwrap();
+        assert_eq!(parser.is_empty(), true);
+        assert_eq!(parser.available_bits(), 0);
+    }
 
-        // not enough bits error, by 1 bit
-        let mut parser = ForwardBitParser::new(bitstream).unwrap();
-        assert!(matches!(
-            parser.take(14 + 1),
-            Err(NotEnoughBits {
-                requested: 15,
-                available: 14
-            })
-        ));
+    mod take {
+        use super::*;
 
-        // take bits and keep first byte
-        let mut parser = ForwardBitParser::new(bitstream).unwrap();
-        assert_eq!(parser.take(5).unwrap(), 0b10010);
-        assert_eq!(parser.bitstream, bitstream);
-        assert_eq!(parser.position, 7);
+        #[test]
+        fn test_take_overflow() {
+            let bitstream: &[u8; 2] = &[0b1010_0110, 0b0111_0100];
+            let mut parser = ForwardBitParser::new(bitstream).unwrap();
+            assert!(matches!(
+                parser.take(65),
+                Err(LengthOverflow {
+                    length: 65,
+                    range: 64
+                })
+            ));
+        }
 
-        // take bits an consume first byte
-        let mut parser = ForwardBitParser::new(bitstream).unwrap();
-        assert_eq!(parser.take(6).unwrap(), 0b100101);
-        assert_eq!(parser.bitstream, &[bitstream[1]]);
-        assert_eq!(parser.position, 0);
+        #[test]
+        fn test_take_not_enough_bits() {
+            let bitstream: &[u8; 2] = &[0b1010_0110, 0b0111_0100];
+            let mut parser = ForwardBitParser::new(bitstream).unwrap();
+            assert!(matches!(
+                parser.take(14 + 1),
+                Err(NotEnoughBits {
+                    requested: 15,
+                    available: 14
+                })
+            ));
+        }
 
-        // take all bits
-        let mut parser = ForwardBitParser::new(bitstream).unwrap();
-        assert_eq!(parser.take(14).unwrap(), 0b1001_0100_1011_10);
-        assert_eq!(parser.bitstream, &[]);
-        assert_eq!(parser.position, 0);
-        assert_eq!(parser.take(0).unwrap(), 0);
-        assert!(matches!(
-            parser.take(1),
-            Err(NotEnoughBits {
-                requested: 1,
-                available: 0
-            })
-        ));
+        #[test]
+        fn test_take_keep_first_byte() {
+            let bitstream: &[u8; 2] = &[0b1010_0110, 0b0111_0100];
+            let mut parser = ForwardBitParser::new(bitstream).unwrap();
+            assert_eq!(parser.take(5).unwrap(), 0b10010);
+            assert_eq!(parser.bitstream, bitstream);
+            assert_eq!(parser.position, 7);
+        }
 
-        // apply multiple take
-        let bitstream: &[u8; 2] = &[0b1010_0110, 0b0111_0100];
-        let mut parser = ForwardBitParser::new(bitstream).unwrap();
-        assert_eq!(parser.take(1).unwrap(), 0b1);
-        assert_eq!(parser.take(1).unwrap(), 0b0);
-        assert_eq!(parser.take(1).unwrap(), 0b0);
-        assert_eq!(parser.take(1).unwrap(), 0b1);
-        assert_eq!(parser.take(1).unwrap(), 0b0);
-        assert_eq!(parser.take(1).unwrap(), 0b1);
-        assert_eq!(parser.take(1).unwrap(), 0b0);
-        assert_eq!(parser.take(1).unwrap(), 0b0);
-        assert_eq!(parser.take(1).unwrap(), 0b1);
-        assert_eq!(parser.take(1).unwrap(), 0b0);
-        assert_eq!(parser.take(1).unwrap(), 0b1);
-        assert_eq!(parser.take(1).unwrap(), 0b1);
-        assert_eq!(parser.take(1).unwrap(), 0b1);
-        assert_eq!(parser.take(1).unwrap(), 0b0);
-        assert!(matches!(
-            parser.take(1),
-            Err(NotEnoughBits {
-                requested: 1,
-                available: 0
-            })
-        ));
-        assert_eq!(parser.bitstream, &[]);
-        assert_eq!(parser.position, 0);
+        #[test]
+        fn test_take_consumme_first_byte() {
+            let bitstream: &[u8; 2] = &[0b1010_0110, 0b0111_0100];
+            let mut parser = ForwardBitParser::new(bitstream).unwrap();
+            assert_eq!(parser.take(6).unwrap(), 0b100101);
+            assert_eq!(parser.bitstream, &[bitstream[1]]);
+            assert_eq!(parser.position, 0);
+        }
 
-        // parse only header
-        let bitstream: &[u8; 1] = &[0b1000_0000];
-        let mut parser = ForwardBitParser::new(bitstream).unwrap();
-        assert!(matches!(
-            parser.take(1),
-            Err(NotEnoughBits {
-                requested: 1,
-                available: 0
-            })
-        ));
+        #[test]
+        fn test_take_all_bits() {
+            let bitstream: &[u8; 2] = &[0b1010_0110, 0b0111_0100];
+            let mut parser = ForwardBitParser::new(bitstream).unwrap();
+            assert_eq!(parser.take(14).unwrap(), 0b1001_0100_1011_10);
+            assert_eq!(parser.bitstream, &[]);
+            assert_eq!(parser.position, 0);
+            assert_eq!(parser.take(0).unwrap(), 0);
+            assert!(matches!(
+                parser.take(1),
+                Err(NotEnoughBits {
+                    requested: 1,
+                    available: 0
+                })
+            ));
+        }
 
-        // take 0 on valid non empty bitestream
-        let bitstream: &[u8; 1] = &[0b1001_0000];
-        let mut parser = ForwardBitParser::new(bitstream).unwrap();
-        assert_eq!(parser.take(0).unwrap(), 0b0);
+        #[test]
+        fn test_take_many() {
+            let bitstream: &[u8; 2] = &[0b1010_0110, 0b0111_0100];
+            let mut parser = ForwardBitParser::new(bitstream).unwrap();
+            assert_eq!(parser.take(1).unwrap(), 0b1);
+            assert_eq!(parser.take(1).unwrap(), 0b0);
+            assert_eq!(parser.take(1).unwrap(), 0b0);
+            assert_eq!(parser.take(1).unwrap(), 0b1);
+            assert_eq!(parser.take(1).unwrap(), 0b0);
+            assert_eq!(parser.take(1).unwrap(), 0b1);
+            assert_eq!(parser.take(1).unwrap(), 0b0);
+            assert_eq!(parser.take(1).unwrap(), 0b0);
+            assert_eq!(parser.take(1).unwrap(), 0b1);
+            assert_eq!(parser.take(1).unwrap(), 0b0);
+            assert_eq!(parser.take(1).unwrap(), 0b1);
+            assert_eq!(parser.take(1).unwrap(), 0b1);
+            assert_eq!(parser.take(1).unwrap(), 0b1);
+            assert_eq!(parser.take(1).unwrap(), 0b0);
+            assert!(matches!(
+                parser.take(1),
+                Err(NotEnoughBits {
+                    requested: 1,
+                    available: 0
+                })
+            ));
+            assert_eq!(parser.bitstream, &[]);
+            assert_eq!(parser.position, 0);
+        }
+
+        #[test]
+        fn test_take_header_only() {
+            let bitstream: &[u8; 1] = &[0b1000_0000];
+            let mut parser = ForwardBitParser::new(bitstream).unwrap();
+            assert!(matches!(
+                parser.take(1),
+                Err(NotEnoughBits {
+                    requested: 1,
+                    available: 0
+                })
+            ));
+        }
+
+        #[test]
+        fn test_take_zero() {
+            let bitstream: &[u8; 1] = &[0b1001_0000];
+            let mut parser = ForwardBitParser::new(bitstream).unwrap();
+            assert_eq!(parser.take(0).unwrap(), 0b0);
+        }
     }
 }
