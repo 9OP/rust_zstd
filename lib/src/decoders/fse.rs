@@ -11,11 +11,11 @@ pub struct FseTable {
 
 impl fmt::Debug for FseTable {
     fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
-        writeln!(fmt, "{:>5}{:>5} {:>5}{:>5}", "State", "Sym", "BL", "NB").ok();
+        writeln!(fmt, "{:>5}{:>5}  {:>5}{:>4}", "State", "Sym", "BL", "NB").ok();
         for (i, state) in self.states.iter().enumerate() {
             writeln!(
                 fmt,
-                "0x{:02x}    s{}  0x{:02x}    {}",
+                "0x{:02x}    s{}   0x{:02x}   {}",
                 i, state.symbol, state.base_line, state.num_bits
             )
             .ok();
@@ -96,28 +96,21 @@ impl FseTable {
             .collect();
 
         for (symbol, probability, symbol_states) in positives {
-            // compute base_line, num_bits
             let p = (probability as usize).next_power_of_two();
             let b = (table_length / p).trailing_zeros() as u8; // log2(R/p)
             let e = p - probability as usize;
 
-            println!("{symbol_states:?} p={p} b={b} e={e}");
-
             let mut base_line = 0;
             for (i, &index) in symbol_states.iter().cycle().skip(e).enumerate() {
-                let i = (i + e) % symbol_states.len();
-                let state = &mut states[index];
-
-                state.symbol = symbol;
-                state.num_bits = if i < e { b + 1 } else { b };
-                state.base_line = base_line;
-
-                println!("{i} {index} {state:?}");
-
-                if (i == e && base_line != 0) || symbol_states.len() == 1 {
+                if i == symbol_states.len() {
                     break;
                 }
 
+                let i = (i + e) % symbol_states.len();
+                let state = &mut states[index];
+                state.symbol = symbol;
+                state.num_bits = if i < e { b + 1 } else { b };
+                state.base_line = base_line;
                 base_line += 1 << state.num_bits;
             }
         }
@@ -204,10 +197,47 @@ mod tests {
 
     #[test]
     fn test_from_distribution() {
-        let state = FseTable::from_distribution(5, &[18, 6, 2, 2, 2, 1, 1]);
-        println!("{state:?}");
-        // for s in state.states {
-        //     print!("{} {} {}\n", s.symbol, s.base_line, s.num_bits);
-        // }
+        let mut parser = ForwardBitParser::new(&[0x30, 0x6f, 0x9b, 0x03]);
+        let state = FseTable::parse(&mut parser).unwrap();
+
+        // This is not a robust test as it relies on the Debug trait implementation.
+        // However it is most likely to fail because of formatting rather than `parse` logic
+        // so I'm fine with it.
+        let expected = r#"
+State  Sym     BL  NB
+0x00    s0   0x04   1
+0x01    s0   0x06   1
+0x02    s0   0x08   1
+0x03    s1   0x10   3
+0x04    s4   0x00   4
+0x05    s0   0x0a   1
+0x06    s0   0x0c   1
+0x07    s0   0x0e   1
+0x08    s2   0x00   4
+0x09    s6   0x00   5
+0x0a    s0   0x10   1
+0x0b    s0   0x12   1
+0x0c    s1   0x18   3
+0x0d    s3   0x00   4
+0x0e    s0   0x14   1
+0x0f    s0   0x16   1
+0x10    s0   0x18   1
+0x11    s1   0x00   2
+0x12    s5   0x00   5
+0x13    s0   0x1a   1
+0x14    s0   0x1c   1
+0x15    s1   0x04   2
+0x16    s3   0x10   4
+0x17    s0   0x1e   1
+0x18    s0   0x00   0
+0x19    s0   0x01   0
+0x1a    s1   0x08   2
+0x1b    s4   0x10   4
+0x1c    s0   0x02   0
+0x1d    s0   0x03   0
+0x1e    s1   0x0c   2
+0x1f    s2   0x10   4
+"#;
+        assert_eq!(expected.trim(), format!("{:?}", state).trim());
     }
 }
