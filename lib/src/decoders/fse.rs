@@ -1,50 +1,63 @@
 use super::error::{Error::*, Result};
 use crate::parsing::*;
 
-fn num_bits_needed(value: u32) -> u32 {
-    if value == 0 {
-        return 1;
-    }
-    (value as f64).log2().ceil() as u32
+const ACC_LOG_OFFSET: u8 = 5;
+const ACC_LOG_MAX: u8 = 9;
+
+fn highest_bit_set(x: u32) -> u32 {
+    assert!(x > 0);
+    u32::BITS - x.leading_zeros()
 }
 
 pub fn parse_fse_table(parser: &mut ForwardBitParser) -> Result<(u8, Vec<i16>)> {
-    let al = parser.take(4)? as u8 + 5; // accuracy log
-    if al > 9 {
-        panic!("unexpected accuracy log: {al} > 9")
+    let accuracy_log = parser.take(4)? as u8 + ACC_LOG_OFFSET; // accuracy log
+    if accuracy_log > ACC_LOG_MAX {
+        return Err(AccLogTooBig {
+            log: accuracy_log,
+            max: ACC_LOG_MAX,
+        });
     }
-    let mut distribution: Vec<i16> = Vec::new();
-    let r = 0b0000_0001 << al; // 2^al=R range
+    let probability_sum = 1 << accuracy_log;
+    let mut probability_counter: u32 = 0;
+    let mut probabilities: Vec<i16> = Vec::new();
 
-    let mut total_probabilities: u32 = 0;
-    while total_probabilities < r {
-        let max = r - total_probabilities;
-        let nbits = num_bits_needed(max + 1) - 1;
-        let mut value = parser.take(nbits as usize)? as u32;
+    while probability_counter < probability_sum {
+        let max_remaining_value = probability_sum - probability_counter + 1;
+        let bits_to_read = highest_bit_set(max_remaining_value);
+        // Value is encoded in bits_to_read or bits_to_read-1
+        // the MSB is not consummed but peeked
 
-        let peek = parser.peek()? as u32;
-        if ((peek << nbits) + value) <= max as u32 {
-            value += (parser.take(1)? << nbits) as u32;
-        }
+        // let small_value =
 
-        let probability = value as i16 - 1;
+        let unchecked_value = parser.take((bits_to_read - 1) as usize)? as u32
+            | (parser.peek()? << (bits_to_read - 1)) as u32;
 
-        if (total_probabilities + probability.abs() as u32) > r {
-            return Err(ComputeFseCoefficient);
-        }
+        let low_threshold = ((1 << bits_to_read) - 1) - (max_remaining_value);
+        let mask = (1 << (bits_to_read - 1)) - 1;
+        let small_value = unchecked_value & mask;
 
-        total_probabilities += if probability != 0 {
-            probability.abs() as u32
-        } else {
-            1
+        let decoded_value = match small_value < low_threshold {
+            true => small_value,
+            false => {
+                // consumme MSB peeked bit in unchecked_value
+                let _ = parser.take(1)?;
+                if unchecked_value > mask {
+                    unchecked_value - low_threshold
+                } else {
+                    unchecked_value
+                }
+            }
         };
-        // total_probabilities += probability.abs() as u32;
-        distribution.push(probability);
+
+        let probability = decoded_value as i16 - 1;
+
+        probability_counter += probability.unsigned_abs() as u32;
+        probabilities.push(probability);
 
         if probability == 0 {
             loop {
                 let num_zeroes = parser.take(2)?;
-                distribution.extend_from_slice(&vec![0; num_zeroes as usize]);
+                probabilities.extend_from_slice(&vec![0; num_zeroes as usize]);
                 if num_zeroes != 3 {
                     break;
                 }
@@ -52,7 +65,15 @@ pub fn parse_fse_table(parser: &mut ForwardBitParser) -> Result<(u8, Vec<i16>)> 
         }
     }
 
-    return Ok((al, distribution));
+    // Check invariant
+    if probability_counter != probability_sum {
+        return Err(CounterMismatch {
+            counter: probability_counter,
+            expected_sum: probability_sum,
+        });
+    }
+
+    Ok((accuracy_log, probabilities))
 }
 
 #[cfg(test)]
@@ -65,6 +86,6 @@ mod tests {
         let (accuracy_log, table) = parse_fse_table(&mut parser).unwrap();
         assert_eq!(5, accuracy_log);
         assert_eq!(&[18, 6, 2, 2, 2, 1, 1][..], &table);
-        // assert_eq!(parser.available_bits(), 6);
+        assert_eq!(parser.available_bits(), 6);
     }
 }

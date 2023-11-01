@@ -11,7 +11,10 @@ pub enum Error {
     #[error("Missing symbol for huffman code")]
     MissingSymbol,
 
-    #[error("Error computing FSE coefficient")]
-    ComputeFseCoefficient,
+    #[error("FSE AccLog: {log} greater than allowed maximum: {max}")]
+    AccLogTooBig { log: u8, max: u8 },
+
+    #[error("FSE counter: {counter} exceeded expected sum: {expected_sum}")]
+    CounterMismatch { counter: u32, expected_sum: u32 },
 }
 pub type Result<T, E = Error> = std::result::Result<T, E>;
