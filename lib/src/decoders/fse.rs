@@ -1,5 +1,6 @@
 use super::error::{Error::*, Result};
 use crate::parsing::*;
+use std::fmt;
 
 const ACC_LOG_OFFSET: u8 = 5;
 const ACC_LOG_MAX: u8 = 9;
@@ -8,13 +9,29 @@ pub struct FseTable {
     pub states: Vec<State>,
 }
 
-#[derive(Debug, Default, Clone)]
+impl fmt::Debug for FseTable {
+    fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
+        writeln!(fmt, "{:>5}{:>5} {:>5}{:>5}", "State", "Sym", "BL", "NB").ok();
+        for (i, state) in self.states.iter().enumerate() {
+            writeln!(
+                fmt,
+                "0x{:02x}    s{}  0x{:02x}    {}",
+                i, state.symbol, state.base_line, state.num_bits
+            )
+            .ok();
+        }
+        write!(fmt, "")
+    }
+}
+
+type Symbol = u16;
+type Probability = i16;
+
+#[derive(Debug, Default, Clone, Copy)]
 pub struct State {
+    pub symbol: Symbol,
     pub base_line: u16,
-    pub symbol: u16,
     pub num_bits: u8,
-    // check that state is unmodified
-    marked: bool,
 }
 
 impl FseTable {
@@ -26,41 +43,90 @@ impl FseTable {
         ))
     }
 
-    pub fn from_distribution(accuracy_log: u8, distribution: &[i16]) -> Self {
-        let length = 1 << accuracy_log;
-        let mut states = vec![State::default(); length];
+    pub fn from_distribution(accuracy_log: u8, distribution: &[Probability]) -> Self {
+        let table_length = 1 << accuracy_log;
+        let mut states = vec![State::default(); table_length];
 
         // Filter out symbols with 0 probability
-        let distribution: Vec<(u16, i16)> = distribution
+        let distribution: Vec<(Symbol, Probability)> = distribution
             .iter()
             .enumerate()
             .filter(|(_, &probability)| probability != 0)
-            .map(|(symbol, &probability)| (symbol as u16, probability))
+            .map(|(symbol, &probability)| (symbol as Symbol, probability))
             .collect();
 
         // Symbols with "less than 1" probabilities
-        let mut less_than_one: Vec<u16> = distribution
+        let mut less_than_one: Vec<Symbol> = distribution
             .iter()
             .filter(|&e| e.1 == -1)
             .map(|&e| e.0)
             .collect();
-
         // sort symbols based on lowest value first
         less_than_one.sort();
         for (i, symbol) in less_than_one.iter().enumerate() {
-            let state = &mut states[length - 1 - i];
-            assert!(!state.marked);
-            state.marked = true;
+            let state = &mut states[table_length - 1 - i];
             state.base_line = 0;
             state.num_bits = accuracy_log;
             state.symbol = *symbol;
+        }
+
+        let mut state_index = std::iter::successors(Some(0_usize), |s| {
+            let new_state = (s + (table_length >> 1) + (table_length >> 3) + 3) % table_length;
+            if new_state == 0 {
+                return None;
+            }
+            Some(new_state)
+        })
+        .filter(|&index| states[index].symbol == 0);
+
+        // Symbols with positive probabilities
+        let positives: Vec<(Symbol, Probability, Vec<usize>)> = distribution
+            .iter()
+            .filter(|&e| e.1 > 0)
+            .map(|(symbol, probability)| {
+                let mut symbol_states: Vec<usize> =
+                    state_index.by_ref().take(*probability as usize).collect();
+
+                symbol_states.sort();
+
+                assert!(symbol_states.len() == *probability as usize);
+
+                (*symbol, *probability, symbol_states)
+            })
+            .collect();
+
+        for (symbol, probability, symbol_states) in positives {
+            // compute base_line, num_bits
+            let p = (probability as usize).next_power_of_two();
+            let b = (table_length / p).trailing_zeros() as u8; // log2(R/p)
+            let e = p - probability as usize;
+
+            println!("{symbol_states:?} p={p} b={b} e={e}");
+
+            let mut base_line = 0;
+            for (i, &index) in symbol_states.iter().cycle().skip(e).enumerate() {
+                let i = (i + e) % symbol_states.len();
+                let state = &mut states[index];
+
+                state.symbol = symbol;
+                state.num_bits = if i < e { b + 1 } else { b };
+                state.base_line = base_line;
+
+                println!("{i} {index} {state:?}");
+
+                if (i == e && base_line != 0) || symbol_states.len() == 1 {
+                    break;
+                }
+
+                base_line += 1 << state.num_bits;
+            }
         }
 
         Self { states }
     }
 }
 
-pub fn parse_fse_table(parser: &mut ForwardBitParser) -> Result<(u8, Vec<i16>)> {
+pub fn parse_fse_table(parser: &mut ForwardBitParser) -> Result<(u8, Vec<Probability>)> {
     let accuracy_log = parser.take(4)? as u8 + ACC_LOG_OFFSET; // accuracy log
     if accuracy_log > ACC_LOG_MAX {
         return Err(AccLogTooBig {
@@ -134,5 +200,14 @@ mod tests {
         assert_eq!(&[18, 6, 2, 2, 2, 1, 1][..], &table);
         assert_eq!(parser.available_bits(), 6);
         assert_eq!(parser.len(), 1);
+    }
+
+    #[test]
+    fn test_from_distribution() {
+        let state = FseTable::from_distribution(5, &[18, 6, 2, 2, 2, 1, 1]);
+        println!("{state:?}");
+        // for s in state.states {
+        //     print!("{} {} {}\n", s.symbol, s.base_line, s.num_bits);
+        // }
     }
 }
