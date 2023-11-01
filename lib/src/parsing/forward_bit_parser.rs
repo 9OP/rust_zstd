@@ -24,11 +24,30 @@ impl<'a> ForwardBitParser<'a> {
         self.len() == 0
     }
 
-    fn available_bits(&self) -> usize {
+    /// Return the number of bits available wrt position
+    pub fn available_bits(&self) -> usize {
         if self.is_empty() {
             return 0;
         }
         8 * (self.len() - 1) + (8 - self.position)
+    }
+
+    /// Return the next bit without consumming it
+    pub fn peek(&self) -> Result<u8> {
+        let available_bits = self.available_bits();
+        if 2 > available_bits {
+            return Err(NotEnoughBits {
+                requested: 2,
+                available: available_bits,
+            });
+        }
+
+        let bit = match self.position {
+            7 => self.bitstream[1] & 0x0000_0001,
+            _ => self.bitstream[0] & (0x0000_0001 << self.position),
+        };
+
+        Ok(bit)
     }
 
     /// Get the given number of bits, or return an error.
@@ -45,16 +64,17 @@ impl<'a> ForwardBitParser<'a> {
             });
         }
 
-        if len > self.available_bits() {
+        let available_bits = self.available_bits();
+        if len > available_bits {
             return Err(NotEnoughBits {
                 requested: len,
-                available: self.available_bits(),
+                available: available_bits,
             });
         }
 
         // extract a subslice of requested bytes for number of bits to take
         let div_ceil_by_eight = |n| if n % 8 == 0 { n / 8 } else { (n / 8) + 1 };
-        let requested_bytes = div_ceil_by_eight(len);
+        let requested_bytes = div_ceil_by_eight(len + self.position);
         let split = requested_bytes;
         let (slice, _) = self.bitstream.split_at(split);
 
@@ -171,6 +191,11 @@ mod tests {
             assert_eq!(parser.take(10).unwrap(), 0b11_1010_0110);
             assert_eq!(parser.bitstream, &[bitstream[1]]);
             assert_eq!(parser.position, 2);
+
+            let bitstream: &[u8; 2] = &[0x30, 0x6F];
+            let mut parser = ForwardBitParser::new(bitstream);
+            assert_eq!(parser.take(4).unwrap(), 0);
+            assert_eq!(parser.take(5).unwrap(), 19);
         }
 
         #[test]
