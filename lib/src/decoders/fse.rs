@@ -4,6 +4,62 @@ use crate::parsing::*;
 const ACC_LOG_OFFSET: u8 = 5;
 const ACC_LOG_MAX: u8 = 9;
 
+pub struct FseTable {
+    pub states: Vec<State>,
+}
+
+#[derive(Debug, Default, Clone)]
+pub struct State {
+    pub base_line: u16,
+    pub symbol: u16,
+    pub num_bits: u8,
+    // check that state is unmodified
+    marked: bool,
+}
+
+impl FseTable {
+    pub fn parse(parser: &mut ForwardBitParser) -> Result<Self> {
+        let (accuracy_log, distribution) = parse_fse_table(parser)?;
+        Ok(Self::from_distribution(
+            accuracy_log,
+            distribution.as_slice(),
+        ))
+    }
+
+    pub fn from_distribution(accuracy_log: u8, distribution: &[i16]) -> Self {
+        let length = 1 << accuracy_log;
+        let mut states = vec![State::default(); length];
+
+        // Filter out symbols with 0 probability
+        let distribution: Vec<(u16, i16)> = distribution
+            .iter()
+            .enumerate()
+            .filter(|(_, &probability)| probability != 0)
+            .map(|(symbol, &probability)| (symbol as u16, probability))
+            .collect();
+
+        // Symbols with "less than 1" probabilities
+        let mut less_than_one: Vec<u16> = distribution
+            .iter()
+            .filter(|&e| e.1 == -1)
+            .map(|&e| e.0)
+            .collect();
+
+        // sort symbols based on lowest value first
+        less_than_one.sort();
+        for (i, symbol) in less_than_one.iter().enumerate() {
+            let state = &mut states[length - 1 - i];
+            assert!(!state.marked);
+            state.marked = true;
+            state.base_line = 0;
+            state.num_bits = accuracy_log;
+            state.symbol = *symbol;
+        }
+
+        Self { states }
+    }
+}
+
 pub fn parse_fse_table(parser: &mut ForwardBitParser) -> Result<(u8, Vec<i16>)> {
     let accuracy_log = parser.take(4)? as u8 + ACC_LOG_OFFSET; // accuracy log
     if accuracy_log > ACC_LOG_MAX {
@@ -60,10 +116,7 @@ pub fn parse_fse_table(parser: &mut ForwardBitParser) -> Result<(u8, Vec<i16>)> 
 
     // Check invariant
     if probability_counter != probability_sum {
-        return Err(CounterMismatch {
-            counter: probability_counter,
-            expected_sum: probability_sum,
-        });
+        return Err(DistributionCorrupted);
     }
 
     Ok((accuracy_log, probabilities))
@@ -80,5 +133,6 @@ mod tests {
         assert_eq!(5, accuracy_log);
         assert_eq!(&[18, 6, 2, 2, 2, 1, 1][..], &table);
         assert_eq!(parser.available_bits(), 6);
+        assert_eq!(parser.len(), 1);
     }
 }
