@@ -35,19 +35,14 @@ impl<'a> ForwardBitParser<'a> {
     /// Return the next bit without consumming it
     pub fn peek(&self) -> Result<u8> {
         let available_bits = self.available_bits();
-        if 2 > available_bits {
+        if 1 > available_bits {
             return Err(NotEnoughBits {
-                requested: 2,
+                requested: 1,
                 available: available_bits,
             });
         }
-
-        let bit = match self.position {
-            7 => self.bitstream[1] & 0x0000_0001,
-            _ => self.bitstream[0] & (0x0000_0001 << self.position),
-        };
-
-        Ok(bit)
+        let is_bit_set = (self.bitstream[0] & (0x0000_0001 << self.position)) != 0;
+        Ok(if is_bit_set { 1 } else { 0 })
     }
 
     /// Get the given number of bits, or return an error.
@@ -219,22 +214,62 @@ mod tests {
         fn test_take_many() {
             let bitstream: &[u8; 2] = &[0b1010_0110, 0b0111_0100];
             let mut parser = ForwardBitParser::new(bitstream);
-            assert_eq!(parser.take(1).unwrap(), 0b0);
-            assert_eq!(parser.take(1).unwrap(), 0b1);
-            assert_eq!(parser.take(1).unwrap(), 0b1);
-            assert_eq!(parser.take(1).unwrap(), 0b0);
-            assert_eq!(parser.take(1).unwrap(), 0b0);
-            assert_eq!(parser.take(1).unwrap(), 0b1);
-            assert_eq!(parser.take(1).unwrap(), 0b0);
-            assert_eq!(parser.take(1).unwrap(), 0b1);
-            assert_eq!(parser.take(1).unwrap(), 0b0);
-            assert_eq!(parser.take(1).unwrap(), 0b0);
-            assert_eq!(parser.take(1).unwrap(), 0b1);
-            assert_eq!(parser.take(1).unwrap(), 0b0);
-            assert_eq!(parser.take(1).unwrap(), 0b1);
-            assert_eq!(parser.take(1).unwrap(), 0b1);
-            assert_eq!(parser.take(1).unwrap(), 0b1);
-            assert_eq!(parser.take(1).unwrap(), 0b0);
+            assert_eq!(parser.peek().unwrap(), 0);
+            assert_eq!(parser.take(1).unwrap(), 0);
+
+            assert_eq!(parser.peek().unwrap(), 1);
+            assert_eq!(parser.take(1).unwrap(), 1);
+
+            assert_eq!(parser.peek().unwrap(), 1);
+            assert_eq!(parser.take(1).unwrap(), 1);
+
+            assert_eq!(parser.peek().unwrap(), 0);
+            assert_eq!(parser.take(1).unwrap(), 0);
+
+            assert_eq!(parser.peek().unwrap(), 0);
+            assert_eq!(parser.take(1).unwrap(), 0);
+
+            assert_eq!(parser.peek().unwrap(), 1);
+            assert_eq!(parser.take(1).unwrap(), 1);
+
+            assert_eq!(parser.peek().unwrap(), 0);
+            assert_eq!(parser.take(1).unwrap(), 0);
+
+            //
+            assert_eq!(parser.peek().unwrap(), 1);
+            assert_eq!(parser.take(1).unwrap(), 1);
+
+            assert_eq!(parser.peek().unwrap(), 0);
+            assert_eq!(parser.take(1).unwrap(), 0);
+
+            assert_eq!(parser.peek().unwrap(), 0);
+            assert_eq!(parser.take(1).unwrap(), 0);
+
+            assert_eq!(parser.peek().unwrap(), 1);
+            assert_eq!(parser.take(1).unwrap(), 1);
+
+            assert_eq!(parser.peek().unwrap(), 0);
+            assert_eq!(parser.take(1).unwrap(), 0);
+
+            assert_eq!(parser.peek().unwrap(), 1);
+            assert_eq!(parser.take(1).unwrap(), 1);
+
+            assert_eq!(parser.peek().unwrap(), 1);
+            assert_eq!(parser.take(1).unwrap(), 1);
+
+            assert_eq!(parser.peek().unwrap(), 1);
+            assert_eq!(parser.take(1).unwrap(), 1);
+
+            assert_eq!(parser.peek().unwrap(), 0);
+            assert_eq!(parser.take(1).unwrap(), 0);
+
+            assert!(matches!(
+                parser.peek(),
+                Err(NotEnoughBits {
+                    requested: 1,
+                    available: 0
+                })
+            ));
             assert!(matches!(
                 parser.take(1),
                 Err(NotEnoughBits {
@@ -242,6 +277,7 @@ mod tests {
                     available: 0
                 })
             ));
+
             assert_eq!(parser.bitstream, &[]);
             assert_eq!(parser.position, 0);
         }
