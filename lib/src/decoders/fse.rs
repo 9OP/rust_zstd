@@ -4,11 +4,6 @@ use crate::parsing::*;
 const ACC_LOG_OFFSET: u8 = 5;
 const ACC_LOG_MAX: u8 = 9;
 
-fn highest_bit_set(x: u32) -> u32 {
-    assert!(x > 0);
-    u32::BITS - x.leading_zeros()
-}
-
 pub fn parse_fse_table(parser: &mut ForwardBitParser) -> Result<(u8, Vec<i16>)> {
     let accuracy_log = parser.take(4)? as u8 + ACC_LOG_OFFSET; // accuracy log
     if accuracy_log > ACC_LOG_MAX {
@@ -23,18 +18,16 @@ pub fn parse_fse_table(parser: &mut ForwardBitParser) -> Result<(u8, Vec<i16>)> 
 
     while probability_counter < probability_sum {
         let max_remaining_value = probability_sum - probability_counter + 1;
-        let bits_to_read = highest_bit_set(max_remaining_value);
-        // Value is encoded in bits_to_read or bits_to_read-1
-        // the MSB is not consummed but peeked
+        let bits_to_read = u32::BITS - max_remaining_value.leading_zeros();
 
-        // let small_value =
-
-        let unchecked_value = parser.take((bits_to_read - 1) as usize)? as u32
-            | (parser.peek()? << (bits_to_read - 1)) as u32;
-
+        // Value is either encoded in bits_to_read of bits_to_read-1
+        let small_value = parser.take((bits_to_read - 1) as usize)? as u32;
+        // The MSB is not consummed but peeked as we dont know yet if the value is encoded in bits_to_read or bits_to_read-1
+        let unchecked_value = (parser.peek()? << (bits_to_read - 1)) as u32 | small_value;
+        // Threshold above wich value is encoded in bits_to_read, below which encoded in bits_to_read-1
         let low_threshold = ((1 << bits_to_read) - 1) - (max_remaining_value);
+        // Used to divide in two halves the range of values encoded in bits_to_read
         let mask = (1 << (bits_to_read - 1)) - 1;
-        let small_value = unchecked_value & mask;
 
         let decoded_value = match small_value < low_threshold {
             true => small_value,
@@ -58,7 +51,7 @@ pub fn parse_fse_table(parser: &mut ForwardBitParser) -> Result<(u8, Vec<i16>)> 
             loop {
                 let num_zeroes = parser.take(2)?;
                 probabilities.extend_from_slice(&vec![0; num_zeroes as usize]);
-                if num_zeroes != 3 {
+                if num_zeroes != 0b11 {
                     break;
                 }
             }
