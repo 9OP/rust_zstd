@@ -1,5 +1,3 @@
-extern crate zstd_lib;
-
 use clap::Parser;
 use std::{fs, io::Write};
 use zstd_lib::frame::FrameIterator;
@@ -21,15 +19,13 @@ fn main() -> eyre::Result<()> {
     let args = Args::parse();
     let bytes = fs::read(args.file_name)?;
 
-    for it in FrameIterator::new(bytes.as_slice()) {
-        let frame = it?;
-
+    for frame in FrameIterator::new(bytes.as_slice()) {
         if args.info {
-            println!("{:#x?}", frame);
+            println!("{:#x?}", frame?);
             continue;
         }
 
-        let data = frame.decode();
+        let data = frame?.decode()?;
         let mut stdout = std::io::stdout().lock();
         stdout.write_all(data.as_slice()).unwrap();
     }

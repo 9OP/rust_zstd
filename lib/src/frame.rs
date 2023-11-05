@@ -13,7 +13,11 @@ pub enum Error {
 
     #[error("Unrecognized magic number: {0}")]
     UnrecognizedMagic(u32),
+
+    #[error("Corrupted frame, checksum mismatch: {got:#08x} != {expected:#08x}")]
+    CorruptedFrame { got: u32, expected: u32 },
 }
+use xxhash_rust::xxh64::xxh64;
 use Error::*;
 type Result<T, E = Error> = std::result::Result<T, E>;
 
@@ -64,14 +68,33 @@ impl<'a> Frame<'a> {
         }
     }
 
-    pub fn decode(self) -> Vec<u8> {
+    pub fn decode(self) -> Result<Vec<u8>> {
         match self {
-            Frame::SkippableFrame(_) => Vec::new(),
-            Frame::ZstandardFrame(f) => f
-                .blocks
-                .into_iter()
-                .flat_map(|block| block.decode())
-                .collect(),
+            Frame::SkippableFrame(_) => Ok(Vec::new()),
+            Frame::ZstandardFrame(frame) => {
+                let decoded: Vec<u8> = frame
+                    .blocks
+                    .into_iter()
+                    .flat_map(|block| block.decode())
+                    .collect();
+
+                if frame.frame_header.content_checksum_flag {
+                    let checksum = (xxh64(&decoded, 0) & 0xFFFF_FFFF) as u32;
+                    let content_checksum = frame.checksum.ok_or(CorruptedFrame {
+                        got: 0,
+                        expected: checksum,
+                    })?;
+
+                    if checksum != content_checksum {
+                        return Err(CorruptedFrame {
+                            got: content_checksum,
+                            expected: checksum,
+                        });
+                    }
+                }
+
+                Ok(decoded)
+            }
         }
     }
 }
@@ -273,7 +296,7 @@ mod tests {
                     magic: 0,
                     data: &[],
                 });
-                assert_eq!(frame.decode(), Vec::new());
+                assert_eq!(frame.decode().unwrap(), Vec::new());
             }
 
             #[test]
@@ -300,7 +323,10 @@ mod tests {
                     ],
                     checksum: None,
                 });
-                assert_eq!(frame.decode(), vec![0xAA, 0xAA, 0xCA, 0xFE, 0xBA, 0xBE]);
+                assert_eq!(
+                    frame.decode().unwrap(),
+                    vec![0xAA, 0xAA, 0xCA, 0xFE, 0xBA, 0xBE]
+                );
             }
         }
     }
