@@ -2,6 +2,7 @@
 
 use crate::block;
 use crate::parsing;
+use xxhash_rust::xxh64::xxh64;
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
@@ -17,7 +18,6 @@ pub enum Error {
     #[error("Corrupted frame, checksum mismatch: {got:#08x} != {expected:#08x}")]
     CorruptedFrame { got: u32, expected: u32 },
 }
-use xxhash_rust::xxh64::xxh64;
 use Error::*;
 type Result<T, E = Error> = std::result::Result<T, E>;
 

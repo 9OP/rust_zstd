@@ -1,4 +1,4 @@
-use super::error::{Error::*, Result};
+use super::{Error::*, Result};
 use crate::parsing::BackwardBitParser;
 use std::fmt;
 

@@ -1,4 +1,4 @@
-use super::error::{Error::*, Result};
+use super::{Error::*, Result};
 
 #[derive(Debug)]
 pub struct ForwardBitParser<'a> {

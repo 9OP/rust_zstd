@@ -2,7 +2,7 @@
 
 PASS=true
 for DIR in $(echo "$@" | xargs -n1 dirname | sort -u); do
-    cargo test --workspace --lib -- --nocapture
+    cargo test --workspace -- --nocapture
     if [ "$?" -ne 0 ]; then
         PASS=false
     fi

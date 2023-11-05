@@ -1,4 +1,4 @@
-use super::error::{Error::*, Result};
+use super::{Error::*, Result};
 
 pub struct ForwardByteParser<'a>(&'a [u8]);
 
@@ -69,17 +69,16 @@ impl<'a> ForwardByteParser<'a> {
     /// # Ok::<(), Error>(())
     /// ```
     pub fn slice(&mut self, len: usize) -> Result<&'a [u8]> {
-        match len <= self.len() {
-            false => Err(NotEnoughBytes {
+        if len > self.len() {
+            return Err(NotEnoughBytes {
                 requested: len,
                 available: self.len(),
-            }),
-            true => {
-                let (slice, rest) = self.0.split_at(len);
-                self.0 = rest;
-                Ok(slice)
-            }
+            });
         }
+
+        let (slice, rest) = self.0.split_at(len);
+        self.0 = rest;
+        Ok(slice)
     }
 
     /// Consume and return a u32 in little-endian format or NotEnoughByte error.
@@ -87,7 +86,7 @@ impl<'a> ForwardByteParser<'a> {
     /// ```
     /// # use zstd_lib::parsing::{ForwardByteParser, Error::{self, *}};
     /// let mut parser = ForwardByteParser::new(&[0x01, 0x02, 0x03, 0x04, 0x05]);
-    /// assert_eq!(parser.le_u32()?, 0x4321);
+    /// assert_eq!(parser.le_u32()?, 0x0403_0201);
     /// # Ok::<(), Error>(())
     /// ```
     pub fn le_u32(&mut self) -> Result<u32> {
