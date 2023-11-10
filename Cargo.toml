@@ -1,0 +1,17 @@
+[package]
+name = "net7212"
+version = "0.1.0"
+edition = "2021"
+
+[workspace]
+members = ["lib"]
+
+[dependencies]
+anyhow = "1.0.75"
+clap = { version = "4.4.6", features = ["derive"] }
+color-eyre = "0.6.2"
+eyre = "0.6.8"
+zstd_lib = { path = "lib" }
+
+[dev-dependencies]
+proptest = "1.3.1"
