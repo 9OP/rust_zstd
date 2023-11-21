@@ -1,6 +1,7 @@
 #![allow(dead_code)]
 
 use crate::block;
+use crate::decoders;
 use crate::parsing;
 use xxhash_rust::xxh64::xxh64;
 
@@ -11,6 +12,9 @@ pub enum Error {
 
     #[error(transparent)]
     BlockError(#[from] block::Error),
+
+    #[error(transparent)]
+    DecoderError(#[from] decoders::Error),
 
     #[error("Unrecognized magic number: {0}")]
     UnrecognizedMagic(u32),
@@ -72,11 +76,16 @@ impl<'a> Frame<'a> {
         match self {
             Frame::SkippableFrame(_) => Ok(Vec::new()),
             Frame::ZstandardFrame(frame) => {
-                let decoded: Vec<u8> = frame
-                    .blocks
-                    .into_iter()
-                    .flat_map(|block| block.decode())
-                    .collect();
+                let fcs = frame.frame_header.frame_content_size;
+                let mut result_bytes = [0u8; 8];
+                result_bytes[..fcs.len()].copy_from_slice(fcs);
+                let window_size = u64::from_le_bytes(result_bytes);
+
+                let mut ctx = decoders::DecodingContext::new(window_size)?;
+                for block in frame.blocks.into_iter() {
+                    block.decode(&mut ctx)?;
+                }
+                let decoded = ctx.decoded;
 
                 if frame.frame_header.content_checksum_flag {
                     let checksum = (xxh64(&decoded, 0) & 0xFFFF_FFFF) as u32;

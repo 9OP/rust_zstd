@@ -16,5 +16,8 @@ pub enum Error {
 
     #[error("FSE distribution is corrupted")]
     DistributionCorrupted,
+
+    #[error("Window size too large")]
+    WindowSizeError,
 }
 pub type Result<T, E = Error> = std::result::Result<T, E>;

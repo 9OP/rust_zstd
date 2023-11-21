@@ -1,4 +1,4 @@
-use crate::parsing;
+use crate::{decoders, parsing};
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
@@ -61,11 +61,13 @@ impl<'a> Block<'a> {
         }
     }
 
-    pub fn decode(self) -> Vec<u8> {
-        match self {
+    pub fn decode(self, context: &mut decoders::DecodingContext) -> Result<()> {
+        let decoded = match self {
             Block::Raw(v) => Vec::from(v),
             Block::RLE { byte, repeat } => vec![byte; repeat],
-        }
+        };
+        context.decoded.extend(decoded);
+        Ok(())
     }
 }
 
@@ -168,19 +170,22 @@ mod tests {
 
         #[test]
         fn test_decode_raw() {
+            let mut ctx = decoders::DecodingContext::new(0).unwrap();
             let block = Block::Raw(&[0x10, 0x20, 0x30, 0x40]);
-            assert_eq!(block.decode(), vec![0x10, 0x20, 0x30, 0x40]);
+            block.decode(&mut ctx).unwrap();
+            assert_eq!(ctx.decoded, vec![0x10, 0x20, 0x30, 0x40]);
         }
 
         #[test]
         fn test_decode_rle() {
+            let mut ctx = decoders::DecodingContext::new(0).unwrap();
             let block = Block::RLE {
                 byte: 0x42,
                 repeat: 196612,
             };
-            let decoded = block.decode();
-            assert_eq!(196612, decoded.len());
-            assert!(decoded.into_iter().all(|b| b == 0x42));
+            let decoded = block.decode(&mut ctx);
+            assert_eq!(196612, ctx.decoded.len());
+            assert!(ctx.decoded.into_iter().all(|b| b == 0x42));
         }
     }
 }
