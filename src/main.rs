@@ -1,6 +1,6 @@
 use clap::Parser;
 use std::{fs, io::Write};
-use zstd_lib::frame::FrameIterator;
+use zstd_lib::decrypt;
 
 #[derive(Parser, Debug)]
 #[command(version)]
@@ -19,16 +19,9 @@ fn main() -> eyre::Result<()> {
     let args = Args::parse();
     let bytes = fs::read(args.file_name)?;
 
-    for frame in FrameIterator::new(bytes.as_slice()) {
-        if args.info {
-            println!("{:#x?}", frame?);
-            continue;
-        }
-
-        let data = frame?.decode()?;
-        let mut stdout = std::io::stdout().lock();
-        stdout.write_all(data.as_slice()).unwrap();
-    }
+    let decrypted = decrypt(bytes, args.info)?;
+    let mut stdout = std::io::stdout().lock();
+    stdout.write_all(decrypted.as_slice()).unwrap();
 
     Ok(())
 }

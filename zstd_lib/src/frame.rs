@@ -19,7 +19,7 @@ pub enum Error {
     CorruptedFrame { got: u32, expected: u32 },
 }
 use Error::*;
-type Result<T, E = Error> = std::result::Result<T, E>;
+pub type Result<T, E = Error> = std::result::Result<T, E>;
 
 #[derive(Debug)]
 pub enum Frame<'a> {
