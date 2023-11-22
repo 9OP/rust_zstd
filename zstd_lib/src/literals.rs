@@ -132,7 +132,13 @@ impl<'a> LiteralsSection<'a> {
                     _ => panic!("unexpected size_format {size_format}"),
                 };
 
-                return Err(GenericError);
+                // Ok(LiteralsSection::CompressedLiteralsBlock(
+                //     CompressedLiteralsBlock{input.slice(regenerated_size)?},
+                // ));
+
+                Ok(LiteralsSection::RawLiteralsBlock(RawLiteralsBlock(
+                    input.slice(regenerated_size)?,
+                )))
             }
 
             _ => panic!("unexpected block_type {block_type}"),

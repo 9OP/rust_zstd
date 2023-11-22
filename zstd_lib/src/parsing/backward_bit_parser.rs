@@ -46,7 +46,7 @@ impl<'a> BackwardBitParser<'a> {
         self.len() == 0
     }
 
-    fn available_bits(&self) -> usize {
+    pub fn available_bits(&self) -> usize {
         if self.is_empty() {
             return 0;
         }
