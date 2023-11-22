@@ -1,6 +1,7 @@
 pub mod block;
 pub mod decoders;
 pub mod frame;
+pub mod literals;
 pub mod parsing;
 
 pub fn decrypt(bytes: Vec<u8>, info: bool) -> frame::Result<Vec<u8>> {

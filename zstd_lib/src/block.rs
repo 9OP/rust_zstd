@@ -183,7 +183,7 @@ mod tests {
                 byte: 0x42,
                 repeat: 196612,
             };
-            let decoded = block.decode(&mut ctx);
+            block.decode(&mut ctx).unwrap();
             assert_eq!(196612, ctx.decoded.len());
             assert!(ctx.decoded.into_iter().all(|b| b == 0x42));
         }

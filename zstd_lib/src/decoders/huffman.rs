@@ -10,7 +10,7 @@ pub enum HuffmanDecoder {
 use HuffmanDecoder::*;
 
 impl<'a> HuffmanDecoder {
-    pub fn from_number_of_bits(widths: Vec<u8>) -> Self {
+    fn from_number_of_bits(widths: Vec<u8>) -> Self {
         // Build a list of symbols and their widths
         let mut symbols: Vec<(u8, u8)> = widths
             .iter()

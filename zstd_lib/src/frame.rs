@@ -76,16 +76,13 @@ impl<'a> Frame<'a> {
         match self {
             Frame::SkippableFrame(_) => Ok(Vec::new()),
             Frame::ZstandardFrame(frame) => {
-                let fcs = frame.frame_header.frame_content_size;
-                let mut result_bytes = [0u8; 8];
-                result_bytes[..fcs.len()].copy_from_slice(fcs);
-                let window_size = u64::from_le_bytes(result_bytes);
-
-                let mut ctx = decoders::DecodingContext::new(window_size)?;
-                for block in frame.blocks.into_iter() {
-                    block.decode(&mut ctx)?;
-                }
-                let decoded = ctx.decoded;
+                let window_size = frame.frame_header.window_size();
+                let mut context = decoders::DecodingContext::new(window_size)?;
+                frame
+                    .blocks
+                    .into_iter()
+                    .try_for_each(|blk| blk.decode(&mut context))?;
+                let decoded = context.decoded;
 
                 if frame.frame_header.content_checksum_flag {
                     let checksum = (xxh64(&decoded, 0) & 0xFFFF_FFFF) as u32;
@@ -171,6 +168,24 @@ impl<'a> FrameHeader<'a> {
             frame_content_size,
             content_checksum_flag,
         })
+    }
+
+    pub fn window_size(&self) -> u64 {
+        let use_fcs = self.window_descriptor == 0;
+
+        if use_fcs {
+            let mut fcs: [u8; 8] = [0; 8];
+            fcs[..self.frame_content_size.len()].copy_from_slice(self.frame_content_size);
+            return u64::from_le_bytes(fcs);
+        }
+
+        let exponent: u64 = ((self.window_descriptor & 0b1111_1000) >> 3).into();
+        let mantissa: u64 = (self.window_descriptor & 0b0000_0111).into();
+
+        let window_log = 10 + exponent;
+        let window_base = 1 << window_log;
+        let window_add = (window_base / 8) * mantissa;
+        window_base + window_add
     }
 }
 
