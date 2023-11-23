@@ -1,9 +1,16 @@
-use crate::{decoders, parsing};
+use crate::{
+    decoders,
+    literals::{self, LiteralsSection},
+    parsing,
+};
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
     #[error("Block parsing error: {0}")]
     ParsingError(#[from] parsing::Error),
+
+    #[error("Literal parsing error: {0}")]
+    LiteralError(#[from] literals::Error),
 
     #[error("Reserved block type")]
     ReservedBlockType,
@@ -15,6 +22,7 @@ type Result<T, E = Error> = std::result::Result<T, E>;
 pub enum Block<'a> {
     Raw(&'a [u8]),
     RLE { byte: u8, repeat: usize },
+    Compressed(LiteralsSection<'a>),
 }
 
 const BLOCK_HEADER_LEN: usize = 3;
@@ -53,7 +61,10 @@ impl<'a> Block<'a> {
                 Ok((block, last_block))
             }
 
-            COMPRESSED_BLOCK_FLAG => unimplemented!(),
+            COMPRESSED_BLOCK_FLAG => {
+                let block = Block::Compressed(LiteralsSection::parse(input)?);
+                Ok((block, last_block))
+            }
 
             RESERVED_BLOCK_FLAG => Err(ReservedBlockType),
 
@@ -65,6 +76,7 @@ impl<'a> Block<'a> {
         let decoded = match self {
             Block::Raw(v) => Vec::from(v),
             Block::RLE { byte, repeat } => vec![byte; repeat],
+            Block::Compressed(literal) => literal.decode(context)?,
         };
         context.decoded.extend(decoded);
         Ok(())

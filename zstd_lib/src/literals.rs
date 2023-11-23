@@ -1,4 +1,7 @@
-use crate::{decoders, parsing};
+use crate::{
+    decoders::{self},
+    parsing::{self, BackwardBitParser},
+};
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
@@ -9,10 +12,12 @@ pub enum Error {
     DecoderError(#[from] decoders::Error),
 
     #[error("Data corrupted")]
-    CorruptedError,
+    CorruptedDataError,
 }
+use Error::*;
 pub type Result<T, E = Error> = std::result::Result<T, E>;
 
+#[derive(Debug)]
 pub enum LiteralsSection<'a> {
     RawLiteralsBlock(RawLiteralsBlock<'a>),
     RLELiteralsBlock(RLELiteralsBlock),
@@ -24,13 +29,16 @@ const RLE_LITERALS_BLOCK: u8 = 1;
 const COMPRESSED_LITERALS_BLOCK: u8 = 2;
 const TREELESS_LITERALS_BLOCK: u8 = 3;
 
+#[derive(Debug)]
 pub struct RawLiteralsBlock<'a>(&'a [u8]);
 
+#[derive(Debug)]
 pub struct RLELiteralsBlock {
     byte: u8,
-    repetition: usize,
+    repeat: usize,
 }
 
+#[derive(Debug)]
 pub struct CompressedLiteralsBlock<'a> {
     huffman: Option<decoders::HuffmanDecoder>,
     regenerated_size: usize,
@@ -43,7 +51,63 @@ impl<'a> LiteralsSection<'a> {
     /// `context` if appropriate (compressed literals block with a
     /// Huffman table inside).
     pub fn decode(self, context: &mut decoders::DecodingContext) -> Result<Vec<u8>> {
-        todo!()
+        match self {
+            LiteralsSection::RawLiteralsBlock(block) => {
+                let decoded = Vec::from(block.0);
+                Ok(decoded)
+            }
+
+            LiteralsSection::RLELiteralsBlock(block) => {
+                let decoded = vec![block.byte; block.repeat];
+                Ok(decoded)
+            }
+
+            LiteralsSection::CompressedLiteralsBlock(block) => {
+                let mut decoded = vec![];
+
+                if let Some(huffman) = block.huffman {
+                    context.huffman = Some(huffman);
+                }
+                // TODO: return error when huffman is none
+                let huffman = context.huffman.as_ref().unwrap();
+
+                match block.jump_table {
+                    None => {
+                        let mut bitstream = BackwardBitParser::new(block.data)?;
+                        // while decoded.len() < block.regenerated_size {
+                        while bitstream.available_bits() > 0 {
+                            decoded.push(huffman.decode(&mut bitstream)?);
+                        }
+                    }
+
+                    Some([idx2, idx3, idx4]) => {
+                        let idx2 = idx2 as usize;
+                        let idx3 = idx3 as usize;
+                        let idx4 = idx4 as usize;
+
+                        let mut stream_1 = BackwardBitParser::new(&block.data[..idx2])?;
+                        let mut stream_2 = BackwardBitParser::new(&block.data[idx2..idx3])?;
+                        let mut stream_3 = BackwardBitParser::new(&block.data[idx3..idx4])?;
+                        let mut stream_4 = BackwardBitParser::new(&block.data[idx4..])?;
+
+                        while stream_1.available_bits() > 0 {
+                            decoded.push(huffman.decode(&mut stream_1)?)
+                        }
+                        while stream_2.available_bits() > 0 {
+                            decoded.push(huffman.decode(&mut stream_2)?)
+                        }
+                        while stream_3.available_bits() > 0 {
+                            decoded.push(huffman.decode(&mut stream_3)?)
+                        }
+                        while stream_4.available_bits() > 0 {
+                            decoded.push(huffman.decode(&mut stream_4)?)
+                        }
+                    }
+                }
+
+                Ok(decoded)
+            }
+        }
     }
 
     pub fn parse(input: &mut parsing::ForwardByteParser<'a>) -> Result<Self> {
@@ -74,7 +138,7 @@ impl<'a> LiteralsSection<'a> {
                     ))),
                     RLE_LITERALS_BLOCK => Ok(LiteralsSection::RLELiteralsBlock(RLELiteralsBlock {
                         byte: input.u8()?,
-                        repetition: regenerated_size,
+                        repeat: regenerated_size,
                     })),
                     _ => panic!("unexpected block_type {block_type}"),
                 }
@@ -149,7 +213,10 @@ impl<'a> LiteralsSection<'a> {
                         // Decompressed size of the first 3 streams
                         let decompressed_size = (regenerated_size + 3) / 4;
                         // size of the last stream is: total_streams_size-3*decompressed_size
-                        assert!(3 * decompressed_size < total_streams_size);
+                        if !(3 * decompressed_size < total_streams_size) {
+                            return Err(CorruptedDataError);
+                        }
+
                         // TODO: assert the conversion usize->u16 do not overflow
                         Some([
                             decompressed_size as u16,
