@@ -3,7 +3,6 @@ use crate::{
     decoders::{AlternatingDecoder, FseTable},
     parsing::{BackwardBitParser, ForwardBitParser, ForwardByteParser},
 };
-use core::slice::SlicePattern;
 use std::fmt;
 
 pub enum HuffmanDecoder {
@@ -163,17 +162,18 @@ impl<'a> HuffmanDecoder {
         for _ in 0..compressed_size {
             bitstream.push(input.u8()?);
         }
+        let bitstream_copy = bitstream.clone();
 
-        let mut forward_bit_parser = ForwardBitParser::new(bitstream.clone().as_slice());
+        let mut forward_bit_parser = ForwardBitParser::new(bitstream.as_slice());
         let fse_table = FseTable::parse(&mut forward_bit_parser)?;
         let mut decoder = AlternatingDecoder::new(&fse_table);
 
         assert!(compressed_size as usize > forward_bit_parser.len());
         let index = compressed_size as usize - forward_bit_parser.len();
-        let huffman_coeffs = &bitstream[index..];
+        let huffman_coeffs = &bitstream_copy[index..];
 
         let mut backward_bit_parser = BackwardBitParser::new(huffman_coeffs)?;
-        decoder.initialize(&mut backward_bit_parser);
+        decoder.initialize(&mut backward_bit_parser)?;
 
         loop {
             weights.push(decoder.symbol().try_into().unwrap());
