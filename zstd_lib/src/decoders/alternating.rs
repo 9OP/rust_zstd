@@ -57,7 +57,7 @@ impl BitDecoder<Error, Symbol> for AlternatingDecoder {
     }
 
     fn update_bits(&mut self, bitstream: &mut BackwardBitParser) -> Result<bool, Error> {
-        Ok(self.mut_decoder().update_bits(bitstream)?)
+        self.mut_decoder().update_bits(bitstream)
     }
 
     fn reset(&mut self) {

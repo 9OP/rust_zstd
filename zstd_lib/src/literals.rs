@@ -116,18 +116,17 @@ impl<'a> LiteralsSection<'a> {
 
         match block_type {
             RAW_LITERALS_BLOCK | RLE_LITERALS_BLOCK => {
-                let size_format = (header & 0b0000_1100) >> 2;
+                let size_format = (header >> 2) & 0x3;
                 let regenerated_size: usize = match size_format {
                     // use 5bits (8 - 3)
                     0b00 | 0b10 => (header >> 3).into(),
                     // use 12bits (8 + 4)
-                    0b01 => (header as usize | (input.u8()? as usize) << 8) >> 4,
+                    0b01 => (header as usize >> 4) + ((input.u8()? as usize) << 4),
                     // use 20bits (8 + 8 + 4)
                     0b11 => {
-                        (header as usize
-                            | (input.u8()? as usize) << 8
-                            | (input.u8()? as usize) << 16)
-                            >> 4
+                        (header as usize >> 4)
+                            + ((input.u8()? as usize) << 4)
+                            + ((input.u8()? as usize) << 12)
                     }
                     _ => panic!("unexpected size_format {size_format}"),
                 };
@@ -213,7 +212,7 @@ impl<'a> LiteralsSection<'a> {
                         // Decompressed size of the first 3 streams
                         let decompressed_size = (regenerated_size + 3) / 4;
                         // size of the last stream is: total_streams_size-3*decompressed_size
-                        if !(3 * decompressed_size < total_streams_size) {
+                        if 3 * decompressed_size >= total_streams_size {
                             return Err(CorruptedDataError);
                         }
 

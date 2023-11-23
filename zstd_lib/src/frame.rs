@@ -110,11 +110,12 @@ impl<'a> ZstandardFrame<'a> {
         let frame_header = FrameHeader::parse(input)?;
         let mut blocks: Vec<block::Block> = Vec::new();
 
-        let mut last = false;
-        while !last {
+        loop {
             let (block, is_last) = block::Block::parse(input)?;
-            last = is_last;
             blocks.push(block);
+            if is_last {
+                break;
+            }
         }
 
         let checksum = match frame_header.content_checksum_flag {
@@ -140,6 +141,8 @@ impl<'a> FrameHeader<'a> {
 
         let frame_content_size_flag = (frame_header_descriptor & 0b1100_0000) >> 6;
         let single_segment_flag = (frame_header_descriptor & 0b0010_0000) >> 5 == 1;
+        let reserved_bit = (frame_header_descriptor & 0b0000_1000) >> 3;
+        assert!(reserved_bit == 0);
         let content_checksum_flag = (frame_header_descriptor & 0b0000_0100) >> 2 == 1;
         let dictionary_id_flag = frame_header_descriptor & 0b0000_0011;
 

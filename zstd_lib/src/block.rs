@@ -1,7 +1,7 @@
 use crate::{
     decoders,
     literals::{self, LiteralsSection},
-    parsing,
+    parsing::{self, ForwardByteParser},
 };
 
 #[derive(Debug, thiserror::Error)]
@@ -62,7 +62,9 @@ impl<'a> Block<'a> {
             }
 
             COMPRESSED_BLOCK_FLAG => {
-                let block = Block::Compressed(LiteralsSection::parse(input)?);
+                let compressed_data = input.slice(block_size)?;
+                let mut parser = ForwardByteParser::new(compressed_data);
+                let block = Block::Compressed(LiteralsSection::parse(&mut parser)?);
                 Ok((block, last_block))
             }
 
