@@ -6,6 +6,7 @@ use super::{
 use crate::parsing::*;
 use std::fmt;
 
+#[derive(Clone)]
 pub struct FseTable {
     pub states: Vec<State>,
     pub accuracy_log: u8,
@@ -27,7 +28,7 @@ impl fmt::Debug for FseTable {
 }
 
 // Aliased types for better code clarity
-type Symbol = u16;
+pub type Symbol = u16;
 type Probability = i16;
 
 #[derive(Debug, Default, Clone, Copy)]
@@ -201,6 +202,19 @@ pub struct FseDecoder {
     symbol: Option<Symbol>,
 }
 
+impl FseDecoder {
+    pub fn new(fse_table: FseTable) -> Self {
+        Self {
+            initialized: false,
+            fse_table,
+
+            base_line: 0,
+            num_bits: 0,
+            symbol: None,
+        }
+    }
+}
+
 impl BitDecoder<Error, Symbol> for FseDecoder {
     fn initialize(&mut self, bitstream: &mut BackwardBitParser) -> Result<(), Error> {
         assert!(
@@ -208,7 +222,7 @@ impl BitDecoder<Error, Symbol> for FseDecoder {
             "FseDecoder instance is already initialized"
         );
         assert!(
-            self.fse_table.states.len() > 0,
+            !self.fse_table.states.is_empty(),
             "FseDecoder states table is empty"
         );
         self.initialized = true;
@@ -282,24 +296,52 @@ impl BitDecoder<Error, Symbol> for FseDecoder {
 mod tests {
     use super::*;
 
-    #[test]
-    fn test_parse_fse_table() {
-        let mut parser = ForwardBitParser::new(&[0x30, 0x6f, 0x9b, 0x03]);
-        let (accuracy_log, table) = parse_fse_table(&mut parser).unwrap();
-        assert_eq!(5, accuracy_log);
-        assert_eq!(&[18, 6, 2, 2, 2, 1, 1][..], &table);
-        assert_eq!(parser.available_bits(), 6);
-        assert_eq!(parser.len(), 1);
+    mod fse_decoder {
+        use super::*;
+
+        #[test]
+        fn test_decoder() {
+            let mut bitstream = BackwardBitParser::new(&[0b0011_1100, 0b0001_0111]).unwrap();
+            let mut parser = ForwardBitParser::new(&[0x30, 0x6f, 0x9b, 0x03]);
+            let fse_table = FseTable::parse(&mut parser).unwrap();
+            let mut decoder = FseDecoder::new(fse_table);
+            decoder.initialize(&mut bitstream).unwrap();
+
+            assert_eq!(bitstream.available_bits(), 8);
+            assert_eq!(decoder.update_bits(&mut bitstream).unwrap(), false);
+            assert_eq!(decoder.symbol(), 0);
+
+            assert_eq!(bitstream.available_bits(), 7);
+            assert_eq!(decoder.update_bits(&mut bitstream).unwrap(), false);
+            assert_eq!(decoder.symbol(), 0);
+
+            assert_eq!(bitstream.available_bits(), 6);
+            assert_eq!(decoder.update_bits(&mut bitstream).unwrap(), false);
+            assert_eq!(decoder.symbol(), 0);
+        }
     }
 
-    #[test]
-    fn test_from_distribution() {
-        let mut parser = ForwardBitParser::new(&[0x30, 0x6f, 0x9b, 0x03]);
-        let state = FseTable::parse(&mut parser).unwrap();
-        // This is not a robust test as it relies on the Debug trait implementation.
-        // However it is most likely to fail because of formatting rather than `parse` logic
-        // so I'm fine with it. I dont really expect the Debug trait implementation to change in the future.
-        let expected = r#"
+    mod fse_table {
+        use super::*;
+
+        #[test]
+        fn test_parse_fse_table() {
+            let mut parser = ForwardBitParser::new(&[0x30, 0x6f, 0x9b, 0x03]);
+            let (accuracy_log, table) = parse_fse_table(&mut parser).unwrap();
+            assert_eq!(5, accuracy_log);
+            assert_eq!(&[18, 6, 2, 2, 2, 1, 1][..], &table);
+            assert_eq!(parser.available_bits(), 6);
+            assert_eq!(parser.len(), 1);
+        }
+
+        #[test]
+        fn test_from_distribution() {
+            let mut parser = ForwardBitParser::new(&[0x30, 0x6f, 0x9b, 0x03]);
+            let state = FseTable::parse(&mut parser).unwrap();
+            // This is not a robust test as it relies on the Debug trait implementation.
+            // However it is most likely to fail because of formatting rather than `parse` logic
+            // so I'm fine with it. I dont really expect the Debug trait implementation to change in the future.
+            let expected = r#"
 State,Sym,BL,NB
 0x00,s0,0x04,1
 0x01,s0,0x06,1
@@ -334,14 +376,14 @@ State,Sym,BL,NB
 0x1e,s1,0x0c,2
 0x1f,s2,0x10,4
 "#;
-        assert_eq!(expected.trim(), format!("{:?}", state).trim());
+            assert_eq!(expected.trim(), format!("{:?}", state).trim());
 
-        let mut parser = ForwardBitParser::new(&[
-            0x21, 0x9d, 0x51, 0xcc, 0x18, 0x42, 0x44, 0x81, 0x8c, 0x94, 0xb4, 0x50, 0x1e,
-        ]);
-        let state = FseTable::parse(&mut parser).unwrap();
-        // Same remark as above. Example is also taken from Nigel Tao's examples.
-        let expected = r#"
+            let mut parser = ForwardBitParser::new(&[
+                0x21, 0x9d, 0x51, 0xcc, 0x18, 0x42, 0x44, 0x81, 0x8c, 0x94, 0xb4, 0x50, 0x1e,
+            ]);
+            let state = FseTable::parse(&mut parser).unwrap();
+            // Same remark as above. Example is also taken from Nigel Tao's examples.
+            let expected = r#"
 State,Sym,BL,NB
 0x00,s0,0x04,2
 0x01,s0,0x08,2
@@ -408,6 +450,7 @@ State,Sym,BL,NB
 0x3e,s18,0x20,5
 0x3f,s24,0x10,4        
 "#;
-        assert_eq!(expected.trim(), format!("{:?}", state).trim());
+            assert_eq!(expected.trim(), format!("{:?}", state).trim());
+        }
     }
 }

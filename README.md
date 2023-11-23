@@ -5,6 +5,7 @@ helpers:
 - `cargo tarpaulin --count --line --force-clean -p zstd_lib --out html`
 
 ToDo:
+- check if relevant to use usize or use u64 instead. usize is portable but tied to architecture, find counter-example
 - add code coverage check
 - prop test
 - doc tests

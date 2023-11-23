@@ -1,5 +1,9 @@
-use super::{Error::*, Result};
-use crate::parsing::BackwardBitParser;
+use super::{BitDecoder, Error::*, Result};
+use crate::{
+    decoders::{AlternatingDecoder, FseTable},
+    parsing::{BackwardBitParser, ForwardBitParser, ForwardByteParser},
+};
+use core::slice::SlicePattern;
 use std::fmt;
 
 pub enum HuffmanDecoder {
@@ -110,6 +114,76 @@ impl<'a> HuffmanDecoder {
 
     pub fn iter(&'a self) -> HuffmanDecoderIterator<'a> {
         HuffmanDecoderIterator::new(self)
+    }
+
+    /// Build a Huffman table from the given stream. Only the bytes needed to
+    /// build the table are consumed from the stream.
+    pub fn parse(input: &mut ForwardByteParser) -> Result<Self> {
+        let header = input.u8()?;
+        let weights = if header < 128 {
+            Self::parse_fse(input, header)?
+        } else {
+            Self::parse_direct(input, header as usize - 127)?
+        };
+        Self::from_weights(weights)
+    }
+
+    /// Parse the Huffman table weights directly from the stream, 4
+    /// bits per weights. If there are an odd number of weights, the
+    /// last four bits are lost. `number_of_weights/2` bytes (rounded
+    /// up) will be consumed from the `input` stream.
+    fn parse_direct(input: &mut ForwardByteParser, number_of_weights: usize) -> Result<Vec<u8>> {
+        let mut weights = Vec::<u8>::new();
+        let mut number_of_weights = number_of_weights;
+
+        'outer: loop {
+            let byte = input.u8()?;
+
+            for shift in &[4, 0] {
+                let weight = (byte >> shift) & 0b0000_1111;
+                weights.push(weight);
+                number_of_weights -= 1;
+
+                if number_of_weights == 0 {
+                    break 'outer;
+                }
+            }
+        }
+
+        Ok(weights)
+    }
+
+    /// Decode a FSE table and use an alternating FSE decoder to parse
+    /// the Huffman table weights. `compressed_size` bytes will be
+    /// consumed from the `input` stream.
+    fn parse_fse(input: &mut ForwardByteParser, compressed_size: u8) -> Result<Vec<u8>> {
+        let mut weights = Vec::<u8>::new();
+
+        let mut bitstream = Vec::<u8>::new();
+        for _ in 0..compressed_size {
+            bitstream.push(input.u8()?);
+        }
+
+        let mut forward_bit_parser = ForwardBitParser::new(bitstream.clone().as_slice());
+        let fse_table = FseTable::parse(&mut forward_bit_parser)?;
+        let mut decoder = AlternatingDecoder::new(&fse_table);
+
+        assert!(compressed_size as usize > forward_bit_parser.len());
+        let index = compressed_size as usize - forward_bit_parser.len();
+        let huffman_coeffs = &bitstream[index..];
+
+        let mut backward_bit_parser = BackwardBitParser::new(huffman_coeffs)?;
+        decoder.initialize(&mut backward_bit_parser);
+
+        loop {
+            weights.push(decoder.symbol().try_into().unwrap());
+            let stop = decoder.update_bits(&mut backward_bit_parser)?;
+            if stop {
+                break;
+            }
+        }
+
+        Ok(weights)
     }
 }
 
