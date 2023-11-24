@@ -5,6 +5,7 @@ use crate::{
 };
 use std::fmt;
 
+#[derive(PartialEq)]
 pub enum HuffmanDecoder {
     Absent,
     Symbol(u8),

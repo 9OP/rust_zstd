@@ -8,7 +8,7 @@ use std::fmt;
 
 #[derive(Clone)]
 pub struct FseTable {
-    pub states: Vec<State>,
+    pub states: Vec<FseState>,
     pub accuracy_log: u8,
 }
 
@@ -32,7 +32,7 @@ pub type Symbol = u16;
 type Probability = i16;
 
 #[derive(Debug, Default, Clone, Copy)]
-pub struct State {
+pub struct FseState {
     pub symbol: Symbol,
     pub base_line: u16, // could be usize
     pub num_bits: u16,  // could be usize
@@ -42,6 +42,10 @@ const ACC_LOG_OFFSET: u8 = 5;
 const ACC_LOG_MAX: u8 = 9;
 
 impl FseTable {
+    fn get(&self, index: usize) -> Result<&FseState> {
+        self.states.get(index).ok_or(MissingSymbol)
+    }
+
     pub fn parse(parser: &mut ForwardBitParser) -> Result<Self> {
         let (accuracy_log, distribution) = parse_fse_table(parser)?;
         Ok(Self::from_distribution(
@@ -52,7 +56,7 @@ impl FseTable {
 
     pub fn from_distribution(accuracy_log: u8, distribution: &[Probability]) -> Self {
         let table_length = 1 << accuracy_log;
-        let mut states = vec![State::default(); table_length];
+        let mut states = vec![FseState::default(); table_length];
 
         // Filter out symbols with 0 probability
         let distribution: Vec<(Symbol, Probability)> = distribution
@@ -68,6 +72,7 @@ impl FseTable {
             .filter(|&e| e.1 == -1)
             .map(|&e| e.0)
             .collect();
+
         // sort symbols based on lowest value first
         less_than_one.sort();
         for (i, symbol) in less_than_one.iter().enumerate() {
@@ -194,101 +199,77 @@ pub fn parse_fse_table(parser: &mut ForwardBitParser) -> Result<(u8, Vec<Probabi
 }
 
 pub struct FseDecoder {
-    initialized: bool,
-    fse_table: FseTable,
-
-    base_line: u16,
-    num_bits: u16,
-    symbol: Option<Symbol>,
+    table: FseTable,
+    state: Option<FseState>,
 }
 
 impl FseDecoder {
-    pub fn new(fse_table: FseTable) -> Self {
-        Self {
-            initialized: false,
-            fse_table,
-
-            base_line: 0,
-            num_bits: 0,
-            symbol: None,
-        }
+    pub fn new(table: FseTable) -> Self {
+        Self { table, state: None }
     }
 }
 
 impl BitDecoder<Error, Symbol> for FseDecoder {
     fn initialize(&mut self, bitstream: &mut BackwardBitParser) -> Result<(), Error> {
         assert!(
-            !self.initialized,
+            !self.state.is_none(),
             "FseDecoder instance is already initialized"
         );
         assert!(
-            !self.fse_table.states.is_empty(),
+            !self.table.states.is_empty(),
             "FseDecoder states table is empty"
         );
-        self.initialized = true;
 
         // read |accuracy_log| bits to get the initial state
-        let initial_state_index = bitstream.take(self.fse_table.accuracy_log as usize)?;
-        let initial_state = self
-            .fse_table
-            .states
-            .get(initial_state_index as usize)
-            .ok_or(MissingSymbol)?;
-
-        self.base_line = initial_state.base_line;
-        self.num_bits = initial_state.num_bits;
-        self.symbol = Some(initial_state.symbol);
+        let initial_state_index = bitstream.take(self.table.accuracy_log as usize)?;
+        let initial_state = self.table.get(initial_state_index as usize)?;
+        self.state = Some(*initial_state);
         Ok(())
     }
 
     fn expected_bits(&self) -> usize {
-        assert!(self.initialized, "FseDecoder instance not initialized");
-        assert!(self.num_bits > 0, "No bits expected");
-        self.num_bits as usize
+        if let Some(state) = self.state {
+            assert!(state.num_bits > 0, "No bits expected");
+            return state.num_bits as usize;
+        }
+        panic!("FseDecoder instance not initialized");
     }
 
     fn symbol(&mut self) -> Symbol {
-        assert!(self.initialized, "FseDecoder instance not initialized");
-        let symbol = self.symbol.unwrap();
-        self.symbol = None;
-        symbol
+        if let Some(state) = self.state {
+            let symbol = state.symbol;
+            self.state = None;
+            return symbol;
+        }
+        panic!("FseDecoder instance not initialized");
     }
 
     fn update_bits(&mut self, bitstream: &mut BackwardBitParser) -> Result<bool, Error> {
-        assert!(self.initialized, "FseDecoder instance not initialized");
+        if self.state.is_none() {
+            panic!("FseDecoder instance not initialized");
+        }
+        let state = self.state.unwrap();
         let available_bits = bitstream.available_bits();
         let expected_bits = self.expected_bits();
 
         let (state_index, completing_with_zeros) = match expected_bits <= available_bits {
             true => {
                 let index = bitstream.take(expected_bits)?;
-                (index + self.base_line as u64, false)
+                (index + state.base_line as u64, false)
             }
             false => {
                 let diff = expected_bits - available_bits;
                 let index = bitstream.take(available_bits)? << diff;
-                (index + self.base_line as u64, true)
+                (index + state.base_line as u64, true)
             }
         };
-
-        let state = self
-            .fse_table
-            .states
-            .get(state_index as usize)
-            .ok_or(MissingSymbol)?;
-
-        self.base_line = state.base_line;
-        self.num_bits = state.num_bits;
-        self.symbol = Some(state.symbol);
-
+        let state = self.table.get(state_index as usize)?;
+        self.state = Some(*state);
         Ok(completing_with_zeros)
     }
 
     fn reset(&mut self) {
-        self.initialized = false;
-        self.base_line = 0;
-        self.num_bits = 0;
-        self.symbol = None;
+        self.state = None;
     }
 }
 

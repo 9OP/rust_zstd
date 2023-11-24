@@ -7,7 +7,7 @@ pub struct DecodingContext {
     pub window_size: u64,
 }
 
-const MAX_WINDOW_SIZE: u64 = 67108864; // 64Mib
+const MAX_WINDOW_SIZE: u64 = 1024 * 1024 * 64; // 64Mib
 
 impl DecodingContext {
     pub fn new(window_size: u64) -> Result<Self> {

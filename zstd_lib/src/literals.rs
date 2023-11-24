@@ -17,7 +17,7 @@ pub enum Error {
 use Error::*;
 pub type Result<T, E = Error> = std::result::Result<T, E>;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum LiteralsSection<'a> {
     RawLiteralsBlock(RawLiteralsBlock<'a>),
     RLELiteralsBlock(RLELiteralsBlock),
@@ -29,16 +29,16 @@ const RLE_LITERALS_BLOCK: u8 = 1;
 const COMPRESSED_LITERALS_BLOCK: u8 = 2;
 const TREELESS_LITERALS_BLOCK: u8 = 3;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct RawLiteralsBlock<'a>(&'a [u8]);
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct RLELiteralsBlock {
     byte: u8,
     repeat: usize,
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct CompressedLiteralsBlock<'a> {
     huffman: Option<decoders::HuffmanDecoder>,
     regenerated_size: usize,
@@ -116,7 +116,7 @@ impl<'a> LiteralsSection<'a> {
 
         match block_type {
             RAW_LITERALS_BLOCK | RLE_LITERALS_BLOCK => {
-                let size_format = (header >> 2) & 0x3;
+                let size_format = (header & 0b0000_1100) >> 2;
                 let regenerated_size: usize = match size_format {
                     // use 5bits (8 - 3)
                     0b00 | 0b10 => (header >> 3).into(),
@@ -237,5 +237,78 @@ impl<'a> LiteralsSection<'a> {
             }
             _ => panic!("unexpected block_type {block_type}"),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::parsing::ForwardByteParser;
+
+    use super::*;
+
+    #[test]
+    fn test_parse_raw_literal() {
+        let mut input = ForwardByteParser::new(&[0b0000_1000, 0xFF]);
+        assert_eq!(
+            LiteralsSection::parse(&mut input).unwrap(),
+            LiteralsSection::RawLiteralsBlock(RawLiteralsBlock(&[0xFF]))
+        );
+
+        let mut input = ForwardByteParser::new(&[0b0000_0000]);
+        assert_eq!(
+            LiteralsSection::parse(&mut input).unwrap(),
+            LiteralsSection::RawLiteralsBlock(RawLiteralsBlock(&[]))
+        );
+
+        let mut input = ForwardByteParser::new(&[0b0100_0100, 0x0000_0000, 0xAA, 0xBB, 0xCC, 0xDD]);
+        assert_eq!(
+            LiteralsSection::parse(&mut input).unwrap(),
+            LiteralsSection::RawLiteralsBlock(RawLiteralsBlock(&[0xAA, 0xBB, 0xCC, 0xDD]))
+        );
+
+        let mut input = ForwardByteParser::new(&[0b0010_1100, 0x0, 0x0, 0xAA, 0xBB]);
+        assert_eq!(
+            LiteralsSection::parse(&mut input).unwrap(),
+            LiteralsSection::RawLiteralsBlock(RawLiteralsBlock(&[0xAA, 0xBB]))
+        );
+    }
+
+    #[test]
+    fn test_parse_rle_literal() {
+        let mut input = ForwardByteParser::new(&[0b0000_0001, 0xFF]);
+        assert_eq!(
+            LiteralsSection::parse(&mut input).unwrap(),
+            LiteralsSection::RLELiteralsBlock(RLELiteralsBlock {
+                byte: 0xFF,
+                repeat: 0
+            })
+        );
+
+        let mut input = ForwardByteParser::new(&[0b0000_1001, 0xFF]);
+        assert_eq!(
+            LiteralsSection::parse(&mut input).unwrap(),
+            LiteralsSection::RLELiteralsBlock(RLELiteralsBlock {
+                byte: 0xFF,
+                repeat: 1
+            })
+        );
+
+        let mut input = ForwardByteParser::new(&[0b0101_0101, 0b1101_0101, 0xFF]);
+        assert_eq!(
+            LiteralsSection::parse(&mut input).unwrap(),
+            LiteralsSection::RLELiteralsBlock(RLELiteralsBlock {
+                byte: 0xFF,
+                repeat: 0b1101_0101_0101,
+            })
+        );
+
+        let mut input = ForwardByteParser::new(&[0b0101_1101, 0b1101_0101, 0b1111_0000, 0xFF]);
+        assert_eq!(
+            LiteralsSection::parse(&mut input).unwrap(),
+            LiteralsSection::RLELiteralsBlock(RLELiteralsBlock {
+                byte: 0xFF,
+                repeat: 0b1111_0000_1101_0101_0101,
+            })
+        );
     }
 }
