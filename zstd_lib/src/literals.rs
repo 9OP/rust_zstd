@@ -24,11 +24,6 @@ pub enum LiteralsSection<'a> {
     CompressedLiteralsBlock(CompressedLiteralsBlock<'a>),
 }
 
-const RAW_LITERALS_BLOCK: u8 = 0;
-const RLE_LITERALS_BLOCK: u8 = 1;
-const COMPRESSED_LITERALS_BLOCK: u8 = 2;
-const TREELESS_LITERALS_BLOCK: u8 = 3;
-
 #[derive(Debug, PartialEq)]
 pub struct RawLiteralsBlock<'a>(&'a [u8]);
 
@@ -45,6 +40,11 @@ pub struct CompressedLiteralsBlock<'a> {
     jump_table: Option<[u16; 3]>, // three 2-bytes long offsets
     data: &'a [u8],
 }
+
+const RAW_LITERALS_BLOCK: u8 = 0;
+const RLE_LITERALS_BLOCK: u8 = 1;
+const COMPRESSED_LITERALS_BLOCK: u8 = 2;
+const TREELESS_LITERALS_BLOCK: u8 = 3;
 
 impl<'a> LiteralsSection<'a> {
     /// Decompress the literals section. Update the Huffman decoder in
@@ -216,7 +216,7 @@ impl<'a> LiteralsSection<'a> {
                             return Err(CorruptedDataError);
                         }
 
-                        // TODO: assert the conversion usize->u16 do not overflow
+                        // TODO assert the conversion usize->u16 do not overflow
                         Some([
                             decompressed_size as u16,
                             2 * decompressed_size as u16,
@@ -310,5 +310,15 @@ mod tests {
                 repeat: 0b1111_0000_1101_0101_0101,
             })
         );
+    }
+
+    #[test]
+    fn test_parse_compressed_literal() {
+        // TODO
+    }
+
+    #[test]
+    fn test_parse_treeless_literal() {
+        // TODO
     }
 }

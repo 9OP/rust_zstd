@@ -2,6 +2,7 @@ use crate::{
     decoders,
     literals::{self, LiteralsSection},
     parsing::{self, ForwardByteParser},
+    sequences::SequenceSection,
 };
 
 #[derive(Debug, thiserror::Error)]
@@ -21,8 +22,14 @@ type Result<T, E = Error> = std::result::Result<T, E>;
 #[derive(Debug)]
 pub enum Block<'a> {
     Raw(&'a [u8]),
-    RLE { byte: u8, repeat: usize },
-    Compressed(LiteralsSection<'a>),
+    RLE {
+        byte: u8,
+        repeat: usize,
+    },
+    Compressed {
+        literals: LiteralsSection<'a>,
+        sequences: Vec<SequenceSection>,
+    },
 }
 
 const BLOCK_HEADER_LEN: usize = 3;
@@ -64,7 +71,14 @@ impl<'a> Block<'a> {
             COMPRESSED_BLOCK_FLAG => {
                 let compressed_data = input.slice(block_size)?;
                 let mut parser = ForwardByteParser::new(compressed_data);
-                let block = Block::Compressed(LiteralsSection::parse(&mut parser)?);
+
+                let literals = LiteralsSection::parse(&mut parser)?;
+                let sequences = Vec::<SequenceSection>::new();
+
+                let block = Block::Compressed {
+                    literals,
+                    sequences,
+                };
                 Ok((block, last_block))
             }
 
@@ -78,7 +92,10 @@ impl<'a> Block<'a> {
         let decoded = match self {
             Block::Raw(v) => Vec::from(v),
             Block::RLE { byte, repeat } => vec![byte; repeat],
-            Block::Compressed(literal) => literal.decode(context)?,
+            Block::Compressed {
+                literals,
+                sequences: _,
+            } => literals.decode(context)?,
         };
         context.decoded.extend(decoded);
         Ok(())

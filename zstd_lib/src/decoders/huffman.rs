@@ -177,6 +177,7 @@ impl<'a> HuffmanDecoder {
         decoder.initialize(&mut backward_bit_parser)?;
 
         loop {
+            // TODO: remove unwrap
             weights.push(decoder.symbol().try_into().unwrap());
             let stop = decoder.update_bits(&mut backward_bit_parser)?;
             if stop {

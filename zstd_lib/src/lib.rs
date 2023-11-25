@@ -3,6 +3,7 @@ pub mod decoders;
 pub mod frame;
 pub mod literals;
 pub mod parsing;
+pub mod sequences;
 
 pub fn decrypt(bytes: Vec<u8>, info: bool) -> frame::Result<Vec<u8>> {
     let mut res: Vec<u8> = Vec::new();

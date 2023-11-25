@@ -1,7 +1,7 @@
 use super::{
     BitDecoder,
     Error::{self},
-    FseDecoder, FseTable, Symbol,
+    FseDecoder, FseTable,
 };
 use crate::parsing::*;
 
@@ -39,7 +39,7 @@ impl AlternatingDecoder {
     }
 }
 
-impl BitDecoder<Error, Symbol> for AlternatingDecoder {
+impl BitDecoder<Error, u16> for AlternatingDecoder {
     fn initialize(&mut self, bitstream: &mut BackwardBitParser) -> Result<(), Error> {
         self.decoder_1.initialize(bitstream)?;
         self.decoder_2.initialize(bitstream)?;
@@ -50,7 +50,7 @@ impl BitDecoder<Error, Symbol> for AlternatingDecoder {
         self.decoder().expected_bits()
     }
 
-    fn symbol(&mut self) -> Symbol {
+    fn symbol(&mut self) -> u16 {
         let symbol = self.mut_decoder().symbol();
         self.alternate();
         symbol
