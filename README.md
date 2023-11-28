@@ -26,3 +26,6 @@ Question?:
 does rust reorder operations / or the CPU ?
 if: input.u8()? + (input.u8()? << 2) the order in which 
 the input are triggered change the result. Do I need to use mfence ?
+
+TODO:
+- split big functions in smaller functions

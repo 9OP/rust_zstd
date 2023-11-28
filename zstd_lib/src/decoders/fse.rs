@@ -4,27 +4,11 @@ use super::{
     Result,
 };
 use crate::parsing::*;
-use std::fmt;
 
 #[derive(Clone)]
 pub struct FseTable {
     pub states: Vec<FseState>,
     pub accuracy_log: u8,
-}
-
-impl fmt::Debug for FseTable {
-    fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
-        writeln!(fmt, "State,Sym,BL,NB").ok();
-        for (i, state) in self.states.iter().enumerate() {
-            writeln!(
-                fmt,
-                "0x{:02x},s{},0x{:02x},{}",
-                i, state.symbol, state.base_line, state.num_bits
-            )
-            .ok();
-        }
-        write!(fmt, "")
-    }
 }
 
 // Aliased types for better code clarity
@@ -42,6 +26,7 @@ const ACC_LOG_OFFSET: u8 = 5;
 const ACC_LOG_MAX: u8 = 9;
 
 impl FseTable {
+    // TODO: function to generate accurcy_log from fse_table lentgh
     fn get(&self, index: usize) -> Result<&FseState> {
         self.states.get(index).ok_or(MissingSymbol)
     }
@@ -280,9 +265,40 @@ impl BitDecoder<Error, Symbol> for FseDecoder {
     }
 }
 
+// #[cfg(test)]
+// impl std::fmt::Debug for FseTable {
+//     fn fmt(&self, fmt: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+//         writeln!(fmt, "State,Sym,BL,NB").ok();
+//         for (i, state) in self.states.iter().enumerate() {
+//             writeln!(
+//                 fmt,
+//                 "0x{:02x},s{},0x{:02x},{}",
+//                 i, state.symbol, state.base_line, state.num_bits
+//             )
+//             .ok();
+//         }
+//         write!(fmt, "")
+//     }
+// }
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    impl std::fmt::Debug for FseTable {
+        fn fmt(&self, fmt: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            writeln!(fmt, "State,Sym,BL,NB").ok();
+            for (i, state) in self.states.iter().enumerate() {
+                writeln!(
+                    fmt,
+                    "0x{:02x},s{},0x{:02x},{}",
+                    i, state.symbol, state.base_line, state.num_bits
+                )
+                .ok();
+            }
+            write!(fmt, "")
+        }
+    }
 
     mod fse_decoder {
         use super::*;
