@@ -19,5 +19,8 @@ pub enum Error {
 
     #[error("Window size too large")]
     WindowSizeError,
+
+    #[error("Offset size error")]
+    OffsetError,
 }
 pub type Result<T, E = Error> = std::result::Result<T, E>;

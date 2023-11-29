@@ -4,18 +4,18 @@ use super::{Error::*, Result};
 pub struct DecodingContext {
     pub huffman: Option<HuffmanDecoder>,
     pub decoded: Vec<u8>,
-    pub window_size: u64,
+    pub window_size: usize,
 
     pub offset_1: usize,
     pub offset_2: usize,
     pub offset_3: usize,
 }
 
-const MAX_WINDOW_SIZE: u64 = 1024 * 1024 * 64; // 64Mib
+const MAX_WINDOW_SIZE: usize = 1024 * 1024 * 64; // 64Mib
 
 impl DecodingContext {
     /// Create a new decoding context instance. Return `WindowSizeError` when `window_size` exceeds 64Mb
-    pub fn new(window_size: u64) -> Result<Self> {
+    pub fn new(window_size: usize) -> Result<Self> {
         if window_size > MAX_WINDOW_SIZE {
             return Err(WindowSizeError);
         }
@@ -72,7 +72,12 @@ impl DecodingContext {
             }
         }
 
-        Ok(self.offset_1)
+        let offset = self.offset_1;
+        if offset > self.window_size as usize {
+            return Err(OffsetError);
+        }
+
+        Ok(offset)
     }
 
     /// Execute the sequences while updating the offsets
@@ -81,6 +86,26 @@ impl DecodingContext {
         sequences: Vec<(usize, usize, usize)>,
         literals: &[u8],
     ) -> Result<()> {
-        todo!() // Using the `Self::decode_offset()` method
+        let mut buffer = Vec::<u8>::new();
+
+        for (literals_length, offset_value, match_value) in sequences {
+            let offset_value = self.decode_offset(offset_value, literals_length)?;
+
+            // TODO: return error
+            assert!(literals_length <= literals.len());
+
+            buffer.extend_from_slice(&literals[..literals_length]);
+
+            let mut index = buffer.len() - offset_value;
+            while index != literals_length + match_value {
+                // TODO: do not use unwrap / should panic explicitly with a messaage.
+                // panic is ok because this is a bug in the implementation
+                buffer.push(*buffer.get(index).unwrap());
+                index += 1;
+            }
+        }
+
+        self.decoded.extend(buffer);
+        Ok(())
     }
 }
