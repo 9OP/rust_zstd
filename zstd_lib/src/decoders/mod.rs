@@ -4,6 +4,7 @@ mod decoding_context;
 mod error;
 mod fse;
 mod huffman;
+mod rle;
 mod sequence;
 
 pub use alternating::*;
@@ -12,4 +13,5 @@ pub use decoding_context::*;
 pub use error::{Error, Result};
 pub use fse::*;
 pub use huffman::*;
+pub use rle::*;
 pub use sequence::*;

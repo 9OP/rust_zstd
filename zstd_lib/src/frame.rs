@@ -173,17 +173,17 @@ impl<'a> FrameHeader<'a> {
         })
     }
 
-    pub fn window_size(&self) -> u64 {
+    pub fn window_size(&self) -> usize {
         let use_fcs = self.window_descriptor == 0;
 
         if use_fcs {
             let mut fcs: [u8; 8] = [0; 8];
             fcs[..self.frame_content_size.len()].copy_from_slice(self.frame_content_size);
-            return u64::from_le_bytes(fcs);
+            return usize::from_le_bytes(fcs);
         }
 
-        let exponent: u64 = ((self.window_descriptor & 0b1111_1000) >> 3).into();
-        let mantissa: u64 = (self.window_descriptor & 0b0000_0111).into();
+        let exponent: usize = ((self.window_descriptor & 0b1111_1000) >> 3).into();
+        let mantissa: usize = (self.window_descriptor & 0b0000_0111).into();
 
         let window_log = 10 + exponent;
         let window_base = 1 << window_log;

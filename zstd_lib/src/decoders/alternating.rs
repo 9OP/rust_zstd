@@ -39,7 +39,7 @@ impl AlternatingDecoder {
     }
 }
 
-impl BitDecoder<Error, u16> for AlternatingDecoder {
+impl BitDecoder<u16, Error> for AlternatingDecoder {
     fn initialize(&mut self, bitstream: &mut BackwardBitParser) -> Result<(), Error> {
         self.decoder_1.initialize(bitstream)?;
         self.decoder_2.initialize(bitstream)?;

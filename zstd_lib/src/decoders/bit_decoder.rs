@@ -1,7 +1,7 @@
 use crate::parsing::BackwardBitParser;
 
 /// A (possibly) stateful bit-level decoder
-pub trait BitDecoder<E, T = u8> {
+pub trait BitDecoder<T, E> {
     /// Initialize the state.
     ///
     /// # Panics

@@ -2,7 +2,7 @@ use crate::{
     decoders,
     literals::{self, LiteralsSection},
     parsing::{self, ForwardByteParser},
-    sequences::SequenceSection,
+    sequences::Sequences,
 };
 
 #[derive(Debug, thiserror::Error)]
@@ -28,7 +28,7 @@ pub enum Block<'a> {
     },
     Compressed {
         literals: LiteralsSection<'a>,
-        sequences: Vec<SequenceSection>,
+        sequences: Vec<Sequences<'a>>,
     },
 }
 
@@ -73,7 +73,7 @@ impl<'a> Block<'a> {
                 let mut parser = ForwardByteParser::new(compressed_data);
 
                 let literals = LiteralsSection::parse(&mut parser)?;
-                let sequences = Vec::<SequenceSection>::new();
+                let sequences = Vec::<Sequences>::new();
 
                 let block = Block::Compressed {
                     literals,

@@ -5,7 +5,7 @@ use super::{
 };
 use crate::parsing::*;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct FseTable {
     pub states: Vec<FseState>,
     pub accuracy_log: u8,
@@ -199,7 +199,8 @@ impl FseDecoder {
     }
 }
 
-impl BitDecoder<Error, Symbol> for FseDecoder {
+// Refactor it, use initialized boolean var
+impl BitDecoder<Symbol, Error> for FseDecoder {
     fn initialize(&mut self, bitstream: &mut BackwardBitParser) -> Result<(), Error> {
         assert!(
             self.state.is_none(),
@@ -265,27 +266,11 @@ impl BitDecoder<Error, Symbol> for FseDecoder {
     }
 }
 
-// #[cfg(test)]
-// impl std::fmt::Debug for FseTable {
-//     fn fmt(&self, fmt: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-//         writeln!(fmt, "State,Sym,BL,NB").ok();
-//         for (i, state) in self.states.iter().enumerate() {
-//             writeln!(
-//                 fmt,
-//                 "0x{:02x},s{},0x{:02x},{}",
-//                 i, state.symbol, state.base_line, state.num_bits
-//             )
-//             .ok();
-//         }
-//         write!(fmt, "")
-//     }
-// }
-
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    impl std::fmt::Debug for FseTable {
+    impl std::fmt::Display for FseTable {
         fn fmt(&self, fmt: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
             writeln!(fmt, "State,Sym,BL,NB").ok();
             for (i, state) in self.states.iter().enumerate() {

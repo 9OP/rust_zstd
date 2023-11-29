@@ -1,6 +1,6 @@
 use crate::{
-    decoders::{self, DecodingContext, FseTable},
-    parsing::{self, ForwardBitParser, ForwardByteParser},
+    decoders::{self, BitDecoder, DecodingContext, FseDecoder, FseTable, RLEDecoder},
+    parsing::{self, BackwardBitParser, ForwardBitParser, ForwardByteParser},
 };
 
 #[derive(Debug, thiserror::Error)]
@@ -13,10 +13,14 @@ pub enum Error {
 
     #[error("Invalid reserved bits value")]
     InvalidDataError,
+
+    #[error("Missing sequence decoder")]
+    MissingSequenceDecoder,
 }
 use Error::*;
 pub type Result<T, E = Error> = std::result::Result<T, E>;
 
+#[derive(Debug)]
 pub struct Sequences<'a> {
     pub number_of_sequences: usize,
     pub literal_lengths_mode: SymbolCompressionMode,
@@ -25,24 +29,35 @@ pub struct Sequences<'a> {
     pub bitstream: &'a [u8],
 }
 
+#[derive(Debug)]
 pub enum SymbolCompressionMode {
     PredefinedMode,
     RLEMode(u8),
     FseCompressedMode(FseTable),
     RepeatMode,
 }
+use SymbolCompressionMode::*;
 
-const LITERALS_LENGTH_DEFAULT_DISTRIBUTION: [i8; 36] = [
-    4, 3, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 3, 2, 1, 1, 1, 1, 1,
-    -1, -1, -1, -1,
-];
-const MATCH_LENGTH_DEFAULT_DISTRIBUTION: [i8; 53] = [
-    1, 4, 3, 2, 2, 2, 2, 2, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, -1, -1, -1, -1, -1, -1, -1,
-];
-const OFFSET_CODE_DEFAULT_DISTRIBUTION: [i8; 29] = [
-    1, 1, 1, 1, 1, 1, 2, 2, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, -1, -1, -1, -1, -1,
-];
+const LITERALS_LENGTH_DEFAULT_DISTRIBUTION: (u8, [i16; 36]) = (
+    6,
+    [
+        4, 3, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 3, 2, 1, 1, 1,
+        1, 1, -1, -1, -1, -1,
+    ],
+);
+const MATCH_LENGTH_DEFAULT_DISTRIBUTION: (u8, [i16; 53]) = (
+    6,
+    [
+        1, 4, 3, 2, 2, 2, 2, 2, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, -1, -1, -1, -1, -1, -1, -1,
+    ],
+);
+const OFFSET_CODE_DEFAULT_DISTRIBUTION: (u8, [i16; 29]) = (
+    5,
+    [
+        1, 1, 1, 1, 1, 1, 2, 2, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, -1, -1, -1, -1, -1,
+    ],
+);
 
 impl SymbolCompressionMode {
     pub fn parse(mode: u8, input: &mut ForwardByteParser) -> Result<Self> {
@@ -102,6 +117,65 @@ impl<'a> Sequences<'a> {
     /// Return vector of (literals length, offset value, match length) and update the
     /// decoding context with the tables if appropriate.
     pub fn decode(self, context: &mut DecodingContext) -> Result<Vec<(usize, usize, usize)>> {
-        todo!()
+        // implement: https://github.com/facebook/zstd/blob/dev/doc/zstd_compression_format.md#decoding-a-sequence
+        // decode the symbols from the three decoders
+        let mut decoded_sequences = Vec::<(usize, usize, usize)>::new();
+        let mut parser = BackwardBitParser::new(self.bitstream)?;
+
+        // initialize decoder:
+        // the literals lengths decoder
+        // the offsets decoder
+        // the match lengths decoder
+
+        let mut offset_lenght_decoder: Box<dyn BitDecoder<u16, decoders::Error>> =
+            match self.offsets_mode {
+                PredefinedMode => {
+                    let (acc_log, distribution) = OFFSET_CODE_DEFAULT_DISTRIBUTION;
+                    let fse_table = FseTable::from_distribution(acc_log, &distribution);
+                    let mut fse_decoder = FseDecoder::new(fse_table);
+                    fse_decoder.initialize(&mut parser)?;
+                    Box::new(fse_decoder)
+                }
+                RLEMode(byte) => {
+                    let rle_decoder = RLEDecoder { symbol: byte };
+                    Box::new(rle_decoder)
+                }
+                FseCompressedMode(fse_table) => {
+                    let mut fse_decoder = FseDecoder::new(fse_table);
+                    fse_decoder.initialize(&mut parser)?;
+                    Box::new(fse_decoder)
+                }
+                RepeatMode => match &context.sequence_decoder {
+                    None => return Err(MissingSequenceDecoder),
+                    Some(sequence_decoder) => {
+                        let mut decoder = sequence_decoder.offsets_decoder;
+                        decoder.reset();
+                        decoder
+                    }
+                },
+            };
+
+        // Update the decoding context sequence_decoder fields
+        let sequence_decoder = context.sequence_decoder.unwrap();
+
+        let mut stop = false;
+        loop {
+            // seuqnce decoder symbol, then convert to code
+            // decode order:
+            // the offset
+            // the match length
+            // the literals length
+
+            let (literals_symbol, offset_symbol, match_symbol) = sequence_decoder.symbol();
+
+            decoded_sequences.push((literals_symbol, offset_symbol, match_symbol));
+
+            if stop {
+                break;
+            }
+            stop |= sequence_decoder.update_bits(&mut parser)?;
+        }
+
+        Ok(decoded_sequences)
     }
 }
