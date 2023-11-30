@@ -99,4 +99,4 @@ RAW = [
 
 
 ascii_string = ''.join([chr(hex_value) for hex_value in RAW])
-print(ascii_string)
+print(ascii_string, len(RAW))

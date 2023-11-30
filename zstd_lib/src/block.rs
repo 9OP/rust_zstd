@@ -95,9 +95,15 @@ impl<'a> Block<'a> {
     }
 
     pub fn decode(self, context: &mut decoders::DecodingContext) -> Result<()> {
-        let decoded = match self {
-            Block::Raw(v) => Vec::from(v),
-            Block::RLE { byte, repeat } => vec![byte; repeat],
+        match self {
+            Block::Raw(v) => {
+                let decoded = Vec::from(v);
+                context.decoded.extend(decoded);
+            }
+            Block::RLE { byte, repeat } => {
+                let decoded = vec![byte; repeat];
+                context.decoded.extend(decoded);
+            }
             Block::Compressed {
                 literals,
                 sequences,
@@ -105,10 +111,9 @@ impl<'a> Block<'a> {
                 let literals = literals.decode(context)?;
                 let sequences = sequences.decode(context)?;
                 context.execute_sequences(sequences, literals.as_slice())?;
-                vec![]
             }
         };
-        context.decoded.extend(decoded);
+
         Ok(())
     }
 }

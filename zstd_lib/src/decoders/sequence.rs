@@ -46,8 +46,8 @@ impl BitDecoder<(u16, u16, u16), Error> for SequenceDecoder<'_> {
     ) -> Result<bool, Error> {
         // update order: literals > offsets > match
         let mut zeroes = self.literals_lengths_decoder.update_bits(bitstream)?;
-        zeroes |= self.offsets_decoder.update_bits(bitstream)?;
         zeroes |= self.match_lengths_decoder.update_bits(bitstream)?;
+        zeroes |= self.offsets_decoder.update_bits(bitstream)?;
         Ok(zeroes)
     }
 

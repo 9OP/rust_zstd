@@ -7,7 +7,7 @@ pub struct RLEDecoder {
 impl BitDecoder<u16, Error> for RLEDecoder {
     fn initialize(
         &mut self,
-        bitstream: &mut crate::parsing::BackwardBitParser,
+        _bitstream: &mut crate::parsing::BackwardBitParser,
     ) -> Result<(), Error> {
         unimplemented!("initialize not supported for RLEDecoder")
     }
@@ -22,7 +22,7 @@ impl BitDecoder<u16, Error> for RLEDecoder {
 
     fn update_bits(
         &mut self,
-        bitstream: &mut crate::parsing::BackwardBitParser,
+        _bitstream: &mut crate::parsing::BackwardBitParser,
     ) -> Result<bool, Error> {
         unimplemented!("update_bits not supported for RLEDecoder")
     }

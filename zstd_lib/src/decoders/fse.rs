@@ -266,24 +266,25 @@ impl BitDecoder<Symbol, Error> for FseDecoder {
     }
 }
 
+//#[cfg(test)]
+impl std::fmt::Display for FseTable {
+    fn fmt(&self, fmt: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        writeln!(fmt, "State,Sym,BL,NB").ok();
+        for (i, state) in self.states.iter().enumerate() {
+            writeln!(
+                fmt,
+                "0x{:02x},s{},0x{:02x},{}",
+                i, state.symbol, state.base_line, state.num_bits
+            )
+            .ok();
+        }
+        write!(fmt, "")
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    impl std::fmt::Display for FseTable {
-        fn fmt(&self, fmt: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-            writeln!(fmt, "State,Sym,BL,NB").ok();
-            for (i, state) in self.states.iter().enumerate() {
-                writeln!(
-                    fmt,
-                    "0x{:02x},s{},0x{:02x},{}",
-                    i, state.symbol, state.base_line, state.num_bits
-                )
-                .ok();
-            }
-            write!(fmt, "")
-        }
-    }
 
     mod fse_decoder {
         use super::*;
@@ -365,7 +366,7 @@ State,Sym,BL,NB
 0x1e,s1,0x0c,2
 0x1f,s2,0x10,4
 "#;
-            assert_eq!(expected.trim(), format!("{:?}", state).trim());
+            assert_eq!(expected.trim(), format!("{}", state).trim());
 
             let mut parser = ForwardBitParser::new(&[
                 0x21, 0x9d, 0x51, 0xcc, 0x18, 0x42, 0x44, 0x81, 0x8c, 0x94, 0xb4, 0x50, 0x1e,
@@ -439,7 +440,7 @@ State,Sym,BL,NB
 0x3e,s18,0x20,5
 0x3f,s24,0x10,4        
 "#;
-            assert_eq!(expected.trim(), format!("{:?}", state).trim());
+            assert_eq!(expected.trim(), format!("{}", state).trim());
         }
     }
 }

@@ -70,6 +70,7 @@ impl SymbolCompressionMode {
             0 => Ok(Self::PredefinedMode),
             1 => Ok(Self::RLEMode(input.u8()?)),
             2 => {
+                println!("here: compressedmode");
                 // TODO: use RLE when only one symbol is present
                 // TODO: there is magic for converting ByteParser->BitParser... implement from/into trait
                 let bitstream = input.slice(input.len())?;
@@ -162,7 +163,7 @@ impl<'a> Sequences<'a> {
                 Some(Box::new(fse_decoder) as Box<SymbolDecoder>)
             }
             RLEMode(byte) => {
-                let mut rle_decoder = RLEDecoder {
+                let rle_decoder = RLEDecoder {
                     symbol: *byte as u16,
                 };
                 Some(Box::new(rle_decoder) as Box<SymbolDecoder>)
@@ -191,7 +192,7 @@ impl<'a> Sequences<'a> {
                 Some(Box::new(fse_decoder) as Box<SymbolDecoder>)
             }
             RLEMode(byte) => {
-                let mut rle_decoder = RLEDecoder {
+                let rle_decoder = RLEDecoder {
                     symbol: *byte as u16,
                 };
                 Some(Box::new(rle_decoder) as Box<SymbolDecoder>)
@@ -244,13 +245,13 @@ impl<'a> Sequences<'a> {
             match_lengths_decoder,
         );
 
-        let mut stop = false;
-        loop {
+        for _ in 0..self.number_of_sequences {
             // decode order: offset > match > literals
             let (literals_symbol, offset_symbol, match_symbol) = sequence_decoder.symbol();
 
             // offset
-            let offset_code = (1 << offset_symbol) + parser.take(offset_symbol as usize)? as usize;
+            let offset_code =
+                ((1 as u64) << offset_symbol) + parser.take(offset_symbol as usize)?;
 
             // TODO: check the offset_symbol greater bound
             // if of_code >= 32 {
@@ -267,12 +268,8 @@ impl<'a> Sequences<'a> {
             let (literals_value, literals_num_bits) = literals_lengths_code_lookup(literals_symbol);
             let literals_code = literals_value + parser.take(literals_num_bits)? as usize;
 
-            decoded_sequences.push((literals_code, offset_code, match_code));
-
-            if stop {
-                break;
-            }
-            stop |= sequence_decoder.update_bits(&mut parser)?;
+            decoded_sequences.push((literals_code, offset_code as usize, match_code));
+            sequence_decoder.update_bits(&mut parser)?;
         }
 
         Ok(decoded_sequences)

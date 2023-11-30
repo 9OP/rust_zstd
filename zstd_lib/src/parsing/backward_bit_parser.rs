@@ -28,7 +28,9 @@ impl<'a> BackwardBitParser<'a> {
 
                 return Ok(Self {
                     bitstream,
+                    // original implementation
                     position: i - 1, // skip first 1
+                                     // position: i,
                 });
             }
         }
@@ -74,17 +76,13 @@ impl<'a> BackwardBitParser<'a> {
             });
         }
 
-        // extract a subslice of requested bytes for number of bits to take
-        let div_ceil_by_eight = |n| if n % 8 == 0 { n / 8 } else { (n / 8) + 1 };
-        let requested_bytes = div_ceil_by_eight(len);
-        let split = self.len() - requested_bytes;
-        let (_, slice) = self.bitstream.split_at(split);
-        let slice: Vec<u8> = slice.iter().rev().cloned().collect();
-
+        let reversed_stream = self.bitstream.iter().rev();
         let mut result: u64 = 0;
         let mut bits_remaining = len;
+        let mut byte_read = 0;
 
-        for byte in slice {
+        for byte in reversed_stream {
+            byte_read += 1;
             // read up to position+1 per byte, position is in [0,7]
             let bits_to_read = std::cmp::min(bits_remaining, self.position + 1);
 
@@ -116,8 +114,10 @@ impl<'a> BackwardBitParser<'a> {
 
         // Last byte has unread bits
         let include_last_byte = self.position != 7;
-        let split = if include_last_byte { split + 1 } else { split };
-        let (new_bitstream, _) = self.bitstream.split_at(split);
+        let remaining_bytes = self.bitstream.len() - byte_read;
+        let (new_bitstream, _) = self
+            .bitstream
+            .split_at(remaining_bytes + include_last_byte as usize);
         self.bitstream = new_bitstream;
 
         Ok(result)
@@ -240,6 +240,12 @@ mod tests {
             assert_eq!(parser.take(10).unwrap(), 0b0111_0011_11);
             assert_eq!(parser.bitstream, &[bitstream[0]]);
             assert_eq!(parser.position, 1);
+
+            let bitstream: &[u8; 2] = &[0b1101_1001, 0b0000_0100];
+            let mut parser = BackwardBitParser::new(bitstream).unwrap();
+            assert_eq!(parser.take(6).unwrap(), 0b001101);
+            assert_eq!(parser.bitstream, &[bitstream[0]]);
+            assert_eq!(parser.position, 3);
         }
 
         #[test]
