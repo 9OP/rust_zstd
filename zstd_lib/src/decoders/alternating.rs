@@ -52,12 +52,14 @@ impl BitDecoder<u16, Error> for AlternatingDecoder {
 
     fn symbol(&mut self) -> u16 {
         let symbol = self.mut_decoder().symbol();
-        self.alternate();
+        // self.alternate();
         symbol
     }
 
     fn update_bits(&mut self, bitstream: &mut BackwardBitParser) -> Result<bool, Error> {
-        self.mut_decoder().update_bits(bitstream)
+        let zeroes = self.mut_decoder().update_bits(bitstream)?;
+        self.alternate();
+        Ok(zeroes)
     }
 
     fn reset(&mut self) {

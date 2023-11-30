@@ -245,7 +245,7 @@ impl<'a> Sequences<'a> {
             match_lengths_decoder,
         );
 
-        for _ in 0..self.number_of_sequences {
+        for i in 0..self.number_of_sequences {
             // decode order: offset > match > literals
             let (literals_symbol, offset_symbol, match_symbol) = sequence_decoder.symbol();
 
@@ -269,7 +269,11 @@ impl<'a> Sequences<'a> {
             let literals_code = literals_value + parser.take(literals_num_bits)? as usize;
 
             decoded_sequences.push((literals_code, offset_code as usize, match_code));
-            sequence_decoder.update_bits(&mut parser)?;
+
+            // update bits if it is not the last sequence
+            if i != self.number_of_sequences - 1 {
+                sequence_decoder.update_bits(&mut parser)?;
+            }
         }
 
         Ok(decoded_sequences)

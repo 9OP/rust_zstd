@@ -113,10 +113,10 @@ impl<'a> LiteralsSection<'a> {
     pub fn parse(input: &mut parsing::ForwardByteParser<'a>) -> Result<Self> {
         let header = input.u8()?;
         let block_type = header & 0b0000_0011;
+        let size_format = (header & 0b0000_1100) >> 2;
 
         match block_type {
             RAW_LITERALS_BLOCK | RLE_LITERALS_BLOCK => {
-                let size_format = (header & 0b0000_1100) >> 2;
                 let regenerated_size: usize = match size_format {
                     // use 5bits (8 - 3)
                     0b00 | 0b10 => (header >> 3).into(),
@@ -145,9 +145,13 @@ impl<'a> LiteralsSection<'a> {
 
             COMPRESSED_LITERALS_BLOCK | TREELESS_LITERALS_BLOCK => {
                 let header: usize = header.into();
-                let size_format = (header & 0b0000_1100) >> 2;
-                let (regenerated_size, compressed_size, streams) = match size_format {
-                    0b00 => {
+                let streams = match size_format {
+                    0b00 => 1,
+                    0b01 | 0b10 | 0b11 => 4,
+                    _ => panic!("unexpected size_format {size_format}"),
+                };
+                let (regenerated_size, compressed_size) = match size_format {
+                    0b00 | 0b01 => {
                         let header1 = input.u8()? as usize;
                         let header2 = input.u8()? as usize;
 
@@ -155,17 +159,7 @@ impl<'a> LiteralsSection<'a> {
                         let re_size = header >> 4 | (header1 & 0b0011_1111) << 4;
                         let cp_size = header1 >> 6 | header2 << 2;
 
-                        (re_size, cp_size, 1)
-                    }
-                    0b01 => {
-                        let header1 = input.u8()? as usize;
-                        let header2 = input.u8()? as usize;
-
-                        // both size on 10bits
-                        let re_size = header >> 4 | (header1 & 0b0011_1111) << 4;
-                        let cp_size = header1 >> 6 | header2 << 2;
-
-                        (re_size, cp_size, 4)
+                        (re_size, cp_size)
                     }
                     0b10 => {
                         let header1 = input.u8()? as usize;
@@ -176,7 +170,7 @@ impl<'a> LiteralsSection<'a> {
                         let re_size = header >> 4 | header1 << 4 | (header2 & 0b0000_0011) << 12;
                         let cp_size = header2 >> 2 | header3 << 6;
 
-                        (re_size, cp_size, 4)
+                        (re_size, cp_size)
                     }
                     0b11 => {
                         let header1 = input.u8()? as usize;
@@ -188,7 +182,7 @@ impl<'a> LiteralsSection<'a> {
                         let re_size = header >> 4 | header1 << 4 | (header2 & 0b0011_1111) << 12;
                         let cp_size = header2 >> 6 | header3 << 2 | header4 << 10;
 
-                        (re_size, cp_size, 4)
+                        (re_size, cp_size)
                     }
                     _ => panic!("unexpected size_format {size_format}"),
                 };

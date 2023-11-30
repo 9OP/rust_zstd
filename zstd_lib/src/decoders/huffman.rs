@@ -125,6 +125,7 @@ impl<'a> HuffmanDecoder {
         } else {
             Self::parse_direct(input, header as usize - 127)?
         };
+        println!("weights: {weights:?}");
         Self::from_weights(weights)
     }
 
@@ -159,31 +160,38 @@ impl<'a> HuffmanDecoder {
     fn parse_fse(input: &mut ForwardByteParser, compressed_size: u8) -> Result<Vec<u8>> {
         let mut weights = Vec::<u8>::new();
 
-        let mut bitstream = Vec::<u8>::new();
-        for _ in 0..compressed_size {
-            bitstream.push(input.u8()?);
-        }
-        let bitstream_copy = bitstream.clone();
+        let bitstream = input.slice(compressed_size as usize)?;
 
-        let mut forward_bit_parser = ForwardBitParser::new(bitstream.as_slice());
+        let mut forward_bit_parser = ForwardBitParser::new(bitstream);
         let fse_table = FseTable::parse(&mut forward_bit_parser)?;
         let mut decoder = AlternatingDecoder::new(&fse_table);
 
+        // TODO: create error
         assert!(compressed_size as usize > forward_bit_parser.len());
         let index = compressed_size as usize - forward_bit_parser.len();
-        let huffman_coeffs = &bitstream_copy[index..];
+        let huffman_coeffs = &bitstream[index..];
 
         let mut backward_bit_parser = BackwardBitParser::new(huffman_coeffs)?;
         decoder.initialize(&mut backward_bit_parser)?;
 
         loop {
             // TODO: remove unwrap
+            // Consume alternating decoder
             weights.push(decoder.symbol().try_into().unwrap());
-            let stop = decoder.update_bits(&mut backward_bit_parser)?;
-            if stop {
+            if decoder.update_bits(&mut backward_bit_parser)? {
+                // Consume the alternate decoder a last time
+                weights.push(decoder.symbol().try_into().unwrap());
                 break;
             }
         }
+
+        // TODO: return error when weights.lent()>255
+        assert!(weights.len() < 255);
+        // if weights.len() > 255 {
+        //     return Err(err::TooManyWeights {
+        //         got: self.weights.len(),
+        //     });
+        // }
 
         Ok(weights)
     }
