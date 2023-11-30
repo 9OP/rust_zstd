@@ -2,7 +2,7 @@ use crate::{
     decoders,
     literals::{self, LiteralsSection},
     parsing::{self, ForwardByteParser},
-    sequences::Sequences,
+    sequences::{self, Sequences},
 };
 
 #[derive(Debug, thiserror::Error)]
@@ -12,6 +12,12 @@ pub enum Error {
 
     #[error("Literal parsing error: {0}")]
     LiteralError(#[from] literals::Error),
+
+    #[error("Sequences parsing error: {0}")]
+    SequencesError(#[from] sequences::Error),
+
+    #[error("Decoders error: {0}")]
+    DecodeError(#[from] decoders::Error),
 
     #[error("Reserved block type")]
     ReservedBlockType,
@@ -28,7 +34,7 @@ pub enum Block<'a> {
     },
     Compressed {
         literals: LiteralsSection<'a>,
-        sequences: Vec<Sequences<'a>>,
+        sequences: Sequences<'a>,
     },
 }
 
@@ -73,7 +79,7 @@ impl<'a> Block<'a> {
                 let mut parser = ForwardByteParser::new(compressed_data);
 
                 let literals = LiteralsSection::parse(&mut parser)?;
-                let sequences = Vec::<Sequences>::new();
+                let sequences = Sequences::parse(&mut parser)?;
 
                 let block = Block::Compressed {
                     literals,
@@ -94,8 +100,13 @@ impl<'a> Block<'a> {
             Block::RLE { byte, repeat } => vec![byte; repeat],
             Block::Compressed {
                 literals,
-                sequences: _,
-            } => literals.decode(context)?,
+                sequences,
+            } => {
+                let literals = literals.decode(context)?;
+                let sequences = sequences.decode(context)?;
+                context.execute_sequences(sequences, literals.as_slice())?;
+                vec![]
+            }
         };
         context.decoded.extend(decoded);
         Ok(())

@@ -1,3 +1,5 @@
+use core::panic;
+
 use crate::{
     decoders::{
         self, BitDecoder, DecodingContext, FseDecoder, FseTable, RLEDecoder, SequenceDecoder,
@@ -244,18 +246,28 @@ impl<'a> Sequences<'a> {
 
         let mut stop = false;
         loop {
-            // seuqnce decoder symbol, then convert to code
-            // decode order:
-            // the offset
-            // the match length
-            // the literals length
+            // decode order: offset > match > literals
             let (literals_symbol, offset_symbol, match_symbol) = sequence_decoder.symbol();
 
-            decoded_sequences.push((
-                literals_symbol as usize,
-                offset_symbol as usize,
-                match_symbol as usize,
-            ));
+            // offset
+            let offset_code = (1 << offset_symbol) + parser.take(offset_symbol as usize)? as usize;
+
+            // TODO: check the offset_symbol greater bound
+            // if of_code >= 32 {
+            //     return Err(DecodeSequenceError::UnsupportedOffset {
+            //         offset_code: of_code,
+            //     });
+            // }
+
+            // match
+            let (match_value, match_num_bits) = match_lengths_code_lookup(match_symbol);
+            let match_code = match_value + parser.take(match_num_bits)? as usize;
+
+            // literals
+            let (literals_value, literals_num_bits) = literals_lengths_code_lookup(literals_symbol);
+            let literals_code = literals_value + parser.take(literals_num_bits)? as usize;
+
+            decoded_sequences.push((literals_code, offset_code, match_code));
 
             if stop {
                 break;
@@ -264,5 +276,60 @@ impl<'a> Sequences<'a> {
         }
 
         Ok(decoded_sequences)
+    }
+}
+
+fn literals_lengths_code_lookup(symbol: u16) -> (usize, usize) {
+    match symbol {
+        0..=15 => (symbol as usize, 0),
+        16 => (16, 1),
+        17 => (18, 1),
+        18 => (20, 1),
+        19 => (22, 1),
+        20 => (24, 2),
+        21 => (28, 2),
+        22 => (32, 3),
+        23 => (40, 3),
+        24 => (48, 4),
+        25 => (64, 6),
+        26 => (128, 7),
+        27 => (256, 8),
+        28 => (512, 9),
+        29 => (1024, 10),
+        30 => (2048, 11),
+        31 => (4096, 12),
+        32 => (8192, 13),
+        33 => (16384, 14),
+        34 => (32768, 15),
+        35 => (65536, 16),
+        _ => panic!("unexpected symbol value {symbol}"), // TODO: return error instead SymbolOutOfRange
+    }
+}
+
+fn match_lengths_code_lookup(symbol: u16) -> (usize, usize) {
+    match symbol {
+        0..=31 => (symbol as usize + 3, 0),
+        32 => (35, 1),
+        33 => (37, 1),
+        34 => (39, 1),
+        35 => (41, 1),
+        36 => (43, 2),
+        37 => (47, 2),
+        38 => (51, 3),
+        39 => (59, 3),
+        40 => (67, 4),
+        41 => (83, 4),
+        42 => (99, 5),
+        43 => (131, 7),
+        44 => (259, 8),
+        45 => (515, 9),
+        46 => (1027, 10),
+        47 => (2051, 11),
+        48 => (4099, 12),
+        49 => (8195, 13),
+        50 => (16387, 14),
+        51 => (32771, 15),
+        52 => (65539, 16),
+        _ => panic!("unexpected symbol value {symbol}"), // TODO: return error instead SymbolOutOfRange
     }
 }
