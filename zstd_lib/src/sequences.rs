@@ -1,5 +1,8 @@
 use crate::{
-    decoders::{self, BitDecoder, DecodingContext, FseDecoder, FseTable, RLEDecoder},
+    decoders::{
+        self, BitDecoder, DecodingContext, FseDecoder, FseTable, RLEDecoder, SequenceDecoder,
+        SymbolDecoder,
+    },
     parsing::{self, BackwardBitParser, ForwardBitParser, ForwardByteParser},
 };
 
@@ -110,53 +113,134 @@ impl<'a> Sequences<'a> {
             literal_lengths_mode,
             offsets_mode,
             match_lengths_mode,
-            bitstream: &[],
+            bitstream: input.slice(input.len())?, // TODO: create a function to get the bitstream
         })
+    }
+
+    // TODO: factorize RLEmode, FSECompressedMode parsing and move it to SymbolCompressionMode instead
+    fn parse_literals_lengths_decoder(
+        &self,
+        parser: &mut BackwardBitParser,
+    ) -> Result<Option<Box<SymbolDecoder>>> {
+        let decoder = match &self.literal_lengths_mode {
+            PredefinedMode => {
+                let (acc_log, distribution) = LITERALS_LENGTH_DEFAULT_DISTRIBUTION;
+                let fse_table = FseTable::from_distribution(acc_log, &distribution);
+                let mut fse_decoder = FseDecoder::new(fse_table);
+                fse_decoder.initialize(parser)?;
+                Some(Box::new(fse_decoder) as Box<SymbolDecoder>)
+            }
+            RLEMode(byte) => {
+                let rle_decoder = RLEDecoder {
+                    symbol: *byte as u16,
+                };
+                Some(Box::new(rle_decoder) as Box<SymbolDecoder>)
+            }
+            FseCompressedMode(fse_table) => {
+                let mut fse_decoder = FseDecoder::new(fse_table.clone());
+                fse_decoder.initialize(parser)?;
+                Some(Box::new(fse_decoder) as Box<SymbolDecoder>)
+            }
+            RepeatMode => None,
+        };
+
+        Ok(decoder)
+    }
+
+    fn parse_offsets_decoder(
+        &self,
+        parser: &mut BackwardBitParser,
+    ) -> Result<Option<Box<SymbolDecoder>>> {
+        let decoder = match &self.offsets_mode {
+            PredefinedMode => {
+                let (acc_log, distribution) = OFFSET_CODE_DEFAULT_DISTRIBUTION;
+                let fse_table = FseTable::from_distribution(acc_log, &distribution);
+                let mut fse_decoder = FseDecoder::new(fse_table);
+                fse_decoder.initialize(parser)?;
+                Some(Box::new(fse_decoder) as Box<SymbolDecoder>)
+            }
+            RLEMode(byte) => {
+                let mut rle_decoder = RLEDecoder {
+                    symbol: *byte as u16,
+                };
+                Some(Box::new(rle_decoder) as Box<SymbolDecoder>)
+            }
+            FseCompressedMode(fse_table) => {
+                let mut fse_decoder = FseDecoder::new(fse_table.clone());
+                fse_decoder.initialize(parser)?;
+                Some(Box::new(fse_decoder) as Box<SymbolDecoder>)
+            }
+            RepeatMode => None,
+        };
+
+        Ok(decoder)
+    }
+
+    fn parse_match_lengths_decoder(
+        &self,
+        parser: &mut BackwardBitParser,
+    ) -> Result<Option<Box<SymbolDecoder>>> {
+        let decoder = match &self.match_lengths_mode {
+            PredefinedMode => {
+                let (acc_log, distribution) = MATCH_LENGTH_DEFAULT_DISTRIBUTION;
+                let fse_table = FseTable::from_distribution(acc_log, &distribution);
+                let mut fse_decoder = FseDecoder::new(fse_table);
+                fse_decoder.initialize(parser)?;
+                Some(Box::new(fse_decoder) as Box<SymbolDecoder>)
+            }
+            RLEMode(byte) => {
+                let mut rle_decoder = RLEDecoder {
+                    symbol: *byte as u16,
+                };
+                Some(Box::new(rle_decoder) as Box<SymbolDecoder>)
+            }
+            FseCompressedMode(fse_table) => {
+                let mut fse_decoder = FseDecoder::new(fse_table.clone());
+                fse_decoder.initialize(parser)?;
+                Some(Box::new(fse_decoder) as Box<SymbolDecoder>)
+            }
+            RepeatMode => None,
+        };
+
+        Ok(decoder)
     }
 
     /// Return vector of (literals length, offset value, match length) and update the
     /// decoding context with the tables if appropriate.
     pub fn decode(self, context: &mut DecodingContext) -> Result<Vec<(usize, usize, usize)>> {
-        // implement: https://github.com/facebook/zstd/blob/dev/doc/zstd_compression_format.md#decoding-a-sequence
-        // decode the symbols from the three decoders
         let mut decoded_sequences = Vec::<(usize, usize, usize)>::new();
         let mut parser = BackwardBitParser::new(self.bitstream)?;
 
-        // initialize decoder:
-        // the literals lengths decoder
-        // the offsets decoder
-        // the match lengths decoder
+        // TODO: move to function parse_decoders()
+        // initialize order: literals > offsets > match
+        if let Some(decoder) = self.parse_literals_lengths_decoder(&mut parser)? {
+            context.literals_lengths_decoder = Some(decoder);
+        }
+        if let Some(decoder) = self.parse_offsets_decoder(&mut parser)? {
+            context.offsets_decoder = Some(decoder);
+        }
+        if let Some(decoder) = self.parse_match_lengths_decoder(&mut parser)? {
+            context.match_lengths_decoder = Some(decoder);
+        }
 
-        let mut offset_lenght_decoder: Box<dyn BitDecoder<u16, decoders::Error>> =
-            match self.offsets_mode {
-                PredefinedMode => {
-                    let (acc_log, distribution) = OFFSET_CODE_DEFAULT_DISTRIBUTION;
-                    let fse_table = FseTable::from_distribution(acc_log, &distribution);
-                    let mut fse_decoder = FseDecoder::new(fse_table);
-                    fse_decoder.initialize(&mut parser)?;
-                    Box::new(fse_decoder)
-                }
-                RLEMode(byte) => {
-                    let rle_decoder = RLEDecoder { symbol: byte };
-                    Box::new(rle_decoder)
-                }
-                FseCompressedMode(fse_table) => {
-                    let mut fse_decoder = FseDecoder::new(fse_table);
-                    fse_decoder.initialize(&mut parser)?;
-                    Box::new(fse_decoder)
-                }
-                RepeatMode => match &context.sequence_decoder {
-                    None => return Err(MissingSequenceDecoder),
-                    Some(sequence_decoder) => {
-                        let mut decoder = sequence_decoder.offsets_decoder;
-                        decoder.reset();
-                        decoder
-                    }
-                },
-            };
+        let literals_lengths_decoder = context
+            .literals_lengths_decoder
+            .as_mut()
+            .ok_or(MissingSequenceDecoder)?;
+        let offsets_decoder = context
+            .offsets_decoder
+            .as_mut()
+            .ok_or(MissingSequenceDecoder)?;
+        let match_lengths_decoder = context
+            .match_lengths_decoder
+            .as_mut()
+            .ok_or(MissingSequenceDecoder)?;
 
-        // Update the decoding context sequence_decoder fields
-        let sequence_decoder = context.sequence_decoder.unwrap();
+        let mut sequence_decoder = SequenceDecoder::new(
+            literals_lengths_decoder,
+            offsets_decoder,
+            match_lengths_decoder,
+        );
 
         let mut stop = false;
         loop {
@@ -165,10 +249,13 @@ impl<'a> Sequences<'a> {
             // the offset
             // the match length
             // the literals length
-
             let (literals_symbol, offset_symbol, match_symbol) = sequence_decoder.symbol();
 
-            decoded_sequences.push((literals_symbol, offset_symbol, match_symbol));
+            decoded_sequences.push((
+                literals_symbol as usize,
+                offset_symbol as usize,
+                match_symbol as usize,
+            ));
 
             if stop {
                 break;

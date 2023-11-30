@@ -1,18 +1,20 @@
-use super::{Error::*, Result};
-use super::{HuffmanDecoder, SequenceDecoder};
+use super::HuffmanDecoder;
+use super::{Error::*, Result, SymbolDecoder};
 
 pub struct DecodingContext {
-    pub huffman: Option<HuffmanDecoder>,
     pub decoded: Vec<u8>,
     pub window_size: usize,
-    pub sequence_decoder: Option<SequenceDecoder>,
-    pub repeat_offsets: RepeatOffset,
+    pub huffman: Option<HuffmanDecoder>,
+    repeat_offsets: RepeatOffset,
+    pub literals_lengths_decoder: Option<Box<SymbolDecoder>>,
+    pub offsets_decoder: Option<Box<SymbolDecoder>>,
+    pub match_lengths_decoder: Option<Box<SymbolDecoder>>,
 }
 
-pub struct RepeatOffset {
-    pub offset_1: usize,
-    pub offset_2: usize,
-    pub offset_3: usize,
+struct RepeatOffset {
+    offset_1: usize,
+    offset_2: usize,
+    offset_3: usize,
 }
 
 impl RepeatOffset {
@@ -64,25 +66,29 @@ impl RepeatOffset {
 
 const MAX_WINDOW_SIZE: usize = 1024 * 1024 * 64; // 64Mib
 
-impl DecodingContext<'_> {
+impl DecodingContext {
     /// Create a new decoding context instance. Return `WindowSizeError` when `window_size` exceeds 64Mb
     pub fn new(window_size: usize) -> Result<Self> {
         if window_size > MAX_WINDOW_SIZE {
             return Err(WindowSizeError);
         }
+
         Ok(Self {
-            huffman: None,
             decoded: Vec::<u8>::new(),
             window_size,
-            sequence_decoder: None,
+            huffman: None,
             repeat_offsets: RepeatOffset {
                 offset_1: 1,
                 offset_2: 4,
                 offset_3: 8,
             },
+            literals_lengths_decoder: None,
+            offsets_decoder: None,
+            match_lengths_decoder: None,
         })
     }
 
+    /// Decode an offset and properly maintain the three repeat offsets
     pub fn decode_offset(&mut self, offset: usize, literals_length: usize) -> Result<usize> {
         let offset = self.repeat_offsets.decode_offset(offset, literals_length);
         if offset > self.window_size as usize {
@@ -121,6 +127,7 @@ impl DecodingContext<'_> {
 
         buffer.extend_from_slice(&literals);
         self.decoded.extend(buffer);
+
         Ok(())
     }
 }

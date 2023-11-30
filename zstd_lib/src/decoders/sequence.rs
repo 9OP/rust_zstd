@@ -1,25 +1,36 @@
 use super::{BitDecoder, Error};
 
-pub struct SequenceDecoder {
-    pub literals_lengths_decoder: Box<dyn BitDecoder<u16, Error>>,
-    pub offsets_decoder: Box<dyn BitDecoder<u16, Error>>,
-    pub match_lengths_decoder: Box<dyn BitDecoder<u16, Error>>,
+pub type SymbolDecoder = dyn BitDecoder<u16, Error>;
+pub struct SequenceDecoder<'d> {
+    literals_lengths_decoder: &'d mut SymbolDecoder,
+    offsets_decoder: &'d mut SymbolDecoder,
+    match_lengths_decoder: &'d mut SymbolDecoder,
 }
 
-impl BitDecoder<(u16, u16, u16), Error> for SequenceDecoder {
+impl<'a> SequenceDecoder<'a> {
+    pub fn new(
+        ll_d: &'a mut Box<SymbolDecoder>,
+        o_d: &'a mut Box<SymbolDecoder>,
+        ml_d: &'a mut Box<SymbolDecoder>,
+    ) -> Self {
+        Self {
+            literals_lengths_decoder: &mut **ll_d,
+            offsets_decoder: &mut **o_d,
+            match_lengths_decoder: &mut **ml_d,
+        }
+    }
+}
+
+impl BitDecoder<(u16, u16, u16), Error> for SequenceDecoder<'_> {
     fn initialize(
         &mut self,
         _bitstream: &mut crate::parsing::BackwardBitParser,
     ) -> Result<(), Error> {
-        unimplemented!()
-        // self.literals_lengths_decoder.initialize(bitstream)?;
-        // self.offsets_decoder.initialize(bitstream)?;
-        // self.match_lengths_decoder.initialize(bitstream)?;
-        // Ok(())
+        unimplemented!("initialize not supported for SequenceDecoder")
     }
 
     fn expected_bits(&self) -> usize {
-        unimplemented!()
+        unimplemented!("expected_bits not supported for SequenceDecoder")
     }
 
     fn symbol(&mut self) -> (u16, u16, u16) {
@@ -37,14 +48,10 @@ impl BitDecoder<(u16, u16, u16), Error> for SequenceDecoder {
         let mut zeroes = self.literals_lengths_decoder.update_bits(bitstream)?;
         zeroes |= self.offsets_decoder.update_bits(bitstream)?;
         zeroes |= self.match_lengths_decoder.update_bits(bitstream)?;
-
         Ok(zeroes)
     }
 
     fn reset(&mut self) {
-        unimplemented!()
-        // self.literals_lengths_decoder.reset();
-        // self.offsets_decoder.reset();
-        // self.match_lengths_decoder.reset();
+        unimplemented!("reset not supported for SequenceDecoder")
     }
 }
