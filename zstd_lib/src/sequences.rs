@@ -99,6 +99,7 @@ impl<'a> Sequences<'a> {
         };
 
         let modes = input.u8()?;
+        println!("modes{modes:08b}");
 
         // Parse SymbolCompression mode in this order: [literal][offset][match]
         // Recall sequence layout: header,[literal_table],[offset_table],[match_table], bitstream

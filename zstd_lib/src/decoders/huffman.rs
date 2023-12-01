@@ -153,6 +153,7 @@ impl<'a> HuffmanDecoder {
     /// build the table are consumed from the stream.
     pub fn parse(input: &mut ForwardByteParser) -> Result<Self> {
         let header = input.u8()?;
+
         let weights = if header < 128 {
             Self::parse_fse(input, header)?
         } else {
@@ -160,7 +161,7 @@ impl<'a> HuffmanDecoder {
         };
         // TODO: return error when weight.len > 255
         assert!(weights.len() <= 255, "return error TooManyWeights");
-        println!("weights: {weights:?}, len: {}", weights.len());
+
         Self::from_weights(weights)
     }
 
@@ -199,10 +200,8 @@ impl<'a> HuffmanDecoder {
     /// consumed from the `input` stream.
     fn parse_fse(input: &mut ForwardByteParser, compressed_size: u8) -> Result<Vec<u8>> {
         let mut weights = Vec::<u8>::new();
-
         let bitstream = input.slice(compressed_size as usize)?;
-
-        let mut forward_bit_parser = ForwardBitParser::new(&bitstream);
+        let mut forward_bit_parser = ForwardBitParser::new(bitstream);
         let fse_table = FseTable::parse(&mut forward_bit_parser)?;
         let mut decoder = AlternatingDecoder::new(&fse_table);
 
@@ -210,7 +209,6 @@ impl<'a> HuffmanDecoder {
         assert!(compressed_size as usize > forward_bit_parser.len());
         let index = compressed_size as usize - forward_bit_parser.len();
         let huffman_coeffs = &bitstream[index..];
-
         let mut backward_bit_parser = BackwardBitParser::new(huffman_coeffs)?;
         decoder.initialize(&mut backward_bit_parser)?;
 

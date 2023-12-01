@@ -24,7 +24,8 @@ impl BitDecoder<u16, Error> for RLEDecoder {
         &mut self,
         _bitstream: &mut crate::parsing::BackwardBitParser,
     ) -> Result<bool, Error> {
-        unimplemented!("update_bits not supported for RLEDecoder")
+        // SequenceDecoder could trigger this function
+        Ok(false)
     }
 
     fn reset(&mut self) {

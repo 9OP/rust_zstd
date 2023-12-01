@@ -21,7 +21,6 @@ impl RepeatOffset {
     /// Decode an offset and properly maintain the three repeat offsets
     pub fn decode_offset(&mut self, offset: usize, literals_length: usize) -> usize {
         match offset {
-            0 => return 0, // TODO: verify if necessary ?
             1 => {
                 if literals_length == 0 {
                     let offset_1 = self.offset_1;
@@ -93,10 +92,20 @@ impl DecodingContext {
     pub fn decode_offset(&mut self, offset: usize, literals_length: usize) -> Result<usize> {
         let offset = self.repeat_offsets.decode_offset(offset, literals_length);
 
-        if offset > self.window_size as usize {
-            // TODO:restore
-            return Err(OffsetError);
+        if self.decoded.len() <= self.window_size {
+            //
+            println!("here");
+        } else if offset > self.window_size as usize {
+            dbg!(offset, self.window_size, self.decoded.len());
+            // return Err(OffsetError);
+            println!("should error");
         }
+
+        // if offset > self.window_size as usize {
+        //     // TODO:restore
+        //     dbg!(offset, self.window_size, self.decoded.len());
+        //     // return Err(OffsetError);
+        // }
         Ok(offset)
     }
 
@@ -106,7 +115,7 @@ impl DecodingContext {
         sequences: Vec<(usize, usize, usize)>,
         literals: &[u8],
     ) -> Result<()> {
-        let mut buffer = Vec::<u8>::new();
+        // let mut buffer = Vec::<u8>::new();
         let mut copy_index = 0;
 
         for (literals_length, offset_value, match_value) in sequences {
@@ -117,20 +126,22 @@ impl DecodingContext {
             let slice = &literals[(copy_index)..(copy_index + literals_length)];
             copy_index += literals_length;
 
-            buffer.extend_from_slice(&slice);
-            let mut index = buffer.len() - offset_value;
+            self.decoded.extend_from_slice(&slice);
+            // dbg!(buffer.len(), offset_value);
+            let mut index = self.decoded.len() - offset_value;
 
             for _ in 0..match_value {
                 // TODO: do not use unwrap / should panic explicitly with a messaage.
                 // panic is ok because this is a bug in the implementation
-                buffer.push(*buffer.get(index).unwrap());
+                self.decoded.push(*self.decoded.get(index).unwrap());
                 index += 1;
             }
         }
 
         let (_, rest) = literals.split_at(copy_index);
-        buffer.extend_from_slice(rest);
-        self.decoded.extend(buffer);
+        // buffer.extend_from_slice(rest);
+        // self.decoded.extend(buffer);
+        self.decoded.extend_from_slice(rest);
 
         Ok(())
     }

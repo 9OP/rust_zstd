@@ -37,7 +37,7 @@ pub struct RLELiteralsBlock {
 pub struct CompressedLiteralsBlock<'a> {
     huffman: Option<decoders::HuffmanDecoder>,
     regenerated_size: usize,
-    jump_table: Option<[u16; 3]>, // three 2-bytes long offsets
+    jump_table: Option<[usize; 3]>, // three 2-bytes long offsets
     data: &'a [u8],
 }
 
@@ -121,12 +121,12 @@ impl<'a> LiteralsSection<'a> {
                     // use 5bits (8 - 3)
                     0b00 | 0b10 => (header >> 3).into(),
                     // use 12bits (8 + 4)
-                    0b01 => (header as usize >> 4) + ((input.u8()? as usize) << 4),
+                    0b01 => header as usize >> 4 | (input.u8()? as usize) << 4,
                     // use 20bits (8 + 8 + 4)
                     0b11 => {
-                        (header as usize >> 4)
-                            + ((input.u8()? as usize) << 4)
-                            + ((input.u8()? as usize) << 12)
+                        header as usize >> 4
+                            | (input.u8()? as usize) << 4
+                            | (input.u8()? as usize) << 12
                     }
                     _ => panic!("unexpected size_format {size_format}"),
                 };
@@ -178,10 +178,16 @@ impl<'a> LiteralsSection<'a> {
                         let header3 = input.u8()? as usize;
                         let header4 = input.u8()? as usize;
 
+                        // println!(
+                        //     "{:08b} {:08b} {:08b} {:08b} {:08b}",
+                        //     header, header1, header2, header3, header4
+                        // );
+
                         // both size on 18bits
                         let re_size = header >> 4 | header1 << 4 | (header2 & 0b0011_1111) << 12;
                         let cp_size = header2 >> 6 | header3 << 2 | header4 << 10;
 
+                        dbg!(re_size, cp_size);
                         (re_size, cp_size)
                     }
                     _ => panic!("unexpected size_format {size_format}"),
@@ -199,23 +205,28 @@ impl<'a> LiteralsSection<'a> {
                 }
 
                 let total_streams_size = compressed_size - huffman_description_size;
+                // dbg!(input.len());
+                // dbg!(total_streams_size);
+                // dbg!(compressed_size);
+                // dbg!(huffman_description_size);
+                // dbg!(regenerated_size);
 
                 let jump_table = match streams {
                     1 => None,
                     4 => {
+                        let jump_1 = input.u8()? as usize | (input.u8()? as usize) << 8;
+                        let jump_2 = jump_1 + input.u8()? as usize | (input.u8()? as usize) << 8;
+                        let jump_3 = jump_2 + input.u8()? as usize | (input.u8()? as usize) << 8;
+
+                        // dbg!(jump_1, jump_2, jump_3);
+
                         // Decompressed size of the first 3 streams
-                        let decompressed_size = (regenerated_size + 3) / 4;
-                        // size of the last stream is: total_streams_size-3*decompressed_size
-                        if 3 * decompressed_size >= total_streams_size {
+                        let stream_size = (regenerated_size + 3) / 4;
+                        if total_streams_size < stream_size + stream_size + stream_size + 6 + 1 {
                             return Err(CorruptedDataError);
                         }
 
-                        // TODO assert the conversion usize->u16 do not overflow
-                        Some([
-                            decompressed_size as u16,
-                            2 * decompressed_size as u16,
-                            3 * decompressed_size as u16,
-                        ])
+                        Some([jump_1, jump_2, jump_3])
                     }
                     _ => panic!("unexpected streams {streams}"),
                 };

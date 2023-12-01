@@ -90,12 +90,15 @@ impl<'a> ForwardByteParser<'a> {
     /// # Ok::<(), Error>(())
     /// ```
     pub fn le_u32(&mut self) -> Result<u32> {
-        // Consume 4bytes or Err. Do not consume partially !
-        let byte_array = self.slice(4)?;
-        let result = (byte_array[3] as u32) << 24
-            | (byte_array[2] as u32) << 16
-            | (byte_array[1] as u32) << 8
-            | (byte_array[0] as u32);
+        Ok(self.le(4)? as u32)
+    }
+
+    pub fn le(&mut self, size: usize) -> Result<usize> {
+        let byte_array = self.slice(size)?;
+        let mut result: usize = 0;
+        for i in 0..size {
+            result |= (byte_array[i] as usize) << (8 * i);
+        }
         Ok(result.to_le())
     }
 }

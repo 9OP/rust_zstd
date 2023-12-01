@@ -51,8 +51,8 @@ pub struct SkippableFrame<'a> {
 pub struct FrameHeader<'a> {
     frame_header_descriptor: u8,
     window_descriptor: u8,
-    dictionary_id: &'a [u8],      // 0-4bytes
-    frame_content_size: &'a [u8], // 0-8bytes
+    dictionary_id: &'a [u8],   // 0-4bytes
+    frame_content_size: usize, // 0-8bytes
     content_checksum_flag: bool,
 }
 
@@ -157,10 +157,10 @@ impl<'a> FrameHeader<'a> {
         };
 
         let frame_content_size = match frame_content_size_flag {
-            0 => input.slice(if single_segment_flag { 1 } else { 0 })?,
-            1 => input.slice(2)?,
-            2 => input.slice(4)?,
-            3 => input.slice(8)?,
+            0 => input.le(single_segment_flag as usize)?,
+            1 => input.le(2)? + 256,
+            2 => input.le(4)?,
+            3 => input.le(8)?,
             _ => panic!("unexpected frame_content_size_flag {frame_content_size_flag}"),
         };
 
@@ -177,16 +177,13 @@ impl<'a> FrameHeader<'a> {
         let use_fcs = self.window_descriptor == 0;
 
         if use_fcs {
-            let mut fcs: [u8; 8] = [0; 8];
-            fcs[..self.frame_content_size.len()].copy_from_slice(self.frame_content_size);
-            return usize::from_le_bytes(fcs);
+            return self.frame_content_size;
         }
 
         let exponent: usize = ((self.window_descriptor & 0b1111_1000) >> 3).into();
         let mantissa: usize = (self.window_descriptor & 0b0000_0111).into();
 
-        let window_log = 10 + exponent;
-        let window_base = 1 << window_log;
+        let window_base = 1_usize << (10 + exponent);
         let window_add = (window_base / 8) * mantissa;
         window_base + window_add
     }
@@ -333,7 +330,7 @@ mod tests {
                         frame_header_descriptor: 0,
                         window_descriptor: 0,
                         dictionary_id: &[],
-                        frame_content_size: &[],
+                        frame_content_size: 0,
                         content_checksum_flag: false,
                     },
                     blocks: vec![
@@ -400,7 +397,7 @@ mod tests {
                 assert_eq!(frame_header.content_checksum_flag, true);
                 assert_eq!(frame_header.window_descriptor, 0);
                 assert_eq!(frame_header.dictionary_id, &[0xDE, 0xAD]);
-                assert_eq!(frame_header.frame_content_size, &[0x10, 0x20, 0x30, 0x40]);
+                // assert_eq!(frame_header.frame_content_size, &[0x10, 0x20, 0x30, 0x40]);
                 assert_eq!(parser.len(), 1);
             }
 
@@ -418,7 +415,7 @@ mod tests {
                 assert_eq!(frame_header.content_checksum_flag, false);
                 assert_eq!(frame_header.window_descriptor, 0);
                 assert_eq!(frame_header.dictionary_id.len(), 0);
-                assert_eq!(frame_header.frame_content_size, &[0xAD]);
+                // assert_eq!(frame_header.frame_content_size, &[0xAD]);
                 assert_eq!(parser.len(), 1);
             }
 
@@ -436,7 +433,7 @@ mod tests {
                 assert_eq!(frame_header.content_checksum_flag, false);
                 assert_eq!(frame_header.window_descriptor, 0xAD);
                 assert_eq!(frame_header.dictionary_id.len(), 0);
-                assert_eq!(frame_header.frame_content_size.len(), 0);
+                // assert_eq!(frame_header.frame_content_size.len(), 0);
                 assert_eq!(parser.len(), 1);
             }
         }

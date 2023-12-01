@@ -32,9 +32,7 @@ impl FseTable {
     }
 
     pub fn parse(parser: &mut ForwardBitParser) -> Result<Self> {
-        println!("len before {}", { parser.len() });
         let (accuracy_log, distribution) = parse_fse_table(parser)?;
-        println!("len after {}", { parser.len() });
         Ok(Self::from_distribution(
             accuracy_log,
             distribution.as_slice(),
