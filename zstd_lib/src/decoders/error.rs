@@ -8,6 +8,9 @@ pub enum Error {
     #[error("Cannot compute missing huffman weight")]
     ComputeMissingWeight,
 
+    #[error("Huffman weight: {weight} bigger than max_weight: {max}")]
+    WeightTooBig { weight: u32, max: u32 },
+
     #[error("Missing symbol for huffman code")]
     MissingSymbol,
 

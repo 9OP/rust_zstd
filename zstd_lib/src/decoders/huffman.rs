@@ -5,6 +5,8 @@ use crate::{
 };
 use std::fmt;
 
+// TODO:Create huffman error type
+
 #[derive(PartialEq)]
 pub enum HuffmanDecoder {
     Absent,
@@ -13,7 +15,7 @@ pub enum HuffmanDecoder {
 }
 use HuffmanDecoder::*;
 
-const MAX_NUM_BITS: u8 = 11;
+const MAX_NUM_BITS: u32 = 11;
 
 impl<'a> HuffmanDecoder {
     fn from_number_of_bits(widths: Vec<u8>) -> Self {
@@ -43,12 +45,12 @@ impl<'a> HuffmanDecoder {
         // nearest power of two of weights_sum.
         let max_width = u32::BITS - weights_sum.leading_zeros();
 
-        println!("weights_sum {weights_sum}");
-        println!("max_width {max_width}");
-
         // safety check: max_width is bounded
-        if max_width > MAX_NUM_BITS as u32 {
-            return Err(ComputeMissingWeight);
+        if max_width > MAX_NUM_BITS {
+            return Err(WeightTooBig {
+                weight: max_width,
+                max: MAX_NUM_BITS,
+            });
         }
 
         // since: weights_sum + 2^(last_weigth-1) = 2^max_width
@@ -75,18 +77,20 @@ impl<'a> HuffmanDecoder {
     pub fn from_weights(weights: Vec<u8>) -> Result<Self> {
         let mut weights = weights.clone();
 
-        let weights_sum = weights
-            .iter() // do not consume weights
-            .filter(|w| **w != 0) // remove 0 weights
-            .map(|w| {
-                // TODO: return error WeightBiggerThanMaxNumBits
-                assert!(*w <= MAX_NUM_BITS);
-                (1_u32) << (w - 1)
-            }) // apply 2**(w-1)
-            .sum();
+        let mut weights_sum: u32 = 0;
+        for w in &weights {
+            if *w as u32 > MAX_NUM_BITS {
+                return Err(WeightTooBig {
+                    weight: *w as u32,
+                    max: MAX_NUM_BITS,
+                });
+            }
+            weights_sum += if *w > 0 { 1_u32 << (*w - 1) } else { 0 };
+        }
 
-        // TODO: return error
-        assert!(weights_sum > 0);
+        if weights_sum == 0 {
+            return Err(ComputeMissingWeight);
+        }
 
         // TODO: ensure the properties:
         // - If no literal has a Weight of 1, then the data is considered corrupted.
@@ -161,7 +165,10 @@ impl<'a> HuffmanDecoder {
     /// last four bits are lost. `number_of_weights/2` bytes (rounded
     /// up) will be consumed from the `input` stream.
     fn parse_direct(input: &mut ForwardByteParser, number_of_weights: usize) -> Result<Vec<u8>> {
-        // TODO: panic if len > 128
+        assert!(
+            number_of_weights <= 128,
+            "expected number_of_weights <= 128"
+        );
 
         let mut weights = Vec::<u8>::new();
         let mut number_of_weights = number_of_weights;
@@ -198,11 +205,6 @@ impl<'a> HuffmanDecoder {
         // TODO: create error
         assert!(compressed_size as usize > forward_bit_parser.len());
         let index = compressed_size as usize - forward_bit_parser.len();
-        println!(
-            "index {index} compressed_size {compressed_size}, len parser {}, parser {:?}",
-            forward_bit_parser.len(),
-            forward_bit_parser,
-        );
         let huffman_coeffs = &bitstream[index..];
 
         let mut backward_bit_parser = BackwardBitParser::new(huffman_coeffs)?;

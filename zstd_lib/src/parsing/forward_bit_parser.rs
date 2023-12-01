@@ -17,7 +17,8 @@ impl<'a> ForwardBitParser<'a> {
     /// Return the number of bytes still unparsed
     /// TODO: check if should include the "only-partially-parsed" byte or not.
     pub fn len(&self) -> usize {
-        self.bitstream.len()
+        let include_first = self.position != 0;
+        self.bitstream.len() - include_first as usize
     }
 
     /// Check if the input is exhausted
