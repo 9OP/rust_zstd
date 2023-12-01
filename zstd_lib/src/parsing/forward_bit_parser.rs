@@ -23,7 +23,7 @@ impl<'a> ForwardBitParser<'a> {
 
     /// Check if the input is exhausted
     pub fn is_empty(&self) -> bool {
-        self.len() == 0
+        self.bitstream.len() == 0
     }
 
     /// Return the number of bits available wrt position
@@ -31,7 +31,7 @@ impl<'a> ForwardBitParser<'a> {
         if self.is_empty() {
             return 0;
         }
-        8 * (self.len() - 1) + (8 - self.position)
+        8 * (self.bitstream.len() - 1) + (8 - self.position)
     }
 
     /// Return the next bit without consumming it
@@ -132,9 +132,12 @@ mod tests {
 
     #[test]
     fn test_len() {
-        let bitstream: &[u8; 2] = &[0b1000_0000, 0b0111_0100];
-        let parser = ForwardBitParser::new(bitstream);
+        let bitstream: &[u8; 2] = &[0b1000_0001, 0b0111_0100];
+        let mut parser = ForwardBitParser::new(bitstream);
         assert_eq!(parser.len(), 2);
+
+        assert_eq!(parser.take(1).unwrap(), 0b1);
+        assert_eq!(parser.len(), 1);
     }
 
     #[test]

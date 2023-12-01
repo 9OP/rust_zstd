@@ -19,6 +19,8 @@ const MAX_NUM_BITS: u32 = 11;
 
 impl<'a> HuffmanDecoder {
     fn from_number_of_bits(widths: Vec<u8>) -> Self {
+        assert!(widths.len() <= 255, "unexpected number of symbols");
+
         // Build a list of symbols and their widths
         let mut symbols: Vec<(u8, u8)> = widths
             .iter()
@@ -156,7 +158,9 @@ impl<'a> HuffmanDecoder {
         } else {
             Self::parse_direct(input, header as usize - 127)?
         };
-        println!("weights: {weights:?}");
+        // TODO: return error when weight.len > 255
+        assert!(weights.len() <= 255, "return error TooManyWeights");
+        println!("weights: {weights:?}, len: {}", weights.len());
         Self::from_weights(weights)
     }
 

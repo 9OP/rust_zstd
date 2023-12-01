@@ -323,7 +323,7 @@ mod tests {
             assert_eq!(5, accuracy_log);
             assert_eq!(&[18, 6, 2, 2, 2, 1, 1][..], &table);
             assert_eq!(parser.available_bits(), 6);
-            assert_eq!(parser.len(), 1);
+            assert_eq!(parser.len(), 0);
         }
 
         #[test]
