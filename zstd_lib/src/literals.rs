@@ -80,10 +80,10 @@ impl<'a> LiteralsSection<'a> {
                         }
                     }
 
-                    Some([idx2, idx3, idx4]) => {
-                        let idx2 = idx2 as usize;
-                        let idx3 = idx3 as usize;
-                        let idx4 = idx4 as usize;
+                    Some([stream1_size, stream2_size, stream3_size]) => {
+                        let idx2 = stream1_size;
+                        let idx3 = idx2 + stream2_size;
+                        let idx4 = idx3 + stream3_size;
 
                         let mut stream_1 = BackwardBitParser::new(&block.data[..idx2])?;
                         let mut stream_2 = BackwardBitParser::new(&block.data[idx2..idx3])?;
@@ -144,6 +144,7 @@ impl<'a> LiteralsSection<'a> {
             }
 
             COMPRESSED_LITERALS_BLOCK | TREELESS_LITERALS_BLOCK => {
+                println!("compressed literals type: {block_type}, size_format: {size_format}");
                 let header: usize = header.into();
                 let streams = match size_format {
                     0b00 => 1,
@@ -178,11 +179,6 @@ impl<'a> LiteralsSection<'a> {
                         let header3 = input.u8()? as usize;
                         let header4 = input.u8()? as usize;
 
-                        // println!(
-                        //     "{:08b} {:08b} {:08b} {:08b} {:08b}",
-                        //     header, header1, header2, header3, header4
-                        // );
-
                         // both size on 18bits
                         let re_size = header >> 4 | header1 << 4 | (header2 & 0b0011_1111) << 12;
                         let cp_size = header2 >> 6 | header3 << 2 | header4 << 10;
@@ -204,31 +200,26 @@ impl<'a> LiteralsSection<'a> {
                     huffman_description_size = size_before - size_after;
                 }
 
-                let total_streams_size = compressed_size - huffman_description_size;
-                // dbg!(input.len());
-                // dbg!(total_streams_size);
-                // dbg!(compressed_size);
-                // dbg!(huffman_description_size);
-                // dbg!(regenerated_size);
+                let mut total_streams_size: usize = compressed_size - huffman_description_size;
 
                 let jump_table = match streams {
                     1 => None,
                     4 => {
-                        let jump_1 = input.u8()? as usize | (input.u8()? as usize) << 8;
-                        let jump_2 = jump_1 + input.u8()? as usize | (input.u8()? as usize) << 8;
-                        let jump_3 = jump_2 + input.u8()? as usize | (input.u8()? as usize) << 8;
+                        total_streams_size -= 6;
 
-                        // dbg!(jump_1, jump_2, jump_3);
+                        let stream1_size = input.le(2)?;
+                        let stream2_size = input.le(2)?;
+                        let stream3_size = input.le(2)?;
+                        let stream4_size =
+                            total_streams_size - stream1_size - stream2_size - stream3_size;
 
-                        // Decompressed size of the first 3 streams
-                        let stream_size = (regenerated_size + 3) / 4;
-                        if total_streams_size < stream_size + stream_size + stream_size + 6 + 1 {
+                        if stream4_size < 1 {
                             return Err(CorruptedDataError);
                         }
 
-                        Some([jump_1, jump_2, jump_3])
+                        Some([stream1_size, stream2_size, stream3_size])
                     }
-                    _ => panic!("unexpected streams {streams}"),
+                    _ => panic!("unexpected number of streams {streams}"),
                 };
 
                 Ok(LiteralsSection::CompressedLiteralsBlock(

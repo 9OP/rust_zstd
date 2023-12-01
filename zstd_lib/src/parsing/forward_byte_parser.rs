@@ -93,7 +93,20 @@ impl<'a> ForwardByteParser<'a> {
         Ok(self.le(4)? as u32)
     }
 
+    /// Consume and return a usize in little-endian format or NotEnoughByte error
+    /// of `size` number of bytes.
+    /// # Panic
+    /// This function panics when `size > 8` for obvious reason.
+    /// # Example
+    /// ```
+    /// # use zstd_lib::parsing::{ForwardByteParser, Error::{self, *}};
+    /// let mut parser = ForwardByteParser::new(&[0x01, 0x02, 0x03, 0x04, 0x05]);
+    /// assert_eq!(parser.le(2)?, 0x0201);
+    /// # Ok::<(), Error>(())
+    /// ```
     pub fn le(&mut self, size: usize) -> Result<usize> {
+        assert!(size <= 8, "unexpected size: {size}");
+
         let byte_array = self.slice(size)?;
         let mut result: usize = 0;
         for i in 0..size {

@@ -92,20 +92,10 @@ impl DecodingContext {
     pub fn decode_offset(&mut self, offset: usize, literals_length: usize) -> Result<usize> {
         let offset = self.repeat_offsets.decode_offset(offset, literals_length);
 
-        if self.decoded.len() <= self.window_size {
-            //
-            println!("here");
-        } else if offset > self.window_size as usize {
-            dbg!(offset, self.window_size, self.decoded.len());
-            // return Err(OffsetError);
-            println!("should error");
+        if offset > self.window_size as usize {
+            return Err(OffsetError);
         }
 
-        // if offset > self.window_size as usize {
-        //     // TODO:restore
-        //     dbg!(offset, self.window_size, self.decoded.len());
-        //     // return Err(OffsetError);
-        // }
         Ok(offset)
     }
 
@@ -115,19 +105,17 @@ impl DecodingContext {
         sequences: Vec<(usize, usize, usize)>,
         literals: &[u8],
     ) -> Result<()> {
-        // let mut buffer = Vec::<u8>::new();
         let mut copy_index = 0;
 
         for (literals_length, offset_value, match_value) in sequences {
-            let offset_value = self.decode_offset(offset_value, literals_length)?;
-
             // TODO: return error or check ll<=buffer.len()
             assert!(literals_length + copy_index <= literals.len());
             let slice = &literals[(copy_index)..(copy_index + literals_length)];
             copy_index += literals_length;
 
             self.decoded.extend_from_slice(&slice);
-            // dbg!(buffer.len(), offset_value);
+
+            let offset_value = self.decode_offset(offset_value, literals_length)?;
             let mut index = self.decoded.len() - offset_value;
 
             for _ in 0..match_value {
@@ -139,8 +127,6 @@ impl DecodingContext {
         }
 
         let (_, rest) = literals.split_at(copy_index);
-        // buffer.extend_from_slice(rest);
-        // self.decoded.extend(buffer);
         self.decoded.extend_from_slice(rest);
 
         Ok(())
