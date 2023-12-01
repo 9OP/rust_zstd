@@ -70,7 +70,6 @@ impl SymbolCompressionMode {
             0 => Ok(Self::PredefinedMode),
             1 => Ok(Self::RLEMode(input.u8()?)),
             2 => {
-                println!("here: compressedmode");
                 // TODO: use RLE when only one symbol is present
                 // TODO: there is magic for converting ByteParser->BitParser... implement from/into trait
                 let bitstream = input.slice(input.len())?;
@@ -87,7 +86,6 @@ impl SymbolCompressionMode {
 
 impl<'a> Sequences<'a> {
     /// Parse the sequences data from the stream
-    /// TODO: &mut
     pub fn parse(input: &mut ForwardByteParser<'a>) -> Result<Self> {
         let byte_0 = input.u8()? as usize;
 
@@ -99,7 +97,6 @@ impl<'a> Sequences<'a> {
         };
 
         let modes = input.u8()?;
-        println!("modes{modes:08b}");
 
         // Parse SymbolCompression mode in this order: [literal][offset][match]
         // Recall sequence layout: header,[literal_table],[offset_table],[match_table], bitstream

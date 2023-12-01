@@ -15,7 +15,6 @@ impl<'a> ForwardBitParser<'a> {
     }
 
     /// Return the number of bytes still unparsed
-    /// TODO: check if should include the "only-partially-parsed" byte or not.
     pub fn len(&self) -> usize {
         let include_first = self.position != 0;
         self.bitstream.len() - include_first as usize
@@ -68,12 +67,6 @@ impl<'a> ForwardBitParser<'a> {
                 available: available_bits,
             });
         }
-
-        // // extract a subslice of requested bytes for number of bits to take
-        // let div_ceil_by_eight = |n| if n % 8 == 0 { n / 8 } else { (n / 8) + 1 };
-        // let requested_bytes = div_ceil_by_eight(len + self.position);
-        // let split = requested_bytes;
-        // let (slice, _) = self.bitstream.split_at(split);
 
         let stream = self.bitstream.iter();
         let mut result: u64 = 0;

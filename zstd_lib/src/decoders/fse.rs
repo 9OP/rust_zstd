@@ -140,7 +140,7 @@ pub fn parse_fse_table(parser: &mut ForwardBitParser) -> Result<(u8, Vec<Probabi
         // Value is either encoded in bits_to_read of bits_to_read-1
         let small_value = parser.take((bits_to_read - 1) as usize)? as u32;
         // The MSB is not consummed but peeked as we dont know yet if the value is encoded in bits_to_read or bits_to_read-1
-        let unchecked_value = (parser.peek()? << (bits_to_read - 1)) as u32 | small_value;
+        let unchecked_value = ((parser.peek()? as u32) << (bits_to_read - 1)) as u32 | small_value;
         // Threshold above wich value is encoded in bits_to_read, below which encoded in bits_to_read-1
         let low_threshold = ((1 << bits_to_read) - 1) - (max_remaining_value);
         // Used to divide in two halves the range of values encoded in bits_to_read

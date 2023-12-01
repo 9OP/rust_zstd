@@ -40,19 +40,21 @@ impl<'a> BackwardBitParser<'a> {
 
     /// Return the number of bytes still unparsed
     pub fn len(&self) -> usize {
-        self.bitstream.len()
+        // self.bitstream.len()
+        let include_last = self.position != 7;
+        self.bitstream.len() + include_last as usize
     }
 
     /// Check if the input is exhausted
     pub fn is_empty(&self) -> bool {
-        self.len() == 0
+        self.bitstream.len() == 0
     }
 
     pub fn available_bits(&self) -> usize {
         if self.is_empty() {
             return 0;
         }
-        8 * (self.len() - 1) + self.position + 1
+        8 * (self.bitstream.len() - 1) + self.position + 1
     }
 
     /// Get the given number of bits, or return an error.

@@ -81,6 +81,7 @@ impl<'a> LiteralsSection<'a> {
                     }
 
                     Some([stream1_size, stream2_size, stream3_size]) => {
+                        // TODO: decode in parallel
                         let idx2 = stream1_size;
                         let idx3 = idx2 + stream2_size;
                         let idx4 = idx3 + stream3_size;
@@ -144,7 +145,6 @@ impl<'a> LiteralsSection<'a> {
             }
 
             COMPRESSED_LITERALS_BLOCK | TREELESS_LITERALS_BLOCK => {
-                println!("compressed literals type: {block_type}, size_format: {size_format}");
                 let header: usize = header.into();
                 let streams = match size_format {
                     0b00 => 1,
