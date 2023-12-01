@@ -68,16 +68,19 @@ impl<'a> ForwardBitParser<'a> {
             });
         }
 
-        // extract a subslice of requested bytes for number of bits to take
-        let div_ceil_by_eight = |n| if n % 8 == 0 { n / 8 } else { (n / 8) + 1 };
-        let requested_bytes = div_ceil_by_eight(len + self.position);
-        let split = requested_bytes;
-        let (slice, _) = self.bitstream.split_at(split);
+        // // extract a subslice of requested bytes for number of bits to take
+        // let div_ceil_by_eight = |n| if n % 8 == 0 { n / 8 } else { (n / 8) + 1 };
+        // let requested_bytes = div_ceil_by_eight(len + self.position);
+        // let split = requested_bytes;
+        // let (slice, _) = self.bitstream.split_at(split);
 
+        let stream = self.bitstream.iter();
         let mut result: u64 = 0;
         let mut bits_remaining = len;
+        let mut byte_read = 0;
 
-        for byte in slice {
+        for byte in stream {
+            byte_read += 1;
             // read up to 8-position per byte, position is in [0,7]
             let bits_to_read = std::cmp::min(bits_remaining, 8 - self.position);
             let offset = self.position;
@@ -103,12 +106,12 @@ impl<'a> ForwardBitParser<'a> {
             }
         }
 
-        // last byte has unread bits
-        let include_last_byte = self.position != 0;
-        let split = if include_last_byte { split - 1 } else { split };
-        let (_, new_bitstream) = self.bitstream.split_at(split);
+        // first byte has unread bits
+        let include_first_byte = self.position != 0;
+        let (_, new_bitstream) = self
+            .bitstream
+            .split_at(byte_read - include_first_byte as usize);
         self.bitstream = new_bitstream;
-        // dbg!(self.bitstream, self.position);
 
         Ok(result)
     }
@@ -192,6 +195,16 @@ mod tests {
             let mut parser = ForwardBitParser::new(bitstream);
             assert_eq!(parser.take(4).unwrap(), 0);
             assert_eq!(parser.take(5).unwrap(), 19);
+
+            let bitstream: &[u8; 3] = &[0b1010_0110, 0b0111_0111, 0b0011_1100];
+            let mut parser = ForwardBitParser::new(bitstream);
+            assert_eq!(parser.take(2).unwrap(), 0b10);
+            assert_eq!(parser.bitstream, bitstream);
+            assert_eq!(parser.position, 2);
+
+            assert_eq!(parser.take(14).unwrap(), 0b0111_0111_1010_01);
+            assert_eq!(parser.bitstream, &[bitstream[2]]);
+            assert_eq!(parser.position, 0);
         }
 
         #[test]

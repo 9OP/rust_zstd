@@ -134,6 +134,8 @@ impl<'a> HuffmanDecoder {
     /// last four bits are lost. `number_of_weights/2` bytes (rounded
     /// up) will be consumed from the `input` stream.
     fn parse_direct(input: &mut ForwardByteParser, number_of_weights: usize) -> Result<Vec<u8>> {
+        // TODO: panic if len > 128
+
         let mut weights = Vec::<u8>::new();
         let mut number_of_weights = number_of_weights;
 
@@ -169,6 +171,11 @@ impl<'a> HuffmanDecoder {
         // TODO: create error
         assert!(compressed_size as usize > forward_bit_parser.len());
         let index = compressed_size as usize - forward_bit_parser.len();
+        println!(
+            "index {index} compressed_size {compressed_size}, len parser {}, parser {:?}",
+            forward_bit_parser.len(),
+            forward_bit_parser,
+        );
         let huffman_coeffs = &bitstream[index..];
 
         let mut backward_bit_parser = BackwardBitParser::new(huffman_coeffs)?;

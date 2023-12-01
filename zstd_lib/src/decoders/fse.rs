@@ -32,7 +32,9 @@ impl FseTable {
     }
 
     pub fn parse(parser: &mut ForwardBitParser) -> Result<Self> {
+        println!("len before {}", { parser.len() });
         let (accuracy_log, distribution) = parse_fse_table(parser)?;
+        println!("len after {}", { parser.len() });
         Ok(Self::from_distribution(
             accuracy_log,
             distribution.as_slice(),
@@ -216,7 +218,6 @@ impl BitDecoder<Symbol, Error> for FseDecoder {
         let initial_state = self.table.get(initial_state_index as usize)?;
         self.state = Some(*initial_state);
         self.symbol = Some(initial_state.symbol);
-        println!("fse_table {}", self.table);
         Ok(())
     }
 
@@ -316,7 +317,7 @@ mod tests {
         use super::*;
 
         #[test]
-        fn test_parse_fse_table() {
+        fn test_parse_distribution() {
             let mut parser = ForwardBitParser::new(&[0x30, 0x6f, 0x9b, 0x03]);
             let (accuracy_log, table) = parse_fse_table(&mut parser).unwrap();
             assert_eq!(5, accuracy_log);
@@ -326,7 +327,7 @@ mod tests {
         }
 
         #[test]
-        fn test_from_distribution() {
+        fn test_parse() {
             let mut parser = ForwardBitParser::new(&[0x30, 0x6f, 0x9b, 0x03]);
             let state = FseTable::parse(&mut parser).unwrap();
             // This is not a robust test as it relies on the Debug trait implementation.
