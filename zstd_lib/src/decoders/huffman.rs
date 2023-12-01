@@ -13,6 +13,8 @@ pub enum HuffmanDecoder {
 }
 use HuffmanDecoder::*;
 
+const MAX_NUM_BITS: u8 = 11;
+
 impl<'a> HuffmanDecoder {
     fn from_number_of_bits(widths: Vec<u8>) -> Self {
         // Build a list of symbols and their widths
@@ -33,39 +35,64 @@ impl<'a> HuffmanDecoder {
         tree
     }
 
-    fn compute_missing_weight(weights_sum: u16) -> Result<(u8, u8)> {
-        let mut missing_weight: u8 = 0;
+    // Return the last weight and the maximum width
+    fn compute_last_weight(weights_sum: u32) -> Result<(u8, u8)> {
+        // max_width is the log2 of the sum 2^(w−1) for all weights.
+        // we dont know the last_weight yet, but we now that the sum
+        // should be a power of two. We deduce the max_width as the greater
+        // nearest power of two of weights_sum.
+        let max_width = u32::BITS - weights_sum.leading_zeros();
 
-        while missing_weight <= 16 {
-            missing_weight += 1; // missing weight is at least >= 1
-            let prefix = 1 << (missing_weight - 1);
+        println!("weights_sum {weights_sum}");
+        println!("max_width {max_width}");
 
-            // opportunistically break out
-            if prefix > weights_sum {
-                return Err(ComputeMissingWeight);
-            }
-
-            // stop when first strictly greater power of 2
-            if (weights_sum + prefix).is_power_of_two() {
-                let max_width = (weights_sum + prefix).trailing_zeros() as u8;
-                return Ok((missing_weight, max_width));
-            }
+        // safety check: max_width is bounded
+        if max_width > MAX_NUM_BITS as u32 {
+            return Err(ComputeMissingWeight);
         }
 
-        Err(ComputeMissingWeight)
+        // since: weights_sum + 2^(last_weigth-1) = 2^max_width
+        // last_weight = log2(2^max_width - weight_sum) + 1
+        let left_over = (1 << max_width) - weights_sum;
+
+        // safety check: left_over is a clean power of 2
+        if !left_over.is_power_of_two() {
+            return Err(ComputeMissingWeight);
+        }
+
+        // left_over is a clean power of 2 (ie. only one bit is set)
+        // the log2 is the number of leading zeroes minus 1.
+        let last_weight = (u32::BITS - left_over.leading_zeros() - 1) + 1;
+
+        // safety check: no 2^(w-1) is greater that the sum of others
+        if last_weight > weights_sum {
+            return Err(ComputeMissingWeight);
+        }
+
+        Ok((last_weight as u8, max_width as u8))
     }
 
     pub fn from_weights(weights: Vec<u8>) -> Result<Self> {
-        // Prevent mutating the input
         let mut weights = weights.clone();
 
         let weights_sum = weights
             .iter() // do not consume weights
             .filter(|w| **w != 0) // remove 0 weights
-            .map(|w| 1 << (w - 1)) // apply 2**(w-1)
+            .map(|w| {
+                // TODO: return error WeightBiggerThanMaxNumBits
+                assert!(*w <= MAX_NUM_BITS);
+                (1_u32) << (w - 1)
+            }) // apply 2**(w-1)
             .sum();
 
-        let (missing_weight, max_width) = Self::compute_missing_weight(weights_sum)?;
+        // TODO: return error
+        assert!(weights_sum > 0);
+
+        // TODO: ensure the properties:
+        // - If no literal has a Weight of 1, then the data is considered corrupted.
+        // - If there are not at least two literals with non-zero Weight, then the data is considered corrupted.
+
+        let (missing_weight, max_width) = Self::compute_last_weight(weights_sum)?;
         weights.push(missing_weight);
 
         let widths = weights
@@ -164,7 +191,7 @@ impl<'a> HuffmanDecoder {
 
         let bitstream = input.slice(compressed_size as usize)?;
 
-        let mut forward_bit_parser = ForwardBitParser::new(bitstream);
+        let mut forward_bit_parser = ForwardBitParser::new(&bitstream);
         let fse_table = FseTable::parse(&mut forward_bit_parser)?;
         let mut decoder = AlternatingDecoder::new(&fse_table);
 
@@ -291,18 +318,18 @@ mod tests {
     }
 
     #[test]
-    fn test_compute_missing_weight() {
-        let weight = HuffmanDecoder::compute_missing_weight(3).unwrap();
+    fn test_compute_last_weight() {
+        let weight = HuffmanDecoder::compute_last_weight(3).unwrap();
         assert_eq!(weight, (1, 2));
 
-        let weight = HuffmanDecoder::compute_missing_weight(4).unwrap();
+        let weight = HuffmanDecoder::compute_last_weight(4).unwrap();
         assert_eq!(weight, (3, 3));
 
-        let weight = HuffmanDecoder::compute_missing_weight(24).unwrap();
+        let weight = HuffmanDecoder::compute_last_weight(24).unwrap();
         assert_eq!(weight, (4, 5));
 
         assert!(matches!(
-            HuffmanDecoder::compute_missing_weight(5),
+            HuffmanDecoder::compute_last_weight(5),
             Err(ComputeMissingWeight)
         ));
     }
