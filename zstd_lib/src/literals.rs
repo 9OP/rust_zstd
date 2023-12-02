@@ -228,7 +228,7 @@ impl<'a> LiteralsSection<'a> {
                 }
 
                 // Actual total_streams_size depend on the number of streams.
-                // If there are 4 streams, 6bytes are remove from the total size to store
+                // If there are 4 streams, 6bytes are removed from the total size to store
                 // the respective streams size.
                 let mut total_streams_size: usize = compressed_size - huffman_description_size;
 

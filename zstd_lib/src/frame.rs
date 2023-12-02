@@ -1,18 +1,18 @@
-use crate::block;
-use crate::decoders;
-use crate::parsing;
+use crate::block::{Block, Error as BlockErrors};
+use crate::decoders::{DecodingContext, Error as DecoderErrors};
+use crate::parsing::{ForwardByteParser, ParsingError};
 use xxhash_rust::xxh64::xxh64;
 
 #[derive(Debug, thiserror::Error)]
-pub enum Error {
-    #[error("Frame parsing error: {0}")]
-    ParsingError(#[from] parsing::Error),
+pub enum FrameError {
+    #[error(transparent)]
+    ParsingError(#[from] ParsingError),
 
     #[error(transparent)]
-    BlockError(#[from] block::Error),
+    BlockError(#[from] BlockErrors),
 
     #[error(transparent)]
-    DecoderError(#[from] decoders::Error),
+    DecoderError(#[from] DecoderErrors),
 
     #[error("Unrecognized magic number: {0}")]
     UnrecognizedMagic(u32),
@@ -23,8 +23,7 @@ pub enum Error {
     #[error("Corrupted frame, checksum mismatch")]
     ChecksumMismatch,
 }
-use Error::*;
-pub type Result<T, E = Error> = std::result::Result<T, E>;
+use FrameError::*;
 
 #[derive(Debug)]
 pub enum Frame<'a> {
@@ -38,7 +37,7 @@ const SKIPPABLE_MAGIC_NUMBER: u32 = 0x184D2A5; // last 4bits: 0x0 to 0xF
 #[derive(Debug)]
 pub struct ZstandardFrame<'a> {
     frame_header: FrameHeader,
-    blocks: Vec<block::Block<'a>>,
+    blocks: Vec<Block<'a>>,
     checksum: Option<u32>,
 }
 
@@ -57,7 +56,7 @@ pub struct FrameHeader {
 }
 
 impl<'a> Frame<'a> {
-    pub fn parse(input: &mut parsing::ForwardByteParser<'a>) -> Result<Self> {
+    pub fn parse(input: &mut ForwardByteParser<'a>) -> Result<Self> {
         let magic = input.le_u32()?;
 
         match magic {
@@ -81,7 +80,7 @@ impl<'a> Frame<'a> {
             Frame::SkippableFrame(_) => Ok(Vec::new()),
             Frame::ZstandardFrame(mut frame) => {
                 let window_size = frame.frame_header.window_size();
-                let mut context = decoders::DecodingContext::new(window_size)?;
+                let mut context = DecodingContext::new(window_size)?;
 
                 // hint: decode consume self, but we need to replace blocks, so that it does not borrow self
                 // too soon and let us call frame.verify_checksum.
@@ -101,12 +100,12 @@ impl<'a> Frame<'a> {
 }
 
 impl<'a> ZstandardFrame<'a> {
-    pub fn parse(input: &mut parsing::ForwardByteParser<'a>) -> Result<Self> {
+    pub fn parse(input: &mut ForwardByteParser<'a>) -> Result<Self> {
         let frame_header = FrameHeader::parse(input)?;
-        let mut blocks: Vec<block::Block> = Vec::new();
+        let mut blocks: Vec<Block> = Vec::new();
 
         loop {
-            let (block, is_last) = block::Block::parse(input)?;
+            let (block, is_last) = Block::parse(input)?;
             blocks.push(block);
             if is_last {
                 break;
@@ -138,7 +137,7 @@ impl<'a> ZstandardFrame<'a> {
 }
 
 impl FrameHeader {
-    pub fn parse(input: &mut parsing::ForwardByteParser) -> Result<Self> {
+    pub fn parse(input: &mut ForwardByteParser) -> Result<Self> {
         // Frame_Header_Descriptor 	    1 byte
         // [Window_Descriptor] 	        0-1 byte
         // [Dictionary_ID] 	            0-4 bytes
@@ -195,13 +194,13 @@ impl FrameHeader {
 }
 
 pub struct FrameIterator<'a> {
-    parser: parsing::ForwardByteParser<'a>,
+    parser: ForwardByteParser<'a>,
 }
 
 impl<'a> FrameIterator<'a> {
     pub fn new(data: &'a [u8]) -> Self {
         Self {
-            parser: parsing::ForwardByteParser::new(data),
+            parser: ForwardByteParser::new(data),
         }
     }
 }
@@ -229,10 +228,10 @@ mod tests {
 
             #[test]
             fn test_parse_empty() {
-                let mut parser = parsing::ForwardByteParser::new(&[]);
+                let mut parser = ForwardByteParser::new(&[]);
                 assert!(matches!(
                     Frame::parse(&mut parser),
-                    Err(ParsingError(parsing::Error::NotEnoughBytes {
+                    Err(Error::ParsingError(ParsingError::NotEnoughBytes {
                         requested: 4,
                         available: 0
                     }))
@@ -241,7 +240,7 @@ mod tests {
 
             #[test]
             fn test_parse_skippable_frame() {
-                let mut parser = parsing::ForwardByteParser::new(&[
+                let mut parser = ForwardByteParser::new(&[
                     // Skippable frame:
                     0x53, 0x2a, 0x4d, 0x18, // magic:   0x184d2a53
                     0x03, 0x00, 0x00, 0x00, // length:  3
@@ -258,7 +257,7 @@ mod tests {
 
             #[test]
             fn test_parse_truncated_skippable_frame() {
-                let mut parser = parsing::ForwardByteParser::new(&[
+                let mut parser = ForwardByteParser::new(&[
                     // Skippable frame:
                     0x50, 0x2a, 0x4d, 0x18, // magic:   0x184d2a50
                     0x03, 0x00, 0x00, 0x00, // length:  3
@@ -266,7 +265,7 @@ mod tests {
                 ]);
                 assert!(matches!(
                     Frame::parse(&mut parser),
-                    Err(ParsingError(parsing::Error::NotEnoughBytes {
+                    Err(ParsingError(Error::NotEnoughBytes {
                         requested: 3,
                         available: 2
                     }))
@@ -275,13 +274,13 @@ mod tests {
 
             #[test]
             fn test_parse_magic_only_skippable_frame() {
-                let mut parser = parsing::ForwardByteParser::new(&[
+                let mut parser = ForwardByteParser::new(&[
                     // Skippable frame:
                     0x50, 0x2a, 0x4d, 0x18, // magic:   0x184d2a50
                 ]);
                 assert!(matches!(
                     Frame::parse(&mut parser),
-                    Err(ParsingError(parsing::Error::NotEnoughBytes {
+                    Err(ParsingError(Error::NotEnoughBytes {
                         requested: 4,
                         available: 0
                     }))
@@ -290,7 +289,7 @@ mod tests {
 
             #[test]
             fn test_parse_unknown_magic_number() {
-                let mut parser = parsing::ForwardByteParser::new(&[
+                let mut parser = ForwardByteParser::new(&[
                     // Unknown frame: (similar to STANDARD_MAGIC_NUMBER with only last 4bits changing)
                     0x20, 0xB5, 0x2F, 0xFD, // magic:   0xFD2FB520
                 ]);
@@ -302,7 +301,7 @@ mod tests {
 
             #[test]
             fn test_parse_standard_frame() {
-                let mut parser = parsing::ForwardByteParser::new(&[
+                let mut parser = ForwardByteParser::new(&[
                     // Standard frame:
                     0x28, 0xB5, 0x2F, 0xFD, // magic:   0xFD2FB528
                     0x4, 0x0, // header + checksum flag
@@ -337,16 +336,16 @@ mod tests {
                         content_checksum_flag: false,
                     },
                     blocks: vec![
-                        block::Block::RLE {
+                        Block::RLE {
                             byte: 0xAA,
                             repeat: 2,
                         },
-                        block::Block::Raw(&[0xCA, 0xFE]),
-                        block::Block::RLE {
+                        Block::Raw(&[0xCA, 0xFE]),
+                        Block::RLE {
                             byte: 0xBA,
                             repeat: 1,
                         },
-                        block::Block::Raw(&[0xBE]),
+                        Block::Raw(&[0xBE]),
                     ],
                     checksum: None,
                 });
@@ -367,7 +366,7 @@ mod tests {
 
             #[test]
             fn test_decode_null_frame_header() {
-                let mut parser = parsing::ForwardByteParser::new(&[0x0, 0xFF]);
+                let mut parser = ForwardByteParser::new(&[0x0, 0xFF]);
                 let frame_header = FrameHeader::parse(&mut parser).unwrap();
                 assert_eq!(frame_header.content_checksum_flag, false);
                 assert_eq!(frame_header.window_descriptor, 0xFF);
@@ -375,10 +374,10 @@ mod tests {
 
             #[test]
             fn test_empty_frame_header() {
-                let mut parser = parsing::ForwardByteParser::new(&[]);
+                let mut parser = ForwardByteParser::new(&[]);
                 assert!(matches!(
                     FrameHeader::parse(&mut parser),
-                    Err(ParsingError(parsing::Error::NotEnoughBytes {
+                    Err(ParsingError(Error::NotEnoughBytes {
                         requested: 1,
                         available: 0
                     }))
@@ -387,7 +386,7 @@ mod tests {
 
             #[test]
             fn test_parse_frame_header() {
-                let mut parser = parsing::ForwardByteParser::new(&[
+                let mut parser = ForwardByteParser::new(&[
                     0b1010_0110,            // FCS 4bytes, no window descriptor, 2byte dict id, checksum
                     0xDE, 0xAD,             // dict id
                     0x10, 0x20, 0x30, 0x40, // FCS
@@ -402,7 +401,7 @@ mod tests {
 
             #[test]
             fn test_parse_single_segment_flag_true() {
-                let mut parser = parsing::ForwardByteParser::new(
+                let mut parser = ForwardByteParser::new(
                     &[
                         0b0010_0000, // SSF true
                         0xAD,        // FCS (SSF)
@@ -418,7 +417,7 @@ mod tests {
 
             #[test]
             fn test_parse_single_segment_flag_false() {
-                let mut parser = parsing::ForwardByteParser::new(
+                let mut parser = ForwardByteParser::new(
                     &[
                         0b0000_0000, // SSF false
                         0xAD,        // window descriptor (SSF)

@@ -77,6 +77,7 @@ const OFFSET_CODE_DEFAULT_DISTRIBUTION: DefaultDistribution<'_> = DefaultDistrib
 };
 
 impl SymbolCompressionMode {
+    /// Parse the compression mode
     fn parse(mode: u8, input: &mut ForwardByteParser) -> Result<Self> {
         match mode {
             0 => Ok(Self::PredefinedMode),
@@ -96,6 +97,7 @@ impl SymbolCompressionMode {
         }
     }
 
+    /// Parse the compression mode respective decoder
     fn parse_symbol_decoder(
         &self,
         symbol_type: SymbolType,

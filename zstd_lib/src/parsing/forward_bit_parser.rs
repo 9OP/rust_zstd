@@ -1,4 +1,4 @@
-use super::{Error::*, ForwardByteParser, Result};
+use super::{Error, ForwardByteParser, Result};
 
 pub struct ForwardBitParser<'a> {
     bitstream: &'a [u8],
@@ -78,7 +78,7 @@ impl<'a> ForwardBitParser<'a> {
     pub fn peek(&self) -> Result<u8> {
         let available_bits = self.available_bits();
         if 1 > available_bits {
-            return Err(NotEnoughBits {
+            return Err(Error::NotEnoughBits {
                 requested: 1,
                 available: available_bits,
             });
@@ -106,7 +106,7 @@ impl<'a> ForwardBitParser<'a> {
 
         let available_bits = self.available_bits();
         if len > available_bits {
-            return Err(NotEnoughBits {
+            return Err(Error::NotEnoughBits {
                 requested: len,
                 available: available_bits,
             });
@@ -210,7 +210,7 @@ mod tests {
             let mut parser = ForwardBitParser::new(bitstream);
             assert!(matches!(
                 parser.take(16 + 1),
-                Err(NotEnoughBits {
+                Err(Error::NotEnoughBits {
                     requested: 17,
                     available: 16
                 })
@@ -260,7 +260,7 @@ mod tests {
             assert_eq!(parser.take(0).unwrap(), 0);
             assert!(matches!(
                 parser.take(1),
-                Err(NotEnoughBits {
+                Err(Error::NotEnoughBits {
                     requested: 1,
                     available: 0
                 })
@@ -321,14 +321,14 @@ mod tests {
 
             assert!(matches!(
                 parser.peek(),
-                Err(NotEnoughBits {
+                Err(Error::NotEnoughBits {
                     requested: 1,
                     available: 0
                 })
             ));
             assert!(matches!(
                 parser.take(1),
-                Err(NotEnoughBits {
+                Err(Error::NotEnoughBits {
                     requested: 1,
                     available: 0
                 })

@@ -1,9 +1,5 @@
-use super::{
-    BitDecoder,
-    Error::{self},
-    FseDecoder, FseTable,
-};
-use crate::parsing::*;
+use super::{BitDecoder, Error, FseDecoder, FseTable};
+use crate::parsing::BackwardBitParser;
 
 pub struct AlternatingDecoder {
     decoder_1: FseDecoder,
@@ -52,7 +48,6 @@ impl BitDecoder<u16, Error> for AlternatingDecoder {
 
     fn symbol(&mut self) -> u16 {
         let symbol = self.mut_decoder().symbol();
-        // self.alternate();
         symbol
     }
 

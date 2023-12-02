@@ -1,4 +1,4 @@
-use super::{Error::*, Result};
+use super::{Error, Result};
 
 pub struct BackwardBitParser<'a> {
     bitstream: &'a [u8],
@@ -18,7 +18,7 @@ impl<'a> BackwardBitParser<'a> {
     /// # Ok::<(), Error>(())
     /// ```
     pub fn new(bitstream: &'a [u8]) -> Result<Self> {
-        let (last_byte, rest) = bitstream.split_last().ok_or(NotEnoughBytes {
+        let (last_byte, rest) = bitstream.split_last().ok_or(Error::NotEnoughBytes {
             requested: 1,
             available: 0,
         })?;
@@ -43,7 +43,7 @@ impl<'a> BackwardBitParser<'a> {
             }
         }
 
-        Err(MalformedBitstream)
+        Err(Error::MalformedBitstream)
     }
 
     /// Return the number of bytes still unparsed.
@@ -115,7 +115,7 @@ impl<'a> BackwardBitParser<'a> {
         assert!(len <= 64, "unexpected len: {len} > 64");
 
         if len > self.available_bits() {
-            return Err(NotEnoughBits {
+            return Err(Error::NotEnoughBits {
                 requested: len,
                 available: self.available_bits(),
             });
@@ -206,7 +206,7 @@ mod tests {
         fn test_new_empty_header() {
             assert!(matches!(
                 BackwardBitParser::new(&[]),
-                Err(NotEnoughBytes {
+                Err(Error::NotEnoughBytes {
                     requested: 1,
                     available: 0,
                 })
@@ -261,7 +261,7 @@ mod tests {
             let mut parser = BackwardBitParser::new(bitstream).unwrap();
             assert!(matches!(
                 parser.take(12 + 1),
-                Err(NotEnoughBits {
+                Err(Error::NotEnoughBits {
                     requested: 13,
                     available: 12
                 })
@@ -302,7 +302,7 @@ mod tests {
             assert_eq!(parser.take(0).unwrap(), 0);
             assert!(matches!(
                 parser.take(1),
-                Err(NotEnoughBits {
+                Err(Error::NotEnoughBits {
                     requested: 1,
                     available: 0
                 })
@@ -327,7 +327,7 @@ mod tests {
             assert_eq!(parser.take(1).unwrap(), 0b0);
             assert!(matches!(
                 parser.take(1),
-                Err(NotEnoughBits {
+                Err(Error::NotEnoughBits {
                     requested: 1,
                     available: 0
                 })
@@ -342,7 +342,7 @@ mod tests {
             let mut parser = BackwardBitParser::new(bitstream).unwrap();
             assert!(matches!(
                 parser.take(1),
-                Err(NotEnoughBits {
+                Err(Error::NotEnoughBits {
                     requested: 1,
                     available: 0
                 })

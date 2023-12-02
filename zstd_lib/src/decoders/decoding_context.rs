@@ -1,9 +1,21 @@
-use super::HuffmanDecoder;
-use super::{Error::*, Result, SymbolDecoder};
+use super::{Error, HuffmanDecoder, Result, SymbolDecoder};
+
+#[derive(Debug, thiserror::Error)]
+pub enum ContextError {
+    #[error("Window size too large")]
+    WindowSizeError,
+
+    #[error("Offset size error")]
+    OffsetError,
+
+    #[error("Not enough bytes: {requested} requested out of {available} available")]
+    NotEnoughBytes { requested: usize, available: usize },
+}
+use ContextError::*;
 
 pub struct DecodingContext {
     pub decoded: Vec<u8>,
-    pub window_size: usize,
+    window_size: usize,
     pub huffman: Option<HuffmanDecoder>,
     repeat_offsets: RepeatOffset,
     pub literals_lengths_decoder: Option<Box<SymbolDecoder>>,
@@ -70,7 +82,7 @@ impl DecodingContext {
     /// Create a new decoding context instance. Return `WindowSizeError` when `window_size` exceeds 64Mb
     pub fn new(window_size: usize) -> Result<Self> {
         if window_size > MAX_WINDOW_SIZE {
-            return Err(WindowSizeError);
+            return Err(Error::ContextError(WindowSizeError));
         }
 
         Ok(Self {
@@ -93,7 +105,10 @@ impl DecodingContext {
         let offset = self.repeat_offsets.decode_offset(offset, literals_length);
 
         if offset > self.window_size as usize {
-            return Err(OffsetError);
+            return Err(Error::ContextError(OffsetError));
+        }
+        if offset > self.decoded.len() {
+            return Err(Error::ContextError(OffsetError));
         }
 
         Ok(offset)
@@ -108,20 +123,26 @@ impl DecodingContext {
         let mut copy_index = 0;
 
         for (literals_length, offset_value, match_value) in sequences {
-            // TODO: return error or check ll<=buffer.len()
-            assert!(literals_length + copy_index <= literals.len());
-            let slice = &literals[(copy_index)..(copy_index + literals_length)];
-            copy_index += literals_length;
+            let start = copy_index;
+            let end = copy_index + literals_length;
+            copy_index = end;
 
-            self.decoded.extend_from_slice(&slice);
+            if end > literals.len() {
+                return Err(Error::ContextError(NotEnoughBytes {
+                    requested: literals_length,
+                    available: literals.len(),
+                }));
+            }
 
-            let offset_value = self.decode_offset(offset_value, literals_length)?;
-            let mut index = self.decoded.len() - offset_value;
-
+            self.decoded.extend_from_slice(&literals[start..end]);
+            let offset = self.decode_offset(offset_value, literals_length)?;
+            let mut index = self.decoded.len() - offset;
             for _ in 0..match_value {
-                // TODO: do not use unwrap / should panic explicitly with a messaage.
-                // panic is ok because this is a bug in the implementation
-                self.decoded.push(*self.decoded.get(index).unwrap());
+                let byte = self
+                    .decoded
+                    .get(index)
+                    .unwrap_or_else(|| panic!("unexpected sequence index: {index}"));
+                self.decoded.push(*byte);
                 index += 1;
             }
         }

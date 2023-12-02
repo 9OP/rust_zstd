@@ -1,11 +1,19 @@
-use super::{BitDecoder, Error::*, Result};
-use crate::{
-    decoders::{AlternatingDecoder, FseTable},
-    parsing::{BackwardBitParser, ForwardBitParser, ForwardByteParser},
-};
+use super::{AlternatingDecoder, BitDecoder, Error, FseTable, Result};
+use crate::parsing::{BackwardBitParser, ForwardBitParser, ForwardByteParser};
 use std::fmt;
 
-// TODO:Create huffman error type
+#[derive(Debug, thiserror::Error)]
+pub enum HuffmanError {
+    #[error("Cannot compute missing huffman weight")]
+    ComputeMissingWeight,
+
+    #[error("Huffman weight: {weight} bigger than max_weight: {max}")]
+    WeightTooBig { weight: u32, max: u32 },
+
+    #[error("Missing symbol for huffman code")]
+    MissingSymbol,
+}
+use HuffmanError::*;
 
 #[derive(PartialEq, Clone)]
 pub enum HuffmanDecoder {
@@ -49,10 +57,10 @@ impl<'a> HuffmanDecoder {
 
         // safety check: max_width is bounded
         if max_width > MAX_NUM_BITS {
-            return Err(WeightTooBig {
+            return Err(Error::HuffmanError(WeightTooBig {
                 weight: max_width,
                 max: MAX_NUM_BITS,
-            });
+            }));
         }
 
         // since: weights_sum + 2^(last_weigth-1) = 2^max_width
@@ -61,7 +69,7 @@ impl<'a> HuffmanDecoder {
 
         // safety check: left_over is a clean power of 2
         if !left_over.is_power_of_two() {
-            return Err(ComputeMissingWeight);
+            return Err(Error::HuffmanError(ComputeMissingWeight));
         }
 
         // left_over is a clean power of 2 (ie. only one bit is set)
@@ -70,7 +78,7 @@ impl<'a> HuffmanDecoder {
 
         // safety check: no 2^(w-1) is greater that the sum of others
         if last_weight > weights_sum {
-            return Err(ComputeMissingWeight);
+            return Err(Error::HuffmanError(ComputeMissingWeight));
         }
 
         Ok((last_weight as u8, max_width as u8))
@@ -82,16 +90,16 @@ impl<'a> HuffmanDecoder {
         let mut weights_sum: u32 = 0;
         for w in &weights {
             if *w as u32 > MAX_NUM_BITS {
-                return Err(WeightTooBig {
+                return Err(Error::HuffmanError(WeightTooBig {
                     weight: *w as u32,
                     max: MAX_NUM_BITS,
-                });
+                }));
             }
             weights_sum += if *w > 0 { 1_u32 << (*w - 1) } else { 0 };
         }
 
         if weights_sum == 0 {
-            return Err(ComputeMissingWeight);
+            return Err(Error::HuffmanError(ComputeMissingWeight));
         }
 
         // TODO: ensure the properties:
@@ -135,7 +143,7 @@ impl<'a> HuffmanDecoder {
 
     pub fn decode(&self, parser: &mut BackwardBitParser) -> Result<u8> {
         match self {
-            Absent => Err(MissingSymbol),
+            Absent => Err(Error::HuffmanError(MissingSymbol)),
             Symbol(s) => Ok(*s),
             Tree(lhs, rhs) => match parser.take(1)? {
                 0 => lhs.decode(parser),
@@ -334,7 +342,7 @@ mod tests {
 
         assert!(matches!(
             HuffmanDecoder::compute_last_weight(5),
-            Err(ComputeMissingWeight)
+            Err(Error::HuffmanError(ComputeMissingWeight))
         ));
     }
 

@@ -1,29 +1,29 @@
+use super::{Error::*, Result};
 use crate::{
-    decoders,
-    literals::{self, LiteralsSection},
-    parsing::{self, ForwardByteParser},
-    sequences::{self, Sequences},
+    decoders::{DecodingContext, Error as DecoderError},
+    literals::{Error as LiteralsError, LiteralsSection},
+    parsing::{ForwardByteParser, ParsingError},
+    sequences::{Error as SequencesError, Sequences},
 };
 
 #[derive(Debug, thiserror::Error)]
-pub enum Error {
-    #[error("Block parsing error: {0}")]
-    ParsingError(#[from] parsing::Error),
+pub enum BlockError {
+    #[error(transparent)]
+    ParsingError(#[from] ParsingError),
 
-    #[error("Literal parsing error: {0}")]
-    LiteralError(#[from] literals::Error),
+    #[error(transparent)]
+    LiteralsError(#[from] LiteralsError),
 
-    #[error("Sequences parsing error: {0}")]
-    SequencesError(#[from] sequences::Error),
+    #[error(transparent)]
+    SequencesError(#[from] SequencesError),
 
-    #[error("Decoders error: {0}")]
-    DecodeError(#[from] decoders::Error),
+    #[error(transparent)]
+    DecodeError(#[from] DecoderError),
 
     #[error("Reserved block type")]
     ReservedBlockType,
 }
-use Error::*;
-type Result<T, E = Error> = std::result::Result<T, E>;
+use BlockError::*;
 
 #[derive(Debug)]
 pub enum Block<'a> {
@@ -44,7 +44,7 @@ const COMPRESSED_BLOCK_FLAG: u8 = 2;
 const RESERVED_BLOCK_FLAG: u8 = 3;
 
 impl<'a> Block<'a> {
-    pub fn parse(input: &mut parsing::ForwardByteParser<'a>) -> Result<(Block<'a>, bool)> {
+    pub fn parse(input: &mut ForwardByteParser<'a>) -> Result<(Block<'a>, bool)> {
         let header = input.slice(3)?;
 
         // Parse header with bit-mask and bit-shifts:
@@ -92,7 +92,7 @@ impl<'a> Block<'a> {
         }
     }
 
-    pub fn decode(self, context: &mut decoders::DecodingContext) -> Result<()> {
+    pub fn decode(self, context: &mut DecodingContext) -> Result<()> {
         match self {
             Block::Raw(v) => {
                 let decoded = Vec::from(v);
@@ -126,7 +126,7 @@ mod tests {
 
         #[test]
         fn test_parse_raw_block_last() {
-            let mut parser = parsing::ForwardByteParser::new(&[
+            let mut parser = ForwardByteParser::new(&[
                 0b0010_0001, 0x0, 0x0, // raw, last, len 4
                 0x10, 0x20, 0x30, 0x40, // content
                 0x50, // +extra byte
@@ -139,7 +139,7 @@ mod tests {
 
         #[test]
         fn test_parse_rle_block_not_last() {
-            let mut parser = parsing::ForwardByteParser::new(&[
+            let mut parser = ForwardByteParser::new(&[
                 0x22, 0x0, 0x18, // rle, not last, repeat  0x30004
                 0x42, // content
                 0x50, // +extra byte
@@ -158,7 +158,7 @@ mod tests {
 
         #[test]
         fn test_parse_reserved() {
-            let mut parser = parsing::ForwardByteParser::new(&[
+            let mut parser = ForwardByteParser::new(&[
                 0b0000_0110, 0x0, 0x0, // reserved
             ]);
             assert!(matches!(Block::parse(&mut parser), Err(ReservedBlockType)));
@@ -166,10 +166,10 @@ mod tests {
 
         #[test]
         fn test_parse_not_enough_byte() {
-            let mut parser = parsing::ForwardByteParser::new(&[0x0, 0x0]);
+            let mut parser = ForwardByteParser::new(&[0x0, 0x0]);
             assert!(matches!(
                 Block::parse(&mut parser),
-                Err(ParsingError(parsing::Error::NotEnoughBytes {
+                Err(ParsingError(ParsingError::NotEnoughBytes {
                     requested: 3,
                     available: 2
                 }))
@@ -179,12 +179,12 @@ mod tests {
 
         #[test]
         fn test_parse_rle_not_enough_byte() {
-            let mut parser = parsing::ForwardByteParser::new(&[
+            let mut parser = ForwardByteParser::new(&[
                 0b0000_0010, 0x0, 0x0, // RLE not last
             ]);
             assert!(matches!(
                 Block::parse(&mut parser),
-                Err(ParsingError(parsing::Error::NotEnoughBytes {
+                Err(ParsingError(ParsingError::NotEnoughBytes {
                     requested: 1,
                     available: 0
                 }))
@@ -194,14 +194,14 @@ mod tests {
 
         #[test]
         fn test_parse_raw_block_not_enough_size() {
-            let mut parser = parsing::ForwardByteParser::new(&[
+            let mut parser = ForwardByteParser::new(&[
                 // Raw block, not last, len 8, content len 3
                 0b0010_0000, 0x0, 0x0, // raw, not last, len 4
                 0x10, 0x20, 0x30, // content
             ]);
             assert!(matches!(
                 Block::parse(&mut parser),
-                Err(ParsingError(parsing::Error::NotEnoughBytes {
+                Err(ParsingError(ParsingError::NotEnoughBytes {
                     requested: 4,
                     available: 3
                 }))
@@ -215,7 +215,7 @@ mod tests {
 
         #[test]
         fn test_decode_raw() {
-            let mut ctx = decoders::DecodingContext::new(0).unwrap();
+            let mut ctx = DecodingContext::new(0).unwrap();
             let block = Block::Raw(&[0x10, 0x20, 0x30, 0x40]);
             block.decode(&mut ctx).unwrap();
             assert_eq!(ctx.decoded, vec![0x10, 0x20, 0x30, 0x40]);
@@ -223,7 +223,7 @@ mod tests {
 
         #[test]
         fn test_decode_rle() {
-            let mut ctx = decoders::DecodingContext::new(0).unwrap();
+            let mut ctx = DecodingContext::new(0).unwrap();
             let block = Block::RLE {
                 byte: 0x42,
                 repeat: 196612,
@@ -235,14 +235,16 @@ mod tests {
 
         #[test]
         fn test_decode_compressed() {
-            let mut ctx = decoders::DecodingContext::new(1000).unwrap();
+            // bitstream obtained via the reference implementation
+
+            let mut ctx = DecodingContext::new(1000).unwrap();
             let bitstream = [
                 189, 1, 0, 228, 2, 35, 35, 10, 35, 32, 87, 101, 108, 99, 111, 109, 101, 32, 116,
                 111, 32, 84, 101, 108, 101, 99, 111, 109, 32, 80, 97, 114, 105, 115, 32, 122, 115,
                 116, 100, 32, 101, 120, 97, 109, 112, 108, 101, 32, 35, 10, 35, 2, 0, 12, 202, 162,
                 4, 109, 63, 5, 217, 139,
             ];
-            let mut parser = parsing::ForwardByteParser::new(&bitstream);
+            let mut parser = ForwardByteParser::new(&bitstream);
             let (block, _) = Block::parse(&mut parser).unwrap();
             block.decode(&mut ctx).unwrap();
             let decoded = String::from_utf8(ctx.decoded).unwrap();

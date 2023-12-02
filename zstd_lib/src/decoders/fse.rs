@@ -1,9 +1,18 @@
-use super::{
-    BitDecoder,
-    Error::{self, *},
-    Result,
-};
-use crate::parsing::*;
+use super::{BitDecoder, Error, Result};
+use crate::parsing::{BackwardBitParser, ForwardBitParser};
+
+#[derive(Debug, thiserror::Error)]
+pub enum FseError {
+    #[error("Missing FSE state")]
+    MissingState,
+
+    #[error("FSE AccLog: {log} greater than allowed maximum: {max}")]
+    AccLogTooBig { log: u8, max: u8 },
+
+    #[error("FSE distribution is corrupted")]
+    DistributionCorrupted,
+}
+use FseError::*;
 
 #[derive(Clone, Debug)]
 pub struct FseTable {
@@ -28,7 +37,7 @@ const ACC_LOG_MAX: u8 = 9;
 impl FseTable {
     // TODO: function to generate accurcy_log from fse_table lentgh
     fn get(&self, index: usize) -> Result<&FseState> {
-        self.states.get(index).ok_or(MissingSymbol)
+        self.states.get(index).ok_or(Error::FseError(MissingState))
     }
 
     pub fn parse(parser: &mut ForwardBitParser) -> Result<Self> {
@@ -124,10 +133,10 @@ impl FseTable {
 pub fn parse_fse_table(parser: &mut ForwardBitParser) -> Result<(u8, Vec<Probability>)> {
     let accuracy_log = parser.take(4)? as u8 + ACC_LOG_OFFSET; // accuracy log
     if accuracy_log > ACC_LOG_MAX {
-        return Err(AccLogTooBig {
+        return Err(Error::FseError(AccLogTooBig {
             log: accuracy_log,
             max: ACC_LOG_MAX,
-        });
+        }));
     }
     let probability_sum = 1 << accuracy_log;
     let mut probability_counter: u32 = 0;
@@ -177,7 +186,7 @@ pub fn parse_fse_table(parser: &mut ForwardBitParser) -> Result<(u8, Vec<Probabi
 
     // Check invariant
     if probability_counter != probability_sum {
-        return Err(DistributionCorrupted);
+        return Err(Error::FseError(DistributionCorrupted));
     }
 
     Ok((accuracy_log, probabilities))
