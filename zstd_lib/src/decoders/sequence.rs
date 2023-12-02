@@ -1,4 +1,5 @@
 use super::{BitDecoder, Error};
+use crate::parsing::BackwardBitParser;
 
 pub type SymbolDecoder = dyn BitDecoder<u16, Error>;
 pub struct SequenceDecoder<'d> {
@@ -22,10 +23,7 @@ impl<'a> SequenceDecoder<'a> {
 }
 
 impl BitDecoder<(u16, u16, u16), Error> for SequenceDecoder<'_> {
-    fn initialize(
-        &mut self,
-        _bitstream: &mut crate::parsing::BackwardBitParser,
-    ) -> Result<(), Error> {
+    fn initialize(&mut self, _: &mut BackwardBitParser) -> Result<(), Error> {
         unimplemented!("initialize not supported for SequenceDecoder")
     }
 
@@ -40,10 +38,7 @@ impl BitDecoder<(u16, u16, u16), Error> for SequenceDecoder<'_> {
         (literals_code, offset_code, match_code)
     }
 
-    fn update_bits(
-        &mut self,
-        bitstream: &mut crate::parsing::BackwardBitParser,
-    ) -> Result<bool, Error> {
+    fn update_bits(&mut self, bitstream: &mut BackwardBitParser) -> Result<bool, Error> {
         // update order: literals > offsets > match
         let mut zeroes = self.literals_lengths_decoder.update_bits(bitstream)?;
         zeroes |= self.match_lengths_decoder.update_bits(bitstream)?;

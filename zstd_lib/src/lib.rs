@@ -13,18 +13,17 @@ use parsing::*;
 use sequences::*;
 
 /*
-    ZstdLib only export 2 things:
+    ZstdLib only export 2+1 things:
     - pub fn decode
     - ZstdLibError
+    (- parsing module)
 
     I think this is a clean design because as a user of the library I dont
     want to know the inner implementation details. I only want a handle to decode
     and a CustomError type.
 
-    In case you whish to export more just prefix `pub` in front of
-    the `use` statements above. For instance to expose literals mod
-    to the outside:
-        use literals::*;
+    (Parsing module is exported for the sake of doc tests. It is not 100% relevant
+    and we could remove them anyway and make the module private.)
 */
 
 #[derive(Debug, thiserror::Error)]
@@ -51,14 +50,13 @@ type Error = ZstdLibError;
 type Result<T, E = ZstdLibError> = std::result::Result<T, E>;
 
 pub fn decode(bytes: Vec<u8>, info: bool) -> Result<Vec<u8>> {
-    let mut res: Vec<u8> = Vec::new();
+    let mut decoded: Vec<u8> = Vec::new();
     for frame in frame::FrameIterator::new(bytes.as_slice()) {
         let frame = frame?;
         if info {
             println!("{:#x?}", frame);
         }
-        res.extend(frame.decode()?);
+        decoded.extend(frame.decode()?);
     }
-
-    Ok(res)
+    Ok(decoded)
 }

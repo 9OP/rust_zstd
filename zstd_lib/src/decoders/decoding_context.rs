@@ -100,10 +100,7 @@ impl DecodingContext {
     pub fn decode_offset(&mut self, offset: usize, literals_length: usize) -> Result<usize> {
         let offset = self.repeat_offsets.decode_offset(offset, literals_length);
 
-        if offset > self.window_size {
-            return Err(Error::Context(OffsetError));
-        }
-        if offset > self.decoded.len() {
+        if offset > self.window_size || offset > self.decoded.len() {
             return Err(Error::Context(OffsetError));
         }
 
@@ -130,9 +127,13 @@ impl DecodingContext {
                 }));
             }
 
+            // Copy from literals
             self.decoded.extend_from_slice(&literals[start..end]);
+
+            // Offset + match copy
             let offset = self.decode_offset(offset_value, literals_length)?;
             let mut index = self.decoded.len() - offset;
+
             for _ in 0..match_value {
                 let byte = self
                     .decoded

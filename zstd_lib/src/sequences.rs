@@ -106,9 +106,7 @@ impl SymbolCompressionMode {
                 Some(Box::new(fse_decoder) as Box<SymbolDecoder>)
             }
             SymbolCompressionMode::Rle(byte) => {
-                let rle_decoder = RLEDecoder {
-                    symbol: *byte as u16,
-                };
+                let rle_decoder = RLEDecoder::new(*byte as u16);
                 Some(Box::new(rle_decoder) as Box<SymbolDecoder>)
             }
             SymbolCompressionMode::FseCompressed(fse_table) => {

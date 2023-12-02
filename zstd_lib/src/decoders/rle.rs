@@ -1,14 +1,18 @@
 use super::{BitDecoder, Error};
+use crate::parsing::BackwardBitParser;
 
 pub struct RLEDecoder {
-    pub symbol: u16,
+    symbol: u16,
+}
+
+impl RLEDecoder {
+    pub fn new(symbol: u16) -> Self {
+        Self { symbol }
+    }
 }
 
 impl BitDecoder<u16, Error> for RLEDecoder {
-    fn initialize(
-        &mut self,
-        _bitstream: &mut crate::parsing::BackwardBitParser,
-    ) -> Result<(), Error> {
+    fn initialize(&mut self, _: &mut BackwardBitParser) -> Result<(), Error> {
         unimplemented!("initialize not supported for RLEDecoder")
     }
 
@@ -20,11 +24,7 @@ impl BitDecoder<u16, Error> for RLEDecoder {
         self.symbol
     }
 
-    fn update_bits(
-        &mut self,
-        _bitstream: &mut crate::parsing::BackwardBitParser,
-    ) -> Result<bool, Error> {
-        // SequenceDecoder could trigger this function
+    fn update_bits(&mut self, _: &mut BackwardBitParser) -> Result<bool, Error> {
         Ok(false)
     }
 
