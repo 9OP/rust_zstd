@@ -6,6 +6,8 @@ pub struct ForwardBitParser<'a> {
 }
 
 impl<'a> ForwardBitParser<'a> {
+    /// Create a new `ForwardBitParser` instance from a byte slice.
+    /// Consumes bits from LSB to MSB and from first byte to last byte
     pub fn new(bitstream: &'a [u8]) -> Self {
         Self {
             bitstream,
@@ -13,18 +15,48 @@ impl<'a> ForwardBitParser<'a> {
         }
     }
 
-    /// Return the number of bytes still unparsed
+    /// Return the number of bytes still unparsed.
+    /// **Note**: partially parsed byte are **not** included.
+    /// # Example
+    /// ```
+    /// # use zstd_lib::parsing::{ForwardBitParser, Error};
+    /// let mut parser = ForwardBitParser::new(&[0b0001_1010, 0b0110_0000]);
+    /// assert_eq!(parser.len(), 2);
+    /// parser.take(6)?;                // consume partially 1st byte
+    /// assert_eq!(parser.len(), 1);    // only 2nd byte is unparsed
+    /// parser.take(2)?;                // consume fully 1st byte
+    /// assert_eq!(parser.len(), 1);    // only 2nd byte is unparsed
+    /// parser.take(1)?;                // consume partially 2nd byte (only 1bit)
+    /// assert_eq!(parser.len(), 0);    // no bytes are left fully unparsed
+    /// # Ok::<(), Error>(())
+    /// ```
     pub fn len(&self) -> usize {
-        let include_first = self.position != 0;
-        self.bitstream.len() - include_first as usize
+        let include_first = self.position == 0;
+        self.bitstream.len() - 1 + include_first as usize
     }
 
-    /// Check if the input is exhausted
+    /// Check if the bitstream is exhausted
+    /// # Example
+    /// ```
+    /// # use zstd_lib::parsing::{ForwardBitParser, Error};
+    /// let mut parser = ForwardBitParser::new(&[]);
+    /// assert_eq!(parser.is_empty(), true);
+    /// # Ok::<(), Error>(())
+    /// ```
     pub fn is_empty(&self) -> bool {
         self.bitstream.len() == 0
     }
 
-    /// Return the number of bits available wrt position
+    /// Return the number of available bits in the parser
+    /// # Example
+    /// ```
+    /// # use zstd_lib::parsing::{ForwardBitParser, Error};
+    /// let mut parser = ForwardBitParser::new(&[0b0100_1010]);
+    /// assert_eq!(parser.available_bits(), 8);
+    /// parser.take(2)?;
+    /// assert_eq!(parser.available_bits(), 6);
+    /// # Ok::<(), Error>(())
+    /// ```
     pub fn available_bits(&self) -> usize {
         if self.is_empty() {
             return 0;
@@ -32,7 +64,17 @@ impl<'a> ForwardBitParser<'a> {
         8 * (self.bitstream.len() - 1) + (8 - self.position)
     }
 
-    /// Return the next bit without consumming it
+    /// Return the next bit value without consuming it.
+    /// Return an error when bit stream is empty. Returned value is either 0 or 1.
+    /// # Example
+    /// ```
+    /// # use zstd_lib::parsing::{ForwardBitParser, Error};
+    /// let mut parser = ForwardBitParser::new(&[0b000_0010]);
+    /// assert_eq!(parser.peek()?, 0);
+    /// parser.take(1)?;
+    /// assert_eq!(parser.peek()?, 1);
+    /// # Ok::<(), Error>(())
+    /// ```
     pub fn peek(&self) -> Result<u8> {
         let available_bits = self.available_bits();
         if 1 > available_bits {
@@ -42,11 +84,20 @@ impl<'a> ForwardBitParser<'a> {
             });
         }
         let is_bit_set = (self.bitstream[0] & (0x0000_0001 << self.position)) != 0;
-        // Ok(is_bit_set as u8)
-        Ok(if is_bit_set { 1 } else { 0 })
+        Ok(is_bit_set as u8)
     }
 
-    /// Get the given number of bits, or return an error.
+    /// Return a u64 made of `len` bits read forward: LSB to MSB and first byte to last byte.
+    /// Returns an error when `len > available_bits`
+    /// # Panic
+    /// Panics when `len > 64` for obvious reason.
+    /// # Example
+    /// ```
+    /// # use zstd_lib::parsing::{ForwardBitParser, Error};
+    /// let mut parser = ForwardBitParser::new(&[0b0111_1011, 0b1101_0010]);
+    /// assert_eq!(parser.take(10)?, 0b10_0111_1011);
+    /// # Ok::<(), Error>(())
+    /// ```
     pub fn take(&mut self, len: usize) -> Result<u64> {
         if len == 0 {
             return Ok(0);
@@ -234,7 +285,6 @@ mod tests {
             assert_eq!(parser.peek().unwrap(), 0);
             assert_eq!(parser.take(1).unwrap(), 0);
 
-            //
             assert_eq!(parser.peek().unwrap(), 1);
             assert_eq!(parser.take(1).unwrap(), 1);
 

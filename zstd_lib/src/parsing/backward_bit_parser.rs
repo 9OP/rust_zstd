@@ -53,15 +53,15 @@ impl<'a> BackwardBitParser<'a> {
     /// # use zstd_lib::parsing::{BackwardBitParser, Error};
     /// let mut parser = BackwardBitParser::new(&[0b0001_1010, 0b0110_0000])?;
     /// assert_eq!(parser.len(), 1);    // 2nd byte is partially parsed
-    /// parser.take(6)?;                // consumme all bits of 2nd byte
+    /// parser.take(6)?;                // consume all bits of 2nd byte
     /// assert_eq!(parser.len(), 1);    // 2nd byte fully parsed
-    /// parser.take(1)?;                // consumme 1st bit of 1st byte
+    /// parser.take(1)?;                // consume 1st bit of 1st byte
     /// assert_eq!(parser.len(), 0);    // 1st byte partially parsed
     /// # Ok::<(), Error>(())
     /// ```
     pub fn len(&self) -> usize {
-        let include_last = self.position != 7;
-        self.bitstream.len() - include_last as usize
+        let include_last = self.position == 7;
+        self.bitstream.len() - 1 + include_last as usize
     }
 
     /// Check if the bitstream is exhausted
