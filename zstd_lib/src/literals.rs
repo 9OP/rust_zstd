@@ -259,8 +259,6 @@ impl<'a> LiteralsSection<'a> {
 
 #[cfg(test)]
 mod tests {
-    use crate::parsing::ForwardByteParser;
-
     use super::*;
 
     #[test]

@@ -59,6 +59,7 @@ impl<'a> BackwardBitParser<'a> {
     /// assert_eq!(parser.len(), 0);    // 1st byte partially parsed
     /// # Ok::<(), ParsingError>(())
     /// ```
+    #[allow(dead_code)]
     pub fn len(&self) -> usize {
         let include_last = self.position == 7;
         self.bitstream.len() - 1 + include_last as usize

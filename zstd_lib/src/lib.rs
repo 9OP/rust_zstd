@@ -1,16 +1,31 @@
-pub mod block;
-pub mod decoders;
-pub mod frame;
-pub mod literals;
-pub mod parsing;
-pub mod sequences;
+mod block;
+mod decoders;
+mod frame;
+mod literals;
+mod parsing;
+mod sequences;
 
-pub use block::*;
-pub use decoders::*;
-pub use frame::*;
-pub use literals::*;
-pub use parsing::*;
-pub use sequences::*;
+use block::*;
+use decoders::*;
+use frame::*;
+use literals::*;
+use parsing::*;
+use sequences::*;
+
+/*
+    ZstdLib only export 2 things:
+    - pub fn decode
+    - ZstdLibError
+
+    I think this is a clean design because as a user of the library I dont
+    want to know the inner implementation details. I only want a handle to decode
+    and a CustomError type.
+
+    In case you whish to export more just prefix `pub` in front of
+    the `use` statements above. For instance to expose literals mod
+    to the outside:
+        use literals::*;
+*/
 
 #[derive(Debug, thiserror::Error)]
 pub enum ZstdLibError {

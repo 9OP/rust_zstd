@@ -204,10 +204,12 @@ impl<'a> Sequences<'a> {
             .literals_lengths_decoder
             .as_mut()
             .ok_or(MissingSequenceDecoder)?;
+
         let offsets_decoder = context
             .offsets_decoder
             .as_mut()
             .ok_or(MissingSequenceDecoder)?;
+
         let match_lengths_decoder = context
             .match_lengths_decoder
             .as_mut()
