@@ -1,5 +1,3 @@
-#![allow(dead_code)]
-
 use crate::block;
 use crate::decoders;
 use crate::parsing;
@@ -19,8 +17,11 @@ pub enum Error {
     #[error("Unrecognized magic number: {0}")]
     UnrecognizedMagic(u32),
 
-    #[error("Corrupted frame, checksum mismatch: {got:#08x} != {expected:#08x}")]
-    CorruptedFrame { got: u32, expected: u32 },
+    #[error("Frame header reserved bit must be 0")]
+    InvalidReservedBit,
+
+    #[error("Corrupted frame, checksum mismatch")]
+    ChecksumMismatch,
 }
 use Error::*;
 pub type Result<T, E = Error> = std::result::Result<T, E>;
@@ -36,36 +37,40 @@ const SKIPPABLE_MAGIC_NUMBER: u32 = 0x184D2A5; // last 4bits: 0x0 to 0xF
 
 #[derive(Debug)]
 pub struct ZstandardFrame<'a> {
-    frame_header: FrameHeader<'a>,
+    frame_header: FrameHeader,
     blocks: Vec<block::Block<'a>>,
     checksum: Option<u32>,
 }
 
 #[derive(Debug)]
 pub struct SkippableFrame<'a> {
-    magic: u32,
-    data: &'a [u8],
+    _magic: u32,
+    _data: &'a [u8],
 }
 
 #[derive(Debug)]
-pub struct FrameHeader<'a> {
-    frame_header_descriptor: u8,
+pub struct FrameHeader {
+    _frame_header_descriptor: u8,
     window_descriptor: u8,
-    dictionary_id: &'a [u8],   // 0-4bytes
-    frame_content_size: usize, // 0-8bytes
+    _dictionary_id: usize,
+    frame_content_size: usize,
     content_checksum_flag: bool,
 }
 
 impl<'a> Frame<'a> {
     pub fn parse(input: &mut parsing::ForwardByteParser<'a>) -> Result<Self> {
         let magic = input.le_u32()?;
+
         match magic {
             STANDARD_MAGIC_NUMBER => Ok(Self::ZstandardFrame(ZstandardFrame::parse(input)?)),
             _ => {
                 if magic >> 4 == SKIPPABLE_MAGIC_NUMBER {
-                    let len = input.le_u32()? as usize;
-                    let data = input.slice(len)?;
-                    return Ok(Self::SkippableFrame(SkippableFrame { magic, data }));
+                    let len = input.le_u32()?;
+                    let data = input.slice(len as usize)?;
+                    return Ok(Self::SkippableFrame(SkippableFrame {
+                        _magic: magic,
+                        _data: data,
+                    }));
                 }
                 Err(UnrecognizedMagic(magic))
             }
@@ -75,31 +80,22 @@ impl<'a> Frame<'a> {
     pub fn decode(self) -> Result<Vec<u8>> {
         match self {
             Frame::SkippableFrame(_) => Ok(Vec::new()),
-            Frame::ZstandardFrame(frame) => {
+            Frame::ZstandardFrame(mut frame) => {
                 let window_size = frame.frame_header.window_size();
                 let mut context = decoders::DecodingContext::new(window_size)?;
-                frame
-                    .blocks
+
+                // hint: decode consume self, but we need to replace blocks, so that it does not borrow self
+                // too soon and let us call frame.verify_checksum.
+                let blocks = std::mem::replace(&mut frame.blocks, vec![]);
+                blocks
                     .into_iter()
-                    .try_for_each(|blk| blk.decode(&mut context))?;
-                let decoded = context.decoded;
+                    .try_for_each(|block| block.decode(&mut context))?;
 
-                if frame.frame_header.content_checksum_flag {
-                    let checksum = (xxh64(&decoded, 0) & 0xFFFF_FFFF) as u32;
-                    let content_checksum = frame.checksum.ok_or(CorruptedFrame {
-                        got: 0,
-                        expected: checksum,
-                    })?;
-
-                    if checksum != content_checksum {
-                        return Err(CorruptedFrame {
-                            got: content_checksum,
-                            expected: checksum,
-                        });
-                    }
+                if !frame.verify_checksum(&context.decoded)? {
+                    return Err(ChecksumMismatch);
                 }
 
-                Ok(decoded)
+                Ok(context.decoded)
             }
         }
     }
@@ -129,10 +125,21 @@ impl<'a> ZstandardFrame<'a> {
             checksum,
         })
     }
+
+    pub fn verify_checksum(&self, decoded: &[u8]) -> Result<bool> {
+        if !self.frame_header.content_checksum_flag {
+            return Ok(true);
+        }
+
+        let checksum = (xxh64(&decoded, 0) & 0xFFFF_FFFF) as u32;
+        let content_checksum = self.checksum.ok_or(ChecksumMismatch)?;
+
+        Ok(checksum == content_checksum)
+    }
 }
 
-impl<'a> FrameHeader<'a> {
-    pub fn parse(input: &mut parsing::ForwardByteParser<'a>) -> Result<Self> {
+impl FrameHeader {
+    pub fn parse(input: &mut parsing::ForwardByteParser) -> Result<Self> {
         // Frame_Header_Descriptor 	    1 byte
         // [Window_Descriptor] 	        0-1 byte
         // [Dictionary_ID] 	            0-4 bytes
@@ -142,17 +149,19 @@ impl<'a> FrameHeader<'a> {
         let frame_content_size_flag = (frame_header_descriptor & 0b1100_0000) >> 6;
         let single_segment_flag = (frame_header_descriptor & 0b0010_0000) >> 5 == 1;
         let reserved_bit = (frame_header_descriptor & 0b0000_1000) >> 3;
-        assert!(reserved_bit == 0);
         let content_checksum_flag = (frame_header_descriptor & 0b0000_0100) >> 2 == 1;
         let dictionary_id_flag = frame_header_descriptor & 0b0000_0011;
-
         let window_descriptor: u8 = if single_segment_flag { 0 } else { input.u8()? };
 
+        if reserved_bit != 0 {
+            return Err(InvalidReservedBit);
+        }
+
         let dictionary_id = match dictionary_id_flag {
-            0 => input.slice(0)?,
-            1 => input.slice(1)?,
-            2 => input.slice(2)?,
-            3 => input.slice(4)?,
+            0 => 0,
+            1 => input.le(1)?,
+            2 => input.le(2)?,
+            3 => input.le(4)?,
             _ => panic!("unexpected dictionary_id_flag {dictionary_id_flag}"),
         };
 
@@ -165,21 +174,18 @@ impl<'a> FrameHeader<'a> {
         };
 
         Ok(FrameHeader {
-            frame_header_descriptor,
+            _frame_header_descriptor: frame_header_descriptor,
             window_descriptor,
-            dictionary_id,
+            _dictionary_id: dictionary_id,
             frame_content_size,
             content_checksum_flag,
         })
     }
 
     pub fn window_size(&self) -> usize {
-        let use_fcs = self.window_descriptor == 0;
-
-        if use_fcs {
+        if self.window_descriptor == 0 {
             return self.frame_content_size;
         }
-
         let exponent: usize = ((self.window_descriptor & 0b1111_1000) >> 3).into();
         let mantissa: usize = (self.window_descriptor & 0b0000_0111).into();
 
@@ -246,8 +252,8 @@ mod tests {
                 let Frame::SkippableFrame(skippable) = Frame::parse(&mut parser).unwrap() else {
                     panic!("unexpected frame type")
                 };
-                assert_eq!(skippable.magic, 0x184d2a53);
-                assert_eq!(skippable.data, &[0x10, 0x20, 0x30]);
+                assert_eq!(skippable._magic, 0x184d2a53);
+                assert_eq!(skippable._data, &[0x10, 0x20, 0x30]);
                 assert_eq!(parser.len(), 1);
             }
 
@@ -317,8 +323,8 @@ mod tests {
             #[test]
             fn test_decode_skippable() {
                 let frame = Frame::SkippableFrame(SkippableFrame {
-                    magic: 0,
-                    data: &[],
+                    _magic: 0,
+                    _data: &[],
                 });
                 assert_eq!(frame.decode().unwrap(), Vec::new());
             }
@@ -327,9 +333,9 @@ mod tests {
             fn test_decode_standard() {
                 let frame = Frame::ZstandardFrame(ZstandardFrame {
                     frame_header: FrameHeader {
-                        frame_header_descriptor: 0,
+                        _frame_header_descriptor: 0,
                         window_descriptor: 0,
-                        dictionary_id: &[],
+                        _dictionary_id: 0,
                         frame_content_size: 0,
                         content_checksum_flag: false,
                     },
@@ -366,10 +372,10 @@ mod tests {
             fn test_decode_null_frame_header() {
                 let mut parser = parsing::ForwardByteParser::new(&[0x0, 0xFF]);
                 let frame_header = FrameHeader::parse(&mut parser).unwrap();
-                assert_eq!(frame_header.frame_header_descriptor, 0x0);
+                assert_eq!(frame_header._frame_header_descriptor, 0x0);
                 assert_eq!(frame_header.content_checksum_flag, false);
                 assert_eq!(frame_header.window_descriptor, 0xFF);
-                assert_eq!(frame_header.dictionary_id, &[]);
+                assert_eq!(frame_header._dictionary_id, 0);
             }
 
             #[test]
@@ -393,10 +399,10 @@ mod tests {
                     0x42,                   // +extra byte
                 ]);
                 let frame_header = FrameHeader::parse(&mut parser).unwrap();
-                assert_eq!(frame_header.frame_header_descriptor, 0b1010_0110);
+                assert_eq!(frame_header._frame_header_descriptor, 0b1010_0110);
                 assert_eq!(frame_header.content_checksum_flag, true);
                 assert_eq!(frame_header.window_descriptor, 0);
-                assert_eq!(frame_header.dictionary_id, &[0xDE, 0xAD]);
+                assert_eq!(frame_header._dictionary_id, 0xAD_DE);
                 // assert_eq!(frame_header.frame_content_size, &[0x10, 0x20, 0x30, 0x40]);
                 assert_eq!(parser.len(), 1);
             }
@@ -411,11 +417,11 @@ mod tests {
                     ],
                 );
                 let frame_header = FrameHeader::parse(&mut parser).unwrap();
-                assert_eq!(frame_header.frame_header_descriptor, 0b0010_0000);
+                assert_eq!(frame_header._frame_header_descriptor, 0b0010_0000);
                 assert_eq!(frame_header.content_checksum_flag, false);
                 assert_eq!(frame_header.window_descriptor, 0);
-                assert_eq!(frame_header.dictionary_id.len(), 0);
-                // assert_eq!(frame_header.frame_content_size, &[0xAD]);
+                assert_eq!(frame_header._dictionary_id, 0);
+                assert_eq!(frame_header.frame_content_size, 0xAD);
                 assert_eq!(parser.len(), 1);
             }
 
@@ -429,11 +435,11 @@ mod tests {
                     ],
                 );
                 let frame_header = FrameHeader::parse(&mut parser).unwrap();
-                assert_eq!(frame_header.frame_header_descriptor, 0x0);
+                assert_eq!(frame_header._frame_header_descriptor, 0x0);
                 assert_eq!(frame_header.content_checksum_flag, false);
                 assert_eq!(frame_header.window_descriptor, 0xAD);
-                assert_eq!(frame_header.dictionary_id.len(), 0);
-                // assert_eq!(frame_header.frame_content_size.len(), 0);
+                assert_eq!(frame_header._dictionary_id, 0);
+                assert_eq!(frame_header.frame_content_size, 0);
                 assert_eq!(parser.len(), 1);
             }
         }
@@ -467,8 +473,8 @@ mod tests {
             let Frame::SkippableFrame(frame) = iterator.next().unwrap().unwrap() else {
                 panic!("unexpected frame type")
             };
-            assert_eq!(frame.magic, 0x184d2a53);
-            assert_eq!(frame.data, &[0x10, 0x20, 0x30]);
+            assert_eq!(frame._magic, 0x184d2a53);
+            assert_eq!(frame._data, &[0x10, 0x20, 0x30]);
 
             let Frame::ZstandardFrame(frame) = iterator.next().unwrap().unwrap() else {
                 panic!("unexpected frame type")

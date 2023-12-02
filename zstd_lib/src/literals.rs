@@ -183,7 +183,6 @@ impl<'a> LiteralsSection<'a> {
                         let re_size = header >> 4 | header1 << 4 | (header2 & 0b0011_1111) << 12;
                         let cp_size = header2 >> 6 | header3 << 2 | header4 << 10;
 
-                        dbg!(re_size, cp_size);
                         (re_size, cp_size)
                     }
                     _ => panic!("unexpected size_format {size_format}"),
