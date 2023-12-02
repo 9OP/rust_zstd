@@ -50,9 +50,8 @@ pub struct SkippableFrame<'a> {
 
 #[derive(Debug)]
 pub struct FrameHeader {
-    _frame_header_descriptor: u8,
     window_descriptor: u8,
-    _dictionary_id: usize,
+    // dictionary_id: usize, // not implemented yet
     frame_content_size: usize,
     content_checksum_flag: bool,
 }
@@ -157,11 +156,12 @@ impl FrameHeader {
             return Err(InvalidReservedBit);
         }
 
-        let dictionary_id = match dictionary_id_flag {
-            0 => 0,
-            1 => input.le(1)?,
-            2 => input.le(2)?,
-            3 => input.le(4)?,
+        // dictionnary is not implemented yet, but we still have to consume its bytes
+        let _dictionary_id = match dictionary_id_flag {
+            0 => input.slice(0)?,
+            1 => input.slice(1)?,
+            2 => input.slice(2)?,
+            3 => input.slice(4)?,
             _ => panic!("unexpected dictionary_id_flag {dictionary_id_flag}"),
         };
 
@@ -174,9 +174,8 @@ impl FrameHeader {
         };
 
         Ok(FrameHeader {
-            _frame_header_descriptor: frame_header_descriptor,
             window_descriptor,
-            _dictionary_id: dictionary_id,
+            // dictionary_id,
             frame_content_size,
             content_checksum_flag,
         })
@@ -333,9 +332,7 @@ mod tests {
             fn test_decode_standard() {
                 let frame = Frame::ZstandardFrame(ZstandardFrame {
                     frame_header: FrameHeader {
-                        _frame_header_descriptor: 0,
                         window_descriptor: 0,
-                        _dictionary_id: 0,
                         frame_content_size: 0,
                         content_checksum_flag: false,
                     },
@@ -372,10 +369,8 @@ mod tests {
             fn test_decode_null_frame_header() {
                 let mut parser = parsing::ForwardByteParser::new(&[0x0, 0xFF]);
                 let frame_header = FrameHeader::parse(&mut parser).unwrap();
-                assert_eq!(frame_header._frame_header_descriptor, 0x0);
                 assert_eq!(frame_header.content_checksum_flag, false);
                 assert_eq!(frame_header.window_descriptor, 0xFF);
-                assert_eq!(frame_header._dictionary_id, 0);
             }
 
             #[test]
@@ -399,11 +394,9 @@ mod tests {
                     0x42,                   // +extra byte
                 ]);
                 let frame_header = FrameHeader::parse(&mut parser).unwrap();
-                assert_eq!(frame_header._frame_header_descriptor, 0b1010_0110);
                 assert_eq!(frame_header.content_checksum_flag, true);
                 assert_eq!(frame_header.window_descriptor, 0);
-                assert_eq!(frame_header._dictionary_id, 0xAD_DE);
-                // assert_eq!(frame_header.frame_content_size, &[0x10, 0x20, 0x30, 0x40]);
+                assert_eq!(frame_header.frame_content_size, 0x40_30_20_10);
                 assert_eq!(parser.len(), 1);
             }
 
@@ -417,10 +410,8 @@ mod tests {
                     ],
                 );
                 let frame_header = FrameHeader::parse(&mut parser).unwrap();
-                assert_eq!(frame_header._frame_header_descriptor, 0b0010_0000);
                 assert_eq!(frame_header.content_checksum_flag, false);
                 assert_eq!(frame_header.window_descriptor, 0);
-                assert_eq!(frame_header._dictionary_id, 0);
                 assert_eq!(frame_header.frame_content_size, 0xAD);
                 assert_eq!(parser.len(), 1);
             }
@@ -435,10 +426,8 @@ mod tests {
                     ],
                 );
                 let frame_header = FrameHeader::parse(&mut parser).unwrap();
-                assert_eq!(frame_header._frame_header_descriptor, 0x0);
                 assert_eq!(frame_header.content_checksum_flag, false);
                 assert_eq!(frame_header.window_descriptor, 0xAD);
-                assert_eq!(frame_header._dictionary_id, 0);
                 assert_eq!(frame_header.frame_content_size, 0);
                 assert_eq!(parser.len(), 1);
             }
