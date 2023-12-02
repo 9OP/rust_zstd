@@ -1,25 +1,35 @@
 use super::{Error::*, Result};
 
-#[derive(Debug)]
 pub struct BackwardBitParser<'a> {
     bitstream: &'a [u8],
     position: usize,
 }
 
 impl<'a> BackwardBitParser<'a> {
+    /// Create a new `BackwardBitParser` instance from a byte slice
+    /// or return `NotEnoughByte` error when the byte slice is empty.
+    /// The parser is initialized skipping all 0 and the first 1 from MSB.
+    /// # Example
+    /// ```
+    /// # use zstd_lib::parsing::{BackwardBitParser, Error};
+    /// let mut parser = BackwardBitParser::new(&[0b0001_1010, 0b0110_0000])?;
+    /// // stream: 0b0001_1010, 0b0011_0000
+    /// //                        --^ skipped initial zeroes and first one from MSB to LSB
+    /// # Ok::<(), Error>(())
+    /// ```
     pub fn new(bitstream: &'a [u8]) -> Result<Self> {
         let (last_byte, rest) = bitstream.split_last().ok_or(NotEnoughBytes {
             requested: 1,
             available: 0,
         })?;
 
-        // skip all initial 0 and the first 1
-        // position 7 is MSB and position 0 is LSB: 0b7654_3210
+        // skip all initial 0 and the first 1 from
+        // from position 7 (MSB) to position 0 (LSB): 0b7654_3210
         for i in (0..8).rev() {
-            if last_byte & (0b0000_0001 << i) != 0 {
-                // last_byte = 0b0000_0001
-                // in this case skip entire last_byte from the stream
+            if (last_byte & (1 << i)) != 0 {
                 if i == 0 {
+                    // last_byte = 0b0000_0001
+                    // in this case skip entire last_byte from the stream
                     return Ok(Self {
                         bitstream: rest,
                         position: 7,
@@ -28,9 +38,7 @@ impl<'a> BackwardBitParser<'a> {
 
                 return Ok(Self {
                     bitstream,
-                    // original implementation
                     position: i - 1, // skip first 1
-                                     // position: i,
                 });
             }
         }
@@ -38,18 +46,46 @@ impl<'a> BackwardBitParser<'a> {
         Err(MalformedBitstream)
     }
 
-    /// Return the number of bytes still unparsed
+    /// Return the number of bytes still unparsed.
+    /// **Note**: partially parsed byte are **not** included.
+    /// # Example
+    /// ```
+    /// # use zstd_lib::parsing::{BackwardBitParser, Error};
+    /// let mut parser = BackwardBitParser::new(&[0b0001_1010, 0b0110_0000])?;
+    /// assert_eq!(parser.len(), 1);    // 2nd byte is partially parsed
+    /// parser.take(6)?;                // consumme all bits of 2nd byte
+    /// assert_eq!(parser.len(), 1);    // 2nd byte fully parsed
+    /// parser.take(1)?;                // consumme 1st bit of 1st byte
+    /// assert_eq!(parser.len(), 0);    // 1st byte partially parsed
+    /// # Ok::<(), Error>(())
+    /// ```
     pub fn len(&self) -> usize {
-        // self.bitstream.len()
         let include_last = self.position != 7;
-        self.bitstream.len() + include_last as usize
+        self.bitstream.len() - include_last as usize
     }
 
-    /// Check if the input is exhausted
+    /// Check if the bitstream is exhausted
+    /// # Example
+    /// ```
+    /// # use zstd_lib::parsing::{BackwardBitParser, Error};
+    /// let mut parser = BackwardBitParser::new(&[0b0000_0001])?; // creates an empty parser
+    /// assert_eq!(parser.is_empty(), true);
+    /// # Ok::<(), Error>(())
+    /// ```
     pub fn is_empty(&self) -> bool {
         self.bitstream.len() == 0
     }
 
+    /// Return the number of available bits in the parser
+    /// # Example
+    /// ```
+    /// # use zstd_lib::parsing::{BackwardBitParser, Error};
+    /// let mut parser = BackwardBitParser::new(&[0b0100_1010])?;
+    /// // stream: 0b0100_1010
+    /// //           --^ skip the first 0 and first 1
+    /// assert_eq!(parser.available_bits(), 6);
+    /// # Ok::<(), Error>(())
+    /// ```
     pub fn available_bits(&self) -> usize {
         if self.is_empty() {
             return 0;
@@ -57,19 +93,26 @@ impl<'a> BackwardBitParser<'a> {
         8 * (self.bitstream.len() - 1) + self.position + 1
     }
 
-    /// Get the given number of bits, or return an error.
+    /// Return a u64 made of `len` bits read backward: MSB to LSB and last byte to first byte.
+    /// Returns an error when `len > available_bits`
+    /// # Panic
+    /// Panics when `len > 64` for obvious reason.
+    /// # Example
+    /// ```
+    /// # use zstd_lib::parsing::{BackwardBitParser, Error};
+    /// let mut parser = BackwardBitParser::new(&[0b0111_1011])?;
+    /// // stream: 0b0111_1011
+    /// //           --^ skip the first 0 and first 1
+    /// assert_eq!(parser.take(2)?, 0b11);
+    /// assert_eq!(parser.take(1)?, 0b1);
+    /// assert_eq!(parser.take(3)?, 0b011);
+    /// # Ok::<(), Error>(())
+    /// ```
     pub fn take(&mut self, len: usize) -> Result<u64> {
         if len == 0 {
             return Ok(0);
         }
-
-        // The result contains at most 64 bits (u64)
-        if len > 64 {
-            return Err(Overflow {
-                length: len,
-                range: 64,
-            });
-        }
+        assert!(len <= 64, "unexpected len: {len} > 64");
 
         if len > self.available_bits() {
             return Err(NotEnoughBits {
@@ -88,11 +131,11 @@ impl<'a> BackwardBitParser<'a> {
             // read up to position+1 per byte, position is in [0,7]
             let bits_to_read = std::cmp::min(bits_remaining, self.position + 1);
 
-            // apply position offset in order to discard LHS bits
+            // apply position offset in order to discard left-hand-side bits
             let offset = 7 - self.position;
             let bits = byte << offset;
 
-            // read bits, shift in order to discard RHS bits
+            // read bits, shift in order to discard right-hand-side bits
             let bits = bits >> (8 - bits_to_read);
 
             // shift result to make space for new bits
@@ -181,9 +224,13 @@ mod tests {
 
     #[test]
     fn test_len() {
-        let bitstream: &[u8; 2] = &[0b0011_1100, 0b0000_0001];
-        let parser = BackwardBitParser::new(bitstream).unwrap();
+        let bitstream: &[u8; 2] = &[0b0011_1100, 0b0000_0110];
+        let mut parser = BackwardBitParser::new(bitstream).unwrap();
         assert_eq!(parser.len(), 1);
+        parser.take(2).unwrap();
+        assert_eq!(parser.len(), 1);
+        parser.take(1).unwrap();
+        assert_eq!(parser.len(), 0);
     }
 
     #[test]
@@ -201,16 +248,11 @@ mod tests {
         use super::*;
 
         #[test]
+        #[should_panic(expected = "unexpected len: 65 > 64")]
         fn test_take_overflow() {
             let bitstream: &[u8; 2] = &[0b0011_1100, 0b0001_0111];
             let mut parser = BackwardBitParser::new(bitstream).unwrap();
-            assert!(matches!(
-                parser.take(65),
-                Err(Overflow {
-                    length: 65,
-                    range: 64
-                })
-            ));
+            let _ = parser.take(65);
         }
 
         #[test]

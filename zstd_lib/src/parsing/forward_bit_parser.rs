@@ -51,14 +51,7 @@ impl<'a> ForwardBitParser<'a> {
         if len == 0 {
             return Ok(0);
         }
-
-        // The result contains at most 64 bits (u64)
-        if len > 64 {
-            return Err(Overflow {
-                length: len,
-                range: 64,
-            });
-        }
+        assert!(len <= 64, "unexpected len: {len} > 64");
 
         let available_bits = self.available_bits();
         if len > available_bits {
@@ -146,16 +139,11 @@ mod tests {
         use super::*;
 
         #[test]
+        #[should_panic(expected = "unexpected len: 65 > 64")]
         fn test_take_overflow() {
             let bitstream: &[u8; 2] = &[0b1010_0110, 0b0111_0100];
             let mut parser = ForwardBitParser::new(bitstream);
-            assert!(matches!(
-                parser.take(65),
-                Err(Overflow {
-                    length: 65,
-                    range: 64
-                })
-            ));
+            let _ = parser.take(65);
         }
 
         #[test]
