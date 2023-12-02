@@ -74,10 +74,12 @@ impl SymbolCompressionMode {
             2 => {
                 let mut parser = ForwardBitParser::from(*input);
                 let fse_table = FseTable::parse(&mut parser)?;
-                if fse_table.states.len() == 1 {
-                    // not sure, see: https://www.rfc-editor.org/rfc/rfc8878#name-sequences_section_header
+
+                // not sure, see: https://www.rfc-editor.org/rfc/rfc8878#name-sequences_section_header
+                if fse_table.accuracy_log() == 0 {
                     return Ok(Self::Predefined);
                 }
+
                 *input = ForwardByteParser::from(parser);
                 Ok(Self::FseCompressed(fse_table))
             }
@@ -100,7 +102,7 @@ impl SymbolCompressionMode {
                     SymbolType::Offset => OFFSET_CODE_DEFAULT_DISTRIBUTION,
                 };
 
-                let fse_table = FseTable::from_distribution(def.accuracy_log, def.distribution);
+                let fse_table = FseTable::from_distribution(def.accuracy_log, def.distribution)?;
                 let mut fse_decoder = FseDecoder::new(fse_table);
                 fse_decoder.initialize(parser)?;
                 Some(Box::new(fse_decoder) as Box<SymbolDecoder>)

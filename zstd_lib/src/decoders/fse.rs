@@ -6,8 +6,8 @@ pub enum FseError {
     #[error("Missing FSE state")]
     MissingState,
 
-    #[error("FSE AccLog: {log} greater than allowed maximum: {max}")]
-    AccLogTooBig { log: u8, max: u8 },
+    #[error("FSE accuracy log: {log} greater than allowed maximum: {max}")]
+    ALTooLarge { log: u8, max: u8 },
 
     #[error("FSE distribution is corrupted")]
     DistributionCorrupted,
@@ -16,39 +16,42 @@ use FseError::*;
 
 #[derive(Clone, Debug)]
 pub struct FseTable {
-    pub states: Vec<FseState>,
-    pub accuracy_log: u8,
+    states: Vec<FseState>,
 }
 
-// Aliased types for better code clarity
 type Symbol = u16;
 type Probability = i16;
 
 #[derive(Debug, Default, Clone, Copy)]
 pub struct FseState {
-    pub symbol: Symbol,
-    pub base_line: u16, // could be usize
-    pub num_bits: u16,  // could be usize
+    symbol: Symbol,
+    base_line: usize,
+    num_bits: usize,
 }
 
 const ACC_LOG_OFFSET: u8 = 5;
 const ACC_LOG_MAX: u8 = 9;
 
 impl FseTable {
-    // TODO: function to generate accurcy_log from fse_table lentgh
+    pub fn accuracy_log(&self) -> u32 {
+        // by design: 1 << AL == states.len()
+        assert!(
+            self.states.len().is_power_of_two(),
+            "unexpected FSE states count not power of 2"
+        );
+        usize::BITS - self.states.len().leading_zeros() - 1
+    }
+
     fn get(&self, index: usize) -> Result<&FseState> {
         self.states.get(index).ok_or(Error::Fse(MissingState))
     }
 
     pub fn parse(parser: &mut ForwardBitParser) -> Result<Self> {
-        let (accuracy_log, distribution) = parse_fse_table(parser)?;
-        Ok(Self::from_distribution(
-            accuracy_log,
-            distribution.as_slice(),
-        ))
+        let (al, dist) = parse_fse_table(parser)?;
+        Self::from_distribution(al, dist.as_slice())
     }
 
-    pub fn from_distribution(accuracy_log: u8, distribution: &[Probability]) -> Self {
+    pub fn from_distribution(accuracy_log: u8, distribution: &[Probability]) -> Result<Self> {
         let table_length = 1 << accuracy_log;
         let mut states = vec![FseState::default(); table_length];
 
@@ -72,7 +75,7 @@ impl FseTable {
         for (i, symbol) in less_than_one.iter().enumerate() {
             let state = &mut states[table_length - 1 - i];
             state.base_line = 0;
-            state.num_bits = accuracy_log as u16;
+            state.num_bits = accuracy_log as usize;
             state.symbol = *symbol;
         }
 
@@ -87,25 +90,29 @@ impl FseTable {
         .filter(|&index| states[index].symbol == 0);
 
         // Symbols with positive probabilities
-        let positives: Vec<(Symbol, Probability, Vec<usize>)> = distribution
+        let positives: Result<Vec<(Symbol, Probability, Vec<usize>)>> = distribution
             .iter()
             .filter(|&e| e.1 > 0)
             .map(|(symbol, probability)| {
-                let mut symbol_states: Vec<usize> =
-                    state_index.by_ref().take(*probability as usize).collect();
+                let proba = *probability as usize;
+                let mut symbol_states: Vec<usize> = state_index.by_ref().take(proba).collect();
 
                 symbol_states.sort();
 
-                // check invariant, TODO: create panic message
-                assert!(symbol_states.len() == *probability as usize);
+                // invariant
+                if symbol_states.len() != proba {
+                    return Err(Error::Fse(DistributionCorrupted));
+                }
 
-                (*symbol, *probability, symbol_states)
+                Ok((*symbol, *probability, symbol_states))
             })
             .collect();
 
+        let positives = positives?;
+
         for (symbol, probability, symbol_states) in positives {
             let p = (probability as usize).next_power_of_two();
-            let b = (table_length / p).trailing_zeros() as u16; // log2(R/p)
+            let b = (table_length / p).trailing_zeros() as usize; // log2(R/p)
             let e = p - probability as usize;
 
             let mut base_line = 0;
@@ -123,21 +130,19 @@ impl FseTable {
             }
         }
 
-        Self {
-            states,
-            accuracy_log,
-        }
+        Ok(Self { states })
     }
 }
 
-pub fn parse_fse_table(parser: &mut ForwardBitParser) -> Result<(u8, Vec<Probability>)> {
+fn parse_fse_table(parser: &mut ForwardBitParser) -> Result<(u8, Vec<Probability>)> {
     let accuracy_log = parser.take(4)? as u8 + ACC_LOG_OFFSET; // accuracy log
     if accuracy_log > ACC_LOG_MAX {
-        return Err(Error::Fse(AccLogTooBig {
+        return Err(Error::Fse(ALTooLarge {
             log: accuracy_log,
             max: ACC_LOG_MAX,
         }));
     }
+
     let probability_sum = 1 << accuracy_log;
     let mut probability_counter: u32 = 0;
     let mut probabilities: Vec<i16> = Vec::new();
@@ -146,12 +151,15 @@ pub fn parse_fse_table(parser: &mut ForwardBitParser) -> Result<(u8, Vec<Probabi
         let max_remaining_value = probability_sum - probability_counter + 1;
         let bits_to_read = u32::BITS - max_remaining_value.leading_zeros();
 
-        // Value is either encoded in bits_to_read of bits_to_read-1
+        // Value is either encoded in: bits_to_read or bits_to_read-1
         let small_value = parser.take((bits_to_read - 1) as usize)? as u32;
-        // The MSB is not consummed but peeked as we dont know yet if the value is encoded in bits_to_read or bits_to_read-1
+
+        // The MSB peeked (not consumed) because value is in: bits_to_read or bits_to_read-1
         let unchecked_value = ((parser.peek()? as u32) << (bits_to_read - 1)) | small_value;
+
         // Threshold above wich value is encoded in bits_to_read, below which encoded in bits_to_read-1
         let low_threshold = ((1 << bits_to_read) - 1) - (max_remaining_value);
+
         // Used to divide in two halves the range of values encoded in bits_to_read
         let mask = (1 << (bits_to_read - 1)) - 1;
 
@@ -184,7 +192,7 @@ pub fn parse_fse_table(parser: &mut ForwardBitParser) -> Result<(u8, Vec<Probabi
         }
     }
 
-    // Check invariant
+    // invariant
     if probability_counter != probability_sum {
         return Err(Error::Fse(DistributionCorrupted));
     }
@@ -193,8 +201,10 @@ pub fn parse_fse_table(parser: &mut ForwardBitParser) -> Result<(u8, Vec<Probabi
 }
 
 pub struct FseDecoder {
+    initialized: bool,
     table: FseTable,
-    state: Option<FseState>,
+    base_line: usize,
+    num_bits: usize,
     symbol: Option<Symbol>,
 }
 
@@ -202,7 +212,9 @@ impl FseDecoder {
     pub fn new(table: FseTable) -> Self {
         Self {
             table,
-            state: None,
+            initialized: false,
+            base_line: 0,
+            num_bits: 0,
             symbol: None,
         }
     }
@@ -211,71 +223,67 @@ impl FseDecoder {
 // Refactor it, use initialized boolean var
 impl BitDecoder<Symbol, Error> for FseDecoder {
     fn initialize(&mut self, bitstream: &mut BackwardBitParser) -> Result<(), Error> {
-        assert!(
-            self.state.is_none(),
-            "FseDecoder instance is already initialized"
-        );
-        assert!(
-            !self.table.states.is_empty(),
-            "FseDecoder states table is empty"
-        );
+        assert!(!self.initialized, "already initialized");
+        assert!(!self.table.states.is_empty(), "empty");
 
-        // read |accuracy_log| bits to get the initial state
-        let initial_state_index = bitstream.take(self.table.accuracy_log as usize)?;
-        let initial_state = self.table.get(initial_state_index as usize)?;
-        self.state = Some(*initial_state);
-        self.symbol = Some(initial_state.symbol);
+        self.initialized = true;
+
+        let index = bitstream.take(self.table.accuracy_log() as usize)?;
+        let state = self.table.get(index as usize)?;
+
+        self.symbol = Some(state.symbol);
+        self.num_bits = state.num_bits;
+        self.base_line = state.base_line;
+
         Ok(())
     }
 
     fn expected_bits(&self) -> usize {
-        // TODO: unwrap with message
-        if let Some(state) = self.state {
-            return state.num_bits as usize;
-        }
-        panic!("FseDecoder instance not initialized");
+        assert!(self.initialized, "not initialized");
+        self.num_bits
     }
 
     fn symbol(&mut self) -> Symbol {
-        if let Some(symbol) = self.symbol {
-            self.symbol = None;
-            return symbol;
-        }
-        panic!("FseDecoder instance not initialized");
+        assert!(self.initialized, "not initialized");
+        assert!(self.symbol.is_some(), "no symbol to consume");
+        self.symbol.take().unwrap()
     }
 
     fn update_bits(&mut self, bitstream: &mut BackwardBitParser) -> Result<bool, Error> {
-        assert!(self.state.is_some(), "FseDecoder instance not initialized");
-        assert!(self.symbol.is_none(), "Symbol has not been consummed");
+        assert!(self.initialized, "not initialized");
+        assert!(self.symbol.is_none(), "symbol to consume");
 
-        let state = self.state.unwrap();
         let available_bits = bitstream.available_bits();
         let expected_bits = self.expected_bits();
 
-        let (state_index, completing_with_zeros) = match expected_bits <= available_bits {
+        let (index, zeroes) = match expected_bits <= available_bits {
             true => {
                 let index = bitstream.take(expected_bits)?;
-                (index + state.base_line as u64, false)
+                (index + self.base_line as u64, false)
             }
             false => {
                 let diff = expected_bits - available_bits;
                 let index = bitstream.take(available_bits)? << diff;
-                (index + state.base_line as u64, true)
+                (index + self.base_line as u64, true)
             }
         };
-        let state = self.table.get(state_index as usize)?;
-        self.state = Some(*state);
+
+        let state = self.table.get(index as usize)?;
         self.symbol = Some(state.symbol);
-        Ok(completing_with_zeros)
+        self.num_bits = state.num_bits;
+        self.base_line = state.base_line;
+
+        Ok(zeroes)
     }
 
     fn reset(&mut self) {
-        self.state = None;
         self.symbol = None;
+        self.num_bits = 0;
+        self.base_line = 0;
     }
 }
 
-//#[cfg(test)]
+#[cfg(test)]
 impl std::fmt::Display for FseTable {
     fn fmt(&self, fmt: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         writeln!(fmt, "State,Sym,BL,NB").ok();
@@ -305,18 +313,6 @@ mod tests {
             let fse_table = FseTable::parse(&mut parser).unwrap();
             let mut decoder = FseDecoder::new(fse_table);
             decoder.initialize(&mut bitstream).unwrap();
-
-            // assert_eq!(bitstream.available_bits(), 8);
-            // assert_eq!(decoder.update_bits(&mut bitstream).unwrap(), false);
-            // assert_eq!(decoder.symbol(), 0);
-
-            // assert_eq!(bitstream.available_bits(), 7);
-            // assert_eq!(decoder.update_bits(&mut bitstream).unwrap(), false);
-            // assert_eq!(decoder.symbol(), 0);
-
-            // assert_eq!(bitstream.available_bits(), 6);
-            // assert_eq!(decoder.update_bits(&mut bitstream).unwrap(), false);
-            // assert_eq!(decoder.symbol(), 0);
         }
     }
 
@@ -461,7 +457,7 @@ State,Sym,BL,NB
                 4, 3, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 3, 2, 1,
                 1, 1, 1, 1, -1, -1, -1, -1,
             ];
-            let state = FseTable::from_distribution(6, &literals_distribution);
+            let state = FseTable::from_distribution(6, &literals_distribution).unwrap();
             let expected = r#"
 State,Sym,BL,NB
 0x00,s0,0x00,4
@@ -535,7 +531,7 @@ State,Sym,BL,NB
                 1, 4, 3, 2, 2, 2, 2, 2, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
                 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, -1, -1, -1, -1, -1, -1, -1,
             ];
-            let state = FseTable::from_distribution(6, &match_distribution);
+            let state = FseTable::from_distribution(6, &match_distribution).unwrap();
             let expected = r#"
 State,Sym,BL,NB
 0x00,s0,0x00,6
@@ -609,7 +605,7 @@ State,Sym,BL,NB
                 1, 1, 1, 1, 1, 1, 2, 2, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, -1, -1, -1,
                 -1, -1,
             ];
-            let state = FseTable::from_distribution(5, &offset_distribution);
+            let state = FseTable::from_distribution(5, &offset_distribution).unwrap();
             let expected = r#"
 State,Sym,BL,NB
 0x00,s0,0x00,5
