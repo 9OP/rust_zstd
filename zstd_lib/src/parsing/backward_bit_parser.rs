@@ -65,7 +65,7 @@ impl<'a> BackwardBitParser<'a> {
 
         // The result contains at most 64 bits (u64)
         if len > 64 {
-            return Err(LengthOverflow {
+            return Err(Overflow {
                 length: len,
                 range: 64,
             });
@@ -206,7 +206,7 @@ mod tests {
             let mut parser = BackwardBitParser::new(bitstream).unwrap();
             assert!(matches!(
                 parser.take(65),
-                Err(LengthOverflow {
+                Err(Overflow {
                     length: 65,
                     range: 64
                 })

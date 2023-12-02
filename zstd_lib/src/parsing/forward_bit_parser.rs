@@ -1,6 +1,5 @@
 use super::{Error::*, Result};
 
-#[derive(Debug)]
 pub struct ForwardBitParser<'a> {
     bitstream: &'a [u8],
     position: usize,
@@ -43,6 +42,7 @@ impl<'a> ForwardBitParser<'a> {
             });
         }
         let is_bit_set = (self.bitstream[0] & (0x0000_0001 << self.position)) != 0;
+        // Ok(is_bit_set as u8)
         Ok(if is_bit_set { 1 } else { 0 })
     }
 
@@ -54,7 +54,7 @@ impl<'a> ForwardBitParser<'a> {
 
         // The result contains at most 64 bits (u64)
         if len > 64 {
-            return Err(LengthOverflow {
+            return Err(Overflow {
                 length: len,
                 range: 64,
             });
@@ -151,7 +151,7 @@ mod tests {
             let mut parser = ForwardBitParser::new(bitstream);
             assert!(matches!(
                 parser.take(65),
-                Err(LengthOverflow {
+                Err(Overflow {
                     length: 65,
                     range: 64
                 })
