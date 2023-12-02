@@ -57,7 +57,7 @@ impl<'a> HuffmanDecoder {
 
         // safety check: max_width is bounded
         if max_width > MAX_NUM_BITS {
-            return Err(Error::HuffmanError(WeightTooBig {
+            return Err(Error::Huffman(WeightTooBig {
                 weight: max_width,
                 max: MAX_NUM_BITS,
             }));
@@ -69,7 +69,7 @@ impl<'a> HuffmanDecoder {
 
         // safety check: left_over is a clean power of 2
         if !left_over.is_power_of_two() {
-            return Err(Error::HuffmanError(ComputeMissingWeight));
+            return Err(Error::Huffman(ComputeMissingWeight));
         }
 
         // left_over is a clean power of 2 (ie. only one bit is set)
@@ -78,7 +78,7 @@ impl<'a> HuffmanDecoder {
 
         // safety check: no 2^(w-1) is greater that the sum of others
         if last_weight > weights_sum {
-            return Err(Error::HuffmanError(ComputeMissingWeight));
+            return Err(Error::Huffman(ComputeMissingWeight));
         }
 
         Ok((last_weight as u8, max_width as u8))
@@ -90,7 +90,7 @@ impl<'a> HuffmanDecoder {
         let mut weights_sum: u32 = 0;
         for w in &weights {
             if *w as u32 > MAX_NUM_BITS {
-                return Err(Error::HuffmanError(WeightTooBig {
+                return Err(Error::Huffman(WeightTooBig {
                     weight: *w as u32,
                     max: MAX_NUM_BITS,
                 }));
@@ -99,7 +99,7 @@ impl<'a> HuffmanDecoder {
         }
 
         if weights_sum == 0 {
-            return Err(Error::HuffmanError(ComputeMissingWeight));
+            return Err(Error::Huffman(ComputeMissingWeight));
         }
 
         // TODO: ensure the properties:
@@ -143,7 +143,7 @@ impl<'a> HuffmanDecoder {
 
     pub fn decode(&self, parser: &mut BackwardBitParser) -> Result<u8> {
         match self {
-            Absent => Err(Error::HuffmanError(MissingSymbol)),
+            Absent => Err(Error::Huffman(MissingSymbol)),
             Symbol(s) => Ok(*s),
             Tree(lhs, rhs) => match parser.take(1)? {
                 0 => lhs.decode(parser),
@@ -342,7 +342,7 @@ mod tests {
 
         assert!(matches!(
             HuffmanDecoder::compute_last_weight(5),
-            Err(Error::HuffmanError(ComputeMissingWeight))
+            Err(Error::Huffman(ComputeMissingWeight))
         ));
     }
 

@@ -18,16 +18,16 @@ pub use sequence::*;
 #[derive(Debug, thiserror::Error)]
 pub enum DecoderError {
     #[error("decoder parsing: {0}")]
-    ParsingError(#[from] ParsingError),
+    Parsing(#[from] ParsingError),
 
     #[error("decoder context: {0}")]
-    ContextError(#[from] ContextError),
+    Context(#[from] ContextError),
 
     #[error("decoder fse: {0}")]
-    FseError(#[from] FseError),
+    Fse(#[from] FseError),
 
     #[error("decoder huffman: {0}")]
-    HuffmanError(#[from] HuffmanError),
+    Huffman(#[from] HuffmanError),
 }
 
 type Error = DecoderError;

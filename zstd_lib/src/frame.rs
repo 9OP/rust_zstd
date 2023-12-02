@@ -59,7 +59,7 @@ impl<'a> Frame<'a> {
                         _data: data,
                     }));
                 }
-                Err(Error::FrameError(UnrecognizedMagic(magic)))
+                Err(Error::Frame(UnrecognizedMagic(magic)))
             }
         }
     }
@@ -73,13 +73,14 @@ impl<'a> Frame<'a> {
 
                 // hint: decode consume self, but we need to replace blocks, so that it does not borrow self
                 // too soon and let us call frame.verify_checksum.
-                let blocks = std::mem::replace(&mut frame.blocks, vec![]);
+                // `take` let us replace frame.blocks with an empty vec.
+                let blocks = std::mem::take(&mut frame.blocks);
                 blocks
                     .into_iter()
                     .try_for_each(|block| block.decode(&mut context))?;
 
                 if !frame.verify_checksum(&context.decoded)? {
-                    return Err(Error::FrameError(ChecksumMismatch));
+                    return Err(Error::Frame(ChecksumMismatch));
                 }
 
                 Ok(context.decoded)
@@ -118,7 +119,7 @@ impl<'a> ZstandardFrame<'a> {
             return Ok(true);
         }
 
-        let checksum = (xxh64(&decoded, 0) & 0xFFFF_FFFF) as u32;
+        let checksum = (xxh64(decoded, 0) & 0xFFFF_FFFF) as u32;
         let content_checksum = self.checksum.ok_or(ChecksumMismatch)?;
 
         Ok(checksum == content_checksum)
@@ -141,7 +142,7 @@ impl FrameHeader {
         let window_descriptor: u8 = if single_segment_flag { 0 } else { input.u8()? };
 
         if reserved_bit != 0 {
-            return Err(Error::FrameError(InvalidReservedBit));
+            return Err(Error::Frame(InvalidReservedBit));
         }
 
         // dictionnary is not implemented yet, but we still have to consume its bytes
@@ -220,7 +221,7 @@ mod tests {
                 let mut parser = ForwardByteParser::new(&[]);
                 assert!(matches!(
                     Frame::parse(&mut parser),
-                    Err(Error::ParsingError(ParsingError::NotEnoughBytes {
+                    Err(Error::Parsing(ParsingError::NotEnoughBytes {
                         requested: 4,
                         available: 0
                     }))
@@ -254,7 +255,7 @@ mod tests {
                 ]);
                 assert!(matches!(
                     Frame::parse(&mut parser),
-                    Err(Error::ParsingError(ParsingError::NotEnoughBytes {
+                    Err(Error::Parsing(ParsingError::NotEnoughBytes {
                         requested: 3,
                         available: 2
                     }))
@@ -269,7 +270,7 @@ mod tests {
                 ]);
                 assert!(matches!(
                     Frame::parse(&mut parser),
-                    Err(Error::ParsingError(ParsingError::NotEnoughBytes {
+                    Err(Error::Parsing(ParsingError::NotEnoughBytes {
                         requested: 4,
                         available: 0
                     }))
@@ -284,7 +285,7 @@ mod tests {
                 ]);
                 assert!(matches!(
                     Frame::parse(&mut parser),
-                    Err(Error::FrameError(FrameError::UnrecognizedMagic(0xFD2FB520)))
+                    Err(Error::Frame(FrameError::UnrecognizedMagic(0xFD2FB520)))
                 ));
             }
 
@@ -325,12 +326,12 @@ mod tests {
                         content_checksum_flag: false,
                     },
                     blocks: vec![
-                        Block::RLE {
+                        Block::Rle {
                             byte: 0xAA,
                             repeat: 2,
                         },
                         Block::Raw(&[0xCA, 0xFE]),
-                        Block::RLE {
+                        Block::Rle {
                             byte: 0xBA,
                             repeat: 1,
                         },
@@ -366,7 +367,7 @@ mod tests {
                 let mut parser = ForwardByteParser::new(&[]);
                 assert!(matches!(
                     FrameHeader::parse(&mut parser),
-                    Err(Error::ParsingError(ParsingError::NotEnoughBytes {
+                    Err(Error::Parsing(ParsingError::NotEnoughBytes {
                         requested: 1,
                         available: 0
                     }))

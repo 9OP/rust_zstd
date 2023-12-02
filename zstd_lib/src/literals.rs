@@ -16,9 +16,9 @@ use LiteralsError::*;
 
 #[derive(Debug, PartialEq)]
 pub enum LiteralsSection<'a> {
-    RawLiteralsBlock(RawLiteralsBlock<'a>),
-    RLELiteralsBlock(RLELiteralsBlock),
-    CompressedLiteralsBlock(CompressedLiteralsBlock<'a>),
+    Raw(RawLiteralsBlock<'a>),
+    Rle(RLELiteralsBlock),
+    Compressed(CompressedLiteralsBlock<'a>),
 }
 
 #[derive(Debug, PartialEq)]
@@ -49,17 +49,17 @@ impl<'a> LiteralsSection<'a> {
     /// Huffman table inside).
     pub fn decode(self, context: &mut DecodingContext) -> Result<Vec<u8>> {
         match self {
-            LiteralsSection::RawLiteralsBlock(block) => {
+            LiteralsSection::Raw(block) => {
                 let decoded = Vec::from(block.0);
                 Ok(decoded)
             }
 
-            LiteralsSection::RLELiteralsBlock(block) => {
+            LiteralsSection::Rle(block) => {
                 let decoded = vec![block.byte; block.repeat];
                 Ok(decoded)
             }
 
-            LiteralsSection::CompressedLiteralsBlock(block) => {
+            LiteralsSection::Compressed(block) => {
                 let mut decoded = vec![];
 
                 if let Some(huffman) = block.huffman {
@@ -150,10 +150,10 @@ impl<'a> LiteralsSection<'a> {
                 };
 
                 match block_type {
-                    RAW_LITERALS_BLOCK => Ok(LiteralsSection::RawLiteralsBlock(RawLiteralsBlock(
+                    RAW_LITERALS_BLOCK => Ok(LiteralsSection::Raw(RawLiteralsBlock(
                         input.slice(regenerated_size)?,
                     ))),
-                    RLE_LITERALS_BLOCK => Ok(LiteralsSection::RLELiteralsBlock(RLELiteralsBlock {
+                    RLE_LITERALS_BLOCK => Ok(LiteralsSection::Rle(RLELiteralsBlock {
                         byte: input.u8()?,
                         repeat: regenerated_size,
                     })),
@@ -165,6 +165,7 @@ impl<'a> LiteralsSection<'a> {
                 let header: usize = header.into();
                 let streams = match size_format {
                     0b00 => 1,
+                    #[allow(clippy::manual_range_patterns)]
                     0b01 | 0b10 | 0b11 => 4,
                     _ => panic!("unexpected size_format {size_format}"),
                 };
@@ -233,7 +234,7 @@ impl<'a> LiteralsSection<'a> {
                             total_streams_size - stream1_size - stream2_size - stream3_size;
 
                         if stream4_size < 1 {
-                            return Err(Error::LiteralsError(CorruptedDataError));
+                            return Err(Error::Literals(CorruptedDataError));
                         }
 
                         Some([stream1_size, stream2_size, stream3_size])
@@ -243,14 +244,12 @@ impl<'a> LiteralsSection<'a> {
 
                 let data = input.slice(total_streams_size)?;
 
-                Ok(LiteralsSection::CompressedLiteralsBlock(
-                    CompressedLiteralsBlock {
-                        huffman,
-                        regenerated_size,
-                        jump_table,
-                        data,
-                    },
-                ))
+                Ok(LiteralsSection::Compressed(CompressedLiteralsBlock {
+                    huffman,
+                    regenerated_size,
+                    jump_table,
+                    data,
+                }))
             }
             _ => panic!("unexpected block_type {block_type}"),
         }
@@ -266,25 +265,25 @@ mod tests {
         let mut input = ForwardByteParser::new(&[0b0000_1000, 0xFF]);
         assert_eq!(
             LiteralsSection::parse(&mut input).unwrap(),
-            LiteralsSection::RawLiteralsBlock(RawLiteralsBlock(&[0xFF]))
+            LiteralsSection::Raw(RawLiteralsBlock(&[0xFF]))
         );
 
         let mut input = ForwardByteParser::new(&[0b0000_0000]);
         assert_eq!(
             LiteralsSection::parse(&mut input).unwrap(),
-            LiteralsSection::RawLiteralsBlock(RawLiteralsBlock(&[]))
+            LiteralsSection::Raw(RawLiteralsBlock(&[]))
         );
 
         let mut input = ForwardByteParser::new(&[0b0100_0100, 0x0000_0000, 0xAA, 0xBB, 0xCC, 0xDD]);
         assert_eq!(
             LiteralsSection::parse(&mut input).unwrap(),
-            LiteralsSection::RawLiteralsBlock(RawLiteralsBlock(&[0xAA, 0xBB, 0xCC, 0xDD]))
+            LiteralsSection::Raw(RawLiteralsBlock(&[0xAA, 0xBB, 0xCC, 0xDD]))
         );
 
         let mut input = ForwardByteParser::new(&[0b0010_1100, 0x0, 0x0, 0xAA, 0xBB]);
         assert_eq!(
             LiteralsSection::parse(&mut input).unwrap(),
-            LiteralsSection::RawLiteralsBlock(RawLiteralsBlock(&[0xAA, 0xBB]))
+            LiteralsSection::Raw(RawLiteralsBlock(&[0xAA, 0xBB]))
         );
     }
 
@@ -293,7 +292,7 @@ mod tests {
         let mut input = ForwardByteParser::new(&[0b0000_0001, 0xFF]);
         assert_eq!(
             LiteralsSection::parse(&mut input).unwrap(),
-            LiteralsSection::RLELiteralsBlock(RLELiteralsBlock {
+            LiteralsSection::Rle(RLELiteralsBlock {
                 byte: 0xFF,
                 repeat: 0
             })
@@ -302,7 +301,7 @@ mod tests {
         let mut input = ForwardByteParser::new(&[0b0000_1001, 0xFF]);
         assert_eq!(
             LiteralsSection::parse(&mut input).unwrap(),
-            LiteralsSection::RLELiteralsBlock(RLELiteralsBlock {
+            LiteralsSection::Rle(RLELiteralsBlock {
                 byte: 0xFF,
                 repeat: 1
             })
@@ -311,7 +310,7 @@ mod tests {
         let mut input = ForwardByteParser::new(&[0b0101_0101, 0b1101_0101, 0xFF]);
         assert_eq!(
             LiteralsSection::parse(&mut input).unwrap(),
-            LiteralsSection::RLELiteralsBlock(RLELiteralsBlock {
+            LiteralsSection::Rle(RLELiteralsBlock {
                 byte: 0xFF,
                 repeat: 0b1101_0101_0101,
             })
@@ -320,7 +319,7 @@ mod tests {
         let mut input = ForwardByteParser::new(&[0b0101_1101, 0b1101_0101, 0b1111_0000, 0xFF]);
         assert_eq!(
             LiteralsSection::parse(&mut input).unwrap(),
-            LiteralsSection::RLELiteralsBlock(RLELiteralsBlock {
+            LiteralsSection::Rle(RLELiteralsBlock {
                 byte: 0xFF,
                 repeat: 0b1111_0000_1101_0101_0101,
             })

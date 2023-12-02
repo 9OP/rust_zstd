@@ -35,9 +35,7 @@ impl RepeatOffset {
         match offset {
             1 => {
                 if literals_length == 0 {
-                    let offset_1 = self.offset_1;
-                    self.offset_1 = self.offset_2;
-                    self.offset_2 = offset_1;
+                    std::mem::swap(&mut self.offset_1, &mut self.offset_2);
                 }
             }
             2 => {
@@ -48,9 +46,7 @@ impl RepeatOffset {
                     self.offset_2 = offset_1;
                     self.offset_3 = offset_2;
                 } else {
-                    let offset_1 = self.offset_1;
-                    self.offset_1 = self.offset_2;
-                    self.offset_2 = offset_1;
+                    std::mem::swap(&mut self.offset_1, &mut self.offset_2);
                 }
             }
             3 => {
@@ -82,7 +78,7 @@ impl DecodingContext {
     /// Create a new decoding context instance. Return `WindowSizeError` when `window_size` exceeds 64Mb
     pub fn new(window_size: usize) -> Result<Self> {
         if window_size > MAX_WINDOW_SIZE {
-            return Err(Error::ContextError(WindowSizeError));
+            return Err(Error::Context(WindowSizeError));
         }
 
         Ok(Self {
@@ -104,11 +100,11 @@ impl DecodingContext {
     pub fn decode_offset(&mut self, offset: usize, literals_length: usize) -> Result<usize> {
         let offset = self.repeat_offsets.decode_offset(offset, literals_length);
 
-        if offset > self.window_size as usize {
-            return Err(Error::ContextError(OffsetError));
+        if offset > self.window_size {
+            return Err(Error::Context(OffsetError));
         }
         if offset > self.decoded.len() {
-            return Err(Error::ContextError(OffsetError));
+            return Err(Error::Context(OffsetError));
         }
 
         Ok(offset)
@@ -128,7 +124,7 @@ impl DecodingContext {
             copy_index = end;
 
             if end > literals.len() {
-                return Err(Error::ContextError(NotEnoughBytes {
+                return Err(Error::Context(NotEnoughBytes {
                     requested: literals_length,
                     available: literals.len(),
                 }));

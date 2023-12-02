@@ -107,11 +107,9 @@ impl<'a> ForwardByteParser<'a> {
     /// ```
     pub fn le(&mut self, size: usize) -> Result<usize> {
         assert!(size <= 8, "unexpected size: {size}");
-
-        let byte_array = self.slice(size)?;
         let mut result: usize = 0;
-        for i in 0..size {
-            result |= (byte_array[i] as usize) << (8 * i);
+        for (i, byte) in self.slice(size)?.iter().enumerate().take(size) {
+            result |= (*byte as usize) << (8 * i);
         }
         Ok(result.to_le())
     }

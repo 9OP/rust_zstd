@@ -27,12 +27,11 @@ pub struct Sequences<'a> {
 
 #[derive(Debug)]
 enum SymbolCompressionMode {
-    PredefinedMode,
-    RLEMode(u8),
-    FseCompressedMode(FseTable),
-    RepeatMode,
+    Predefined,
+    Rle(u8),
+    FseCompressed(FseTable),
+    Repeat,
 }
-use SymbolCompressionMode::*;
 
 enum SymbolType {
     LiteralsLengths,
@@ -70,19 +69,19 @@ impl SymbolCompressionMode {
     /// Parse the compression mode
     fn parse(mode: u8, input: &mut ForwardByteParser) -> Result<Self> {
         match mode {
-            0 => Ok(Self::PredefinedMode),
-            1 => Ok(Self::RLEMode(input.u8()?)),
+            0 => Ok(Self::Predefined),
+            1 => Ok(Self::Rle(input.u8()?)),
             2 => {
                 let mut parser = ForwardBitParser::from(*input);
                 let fse_table = FseTable::parse(&mut parser)?;
                 if fse_table.states.len() == 1 {
                     // not sure, see: https://www.rfc-editor.org/rfc/rfc8878#name-sequences_section_header
-                    return Ok(Self::PredefinedMode);
+                    return Ok(Self::Predefined);
                 }
                 *input = ForwardByteParser::from(parser);
-                Ok(Self::FseCompressedMode(fse_table))
+                Ok(Self::FseCompressed(fse_table))
             }
-            3 => Ok(Self::RepeatMode),
+            3 => Ok(Self::Repeat),
             _ => panic!("unexpected compression mode value {mode}"),
         }
     }
@@ -94,7 +93,7 @@ impl SymbolCompressionMode {
         parser: &mut BackwardBitParser,
     ) -> Result<Option<Box<SymbolDecoder>>> {
         let decoder = match &self {
-            PredefinedMode => {
+            SymbolCompressionMode::Predefined => {
                 let def = match symbol_type {
                     SymbolType::LiteralsLengths => LITERALS_LENGTH_DEFAULT_DISTRIBUTION,
                     SymbolType::MatchLength => MATCH_LENGTH_DEFAULT_DISTRIBUTION,
@@ -106,18 +105,18 @@ impl SymbolCompressionMode {
                 fse_decoder.initialize(parser)?;
                 Some(Box::new(fse_decoder) as Box<SymbolDecoder>)
             }
-            RLEMode(byte) => {
+            SymbolCompressionMode::Rle(byte) => {
                 let rle_decoder = RLEDecoder {
                     symbol: *byte as u16,
                 };
                 Some(Box::new(rle_decoder) as Box<SymbolDecoder>)
             }
-            FseCompressedMode(fse_table) => {
+            SymbolCompressionMode::FseCompressed(fse_table) => {
                 let mut fse_decoder = FseDecoder::new(fse_table.clone());
                 fse_decoder.initialize(parser)?;
                 Some(Box::new(fse_decoder) as Box<SymbolDecoder>)
             }
-            RepeatMode => None,
+            SymbolCompressionMode::Repeat => None,
         };
 
         Ok(decoder)
@@ -145,7 +144,7 @@ impl<'a> Sequences<'a> {
 
         let reserved = modes & 0b11;
         if reserved != 0 {
-            return Err(Error::SequencesError(InvalidDataError));
+            return Err(Error::Sequences(InvalidDataError));
         }
 
         let bitstream = <&[u8]>::from(*input);
@@ -236,7 +235,7 @@ impl<'a> Sequences<'a> {
 
             if offset_symbol > 31 {
                 // >31: comes from reference implementation
-                return Err(Error::SequencesError(SymbolCodeUnknown));
+                return Err(Error::Sequences(SymbolCodeUnknown));
             }
 
             // offset
@@ -285,7 +284,7 @@ fn literals_lengths_code_lookup(symbol: u16) -> Result<(usize, usize)> {
         33 => (16384, 14),
         34 => (32768, 15),
         35 => (65536, 16),
-        _ => return Err(Error::SequencesError(SymbolCodeUnknown)),
+        _ => return Err(Error::Sequences(SymbolCodeUnknown)),
     };
     Ok(lookup)
 }
@@ -314,7 +313,7 @@ fn match_lengths_code_lookup(symbol: u16) -> Result<(usize, usize)> {
         50 => (16387, 14),
         51 => (32771, 15),
         52 => (65539, 16),
-        _ => return Err(Error::SequencesError(SymbolCodeUnknown)),
+        _ => return Err(Error::Sequences(SymbolCodeUnknown)),
     };
     Ok(lookup)
 }

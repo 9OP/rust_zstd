@@ -2,7 +2,7 @@ mod block;
 mod decoders;
 mod frame;
 mod literals;
-mod parsing;
+pub mod parsing;
 mod sequences;
 
 use block::*;
@@ -30,22 +30,22 @@ use sequences::*;
 #[derive(Debug, thiserror::Error)]
 pub enum ZstdLibError {
     #[error(transparent)]
-    ParsingError(#[from] ParsingError),
+    Parsing(#[from] ParsingError),
 
     #[error(transparent)]
-    BlockError(#[from] BlockError),
+    Block(#[from] BlockError),
 
     #[error(transparent)]
-    FrameError(#[from] FrameError),
+    Frame(#[from] FrameError),
 
     #[error(transparent)]
-    DecoderError(#[from] DecoderError),
+    Decoder(#[from] DecoderError),
 
     #[error(transparent)]
-    LiteralsError(#[from] LiteralsError),
+    Literals(#[from] LiteralsError),
 
     #[error(transparent)]
-    SequencesError(#[from] SequencesError),
+    Sequences(#[from] SequencesError),
 }
 type Error = ZstdLibError;
 type Result<T, E = ZstdLibError> = std::result::Result<T, E>;

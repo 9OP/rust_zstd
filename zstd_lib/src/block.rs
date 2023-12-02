@@ -10,7 +10,7 @@ use BlockError::*;
 #[derive(Debug)]
 pub enum Block<'a> {
     Raw(&'a [u8]),
-    RLE {
+    Rle {
         byte: u8,
         repeat: usize,
     },
@@ -47,7 +47,7 @@ impl<'a> Block<'a> {
 
             RLE_BLOCK_FLAG => {
                 let byte = input.u8()?;
-                let block = Block::RLE {
+                let block = Block::Rle {
                     repeat: block_size,
                     byte,
                 };
@@ -68,7 +68,7 @@ impl<'a> Block<'a> {
                 Ok((block, last_block))
             }
 
-            RESERVED_BLOCK_FLAG => Err(Error::BlockError(ReservedBlockType)),
+            RESERVED_BLOCK_FLAG => Err(Error::Block(ReservedBlockType)),
 
             _ => panic!("unexpected block_type {block_type}"),
         }
@@ -80,7 +80,7 @@ impl<'a> Block<'a> {
                 let decoded = Vec::from(v);
                 context.decoded.extend(decoded);
             }
-            Block::RLE { byte, repeat } => {
+            Block::Rle { byte, repeat } => {
                 let decoded = vec![byte; repeat];
                 context.decoded.extend(decoded);
             }
@@ -134,7 +134,7 @@ mod tests {
             assert!(!last);
             assert!(matches!(
                 block,
-                Block::RLE {
+                Block::Rle {
                     byte: 0x42,
                     repeat: 196612
                 }
@@ -151,7 +151,7 @@ mod tests {
             ]);
             assert!(matches!(
                 Block::parse(&mut parser),
-                Err(Error::BlockError(ReservedBlockType))
+                Err(Error::Block(ReservedBlockType))
             ));
         }
 
@@ -160,7 +160,7 @@ mod tests {
             let mut parser = ForwardByteParser::new(&[0x0, 0x0]);
             assert!(matches!(
                 Block::parse(&mut parser),
-                Err(Error::ParsingError(ParsingError::NotEnoughBytes {
+                Err(Error::Parsing(ParsingError::NotEnoughBytes {
                     requested: 3,
                     available: 2
                 }))
@@ -178,7 +178,7 @@ mod tests {
             ]);
             assert!(matches!(
                 Block::parse(&mut parser),
-                Err(Error::ParsingError(ParsingError::NotEnoughBytes {
+                Err(Error::Parsing(ParsingError::NotEnoughBytes {
                     requested: 1,
                     available: 0
                 }))
@@ -199,7 +199,7 @@ mod tests {
             ]);
             assert!(matches!(
                 Block::parse(&mut parser),
-                Err(Error::ParsingError(ParsingError::NotEnoughBytes {
+                Err(Error::Parsing(ParsingError::NotEnoughBytes {
                     requested: 4,
                     available: 3
                 }))
@@ -222,7 +222,7 @@ mod tests {
         #[test]
         fn test_decode_rle() {
             let mut ctx = DecodingContext::new(0).unwrap();
-            let block = Block::RLE {
+            let block = Block::Rle {
                 byte: 0x42,
                 repeat: 196612,
             };

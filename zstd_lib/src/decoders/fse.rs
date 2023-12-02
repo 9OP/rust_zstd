@@ -37,7 +37,7 @@ const ACC_LOG_MAX: u8 = 9;
 impl FseTable {
     // TODO: function to generate accurcy_log from fse_table lentgh
     fn get(&self, index: usize) -> Result<&FseState> {
-        self.states.get(index).ok_or(Error::FseError(MissingState))
+        self.states.get(index).ok_or(Error::Fse(MissingState))
     }
 
     pub fn parse(parser: &mut ForwardBitParser) -> Result<Self> {
@@ -133,7 +133,7 @@ impl FseTable {
 pub fn parse_fse_table(parser: &mut ForwardBitParser) -> Result<(u8, Vec<Probability>)> {
     let accuracy_log = parser.take(4)? as u8 + ACC_LOG_OFFSET; // accuracy log
     if accuracy_log > ACC_LOG_MAX {
-        return Err(Error::FseError(AccLogTooBig {
+        return Err(Error::Fse(AccLogTooBig {
             log: accuracy_log,
             max: ACC_LOG_MAX,
         }));
@@ -149,7 +149,7 @@ pub fn parse_fse_table(parser: &mut ForwardBitParser) -> Result<(u8, Vec<Probabi
         // Value is either encoded in bits_to_read of bits_to_read-1
         let small_value = parser.take((bits_to_read - 1) as usize)? as u32;
         // The MSB is not consummed but peeked as we dont know yet if the value is encoded in bits_to_read or bits_to_read-1
-        let unchecked_value = ((parser.peek()? as u32) << (bits_to_read - 1)) as u32 | small_value;
+        let unchecked_value = ((parser.peek()? as u32) << (bits_to_read - 1)) | small_value;
         // Threshold above wich value is encoded in bits_to_read, below which encoded in bits_to_read-1
         let low_threshold = ((1 << bits_to_read) - 1) - (max_remaining_value);
         // Used to divide in two halves the range of values encoded in bits_to_read
@@ -186,7 +186,7 @@ pub fn parse_fse_table(parser: &mut ForwardBitParser) -> Result<(u8, Vec<Probabi
 
     // Check invariant
     if probability_counter != probability_sum {
-        return Err(Error::FseError(DistributionCorrupted));
+        return Err(Error::Fse(DistributionCorrupted));
     }
 
     Ok((accuracy_log, probabilities))
