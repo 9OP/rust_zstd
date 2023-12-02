@@ -5,40 +5,35 @@ pub mod literals;
 pub mod parsing;
 pub mod sequences;
 
-// #[derive(Debug, thiserror::Error)]
-// pub enum Error {
-//     #[error(transparent)]
-//     ParsingError(#[from] ParsingError),
-
-//     #[error(transparent)]
-//     ContextError(#[from] ContextError),
-
-//     #[error(transparent)]
-//     FseError(#[from] FseError),
-
-//     #[error(transparent)]
-//     HuffmanError(#[from] HuffmanError),
-// }
-
-pub use Error as ZstdLibError;
-
 pub use block::*;
 pub use decoders::*;
+pub use frame::*;
+pub use literals::*;
 pub use parsing::*;
+pub use sequences::*;
 
 #[derive(Debug, thiserror::Error)]
-pub enum Error {
+pub enum ZstdLibError {
     #[error(transparent)]
     ParsingError(#[from] ParsingError),
+
+    #[error(transparent)]
+    BlockError(#[from] BlockError),
+
+    #[error(transparent)]
+    FrameError(#[from] FrameError),
 
     #[error(transparent)]
     DecoderError(#[from] DecoderError),
 
     #[error(transparent)]
-    BlockError(#[from] BlockError),
-}
+    LiteralsError(#[from] LiteralsError),
 
-type Result<T, E = Error> = std::result::Result<T, E>;
+    #[error(transparent)]
+    SequencesError(#[from] SequencesError),
+}
+type Error = ZstdLibError;
+type Result<T, E = ZstdLibError> = std::result::Result<T, E>;
 
 pub fn decode(bytes: Vec<u8>, info: bool) -> Result<Vec<u8>> {
     let mut res: Vec<u8> = Vec::new();

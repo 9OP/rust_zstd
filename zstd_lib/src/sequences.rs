@@ -1,19 +1,10 @@
-use crate::{
-    decoders::{
-        BitDecoder, DecodingContext, Error as DecoderErrors, FseDecoder, FseTable, RLEDecoder,
-        SequenceDecoder, SymbolDecoder,
-    },
-    parsing::{BackwardBitParser, Error as ParsingErrors, ForwardBitParser, ForwardByteParser},
+use super::{
+    BackwardBitParser, BitDecoder, DecodingContext, Error, ForwardBitParser, ForwardByteParser,
+    FseDecoder, FseTable, RLEDecoder, Result, SequenceDecoder, SymbolDecoder,
 };
 
 #[derive(Debug, thiserror::Error)]
-pub enum Error {
-    #[error("Parsing error: {0}")]
-    ParsingError(#[from] ParsingErrors),
-
-    #[error("Decoding error: {0}")]
-    DecodingError(#[from] DecoderErrors),
-
+pub enum SequencesError {
     #[error("Invalid reserved bits value")]
     InvalidDataError,
 
@@ -23,8 +14,7 @@ pub enum Error {
     #[error("Symbol code unknown")]
     SymbolCodeUnknown,
 }
-use Error::*;
-pub type Result<T, E = Error> = std::result::Result<T, E>;
+use SequencesError::*;
 
 #[derive(Debug)]
 pub struct Sequences<'a> {
@@ -155,7 +145,7 @@ impl<'a> Sequences<'a> {
 
         let reserved = modes & 0b11;
         if reserved != 0 {
-            return Err(InvalidDataError);
+            return Err(Error::SequencesError(InvalidDataError));
         }
 
         let bitstream = <&[u8]>::from(*input);
@@ -244,7 +234,7 @@ impl<'a> Sequences<'a> {
 
             if offset_symbol > 31 {
                 // >31: comes from reference implementation
-                return Err(SymbolCodeUnknown);
+                return Err(Error::SequencesError(SymbolCodeUnknown));
             }
 
             // offset
@@ -293,7 +283,7 @@ fn literals_lengths_code_lookup(symbol: u16) -> Result<(usize, usize)> {
         33 => (16384, 14),
         34 => (32768, 15),
         35 => (65536, 16),
-        _ => return Err(SymbolCodeUnknown),
+        _ => return Err(Error::SequencesError(SymbolCodeUnknown)),
     };
     Ok(lookup)
 }
@@ -322,7 +312,7 @@ fn match_lengths_code_lookup(symbol: u16) -> Result<(usize, usize)> {
         50 => (16387, 14),
         51 => (32771, 15),
         52 => (65539, 16),
-        _ => return Err(SymbolCodeUnknown),
+        _ => return Err(Error::SequencesError(SymbolCodeUnknown)),
     };
     Ok(lookup)
 }

@@ -1,18 +1,8 @@
+use super::{BackwardBitParser, DecodingContext, Error, ForwardByteParser, HuffmanDecoder, Result};
 use std::{sync::Arc, thread};
 
-use crate::{
-    decoders::{DecodingContext, Error as DecoderErrors, HuffmanDecoder},
-    parsing::{BackwardBitParser, Error as ParsingErrors, ForwardByteParser},
-};
-
 #[derive(Debug, thiserror::Error)]
-pub enum Error {
-    #[error("Frame parsing error: {0}")]
-    ParsingError(#[from] ParsingErrors),
-
-    #[error("Decoder error: {0}")]
-    DecoderError(#[from] DecoderErrors),
-
+pub enum LiteralsError {
     #[error("Missing huffman decoder")]
     MissingHuffmanDecoder,
 
@@ -22,8 +12,7 @@ pub enum Error {
     #[error("Data corrupted")]
     CorruptedDataError,
 }
-use Error::*;
-pub type Result<T, E = Error> = std::result::Result<T, E>;
+use LiteralsError::*;
 
 #[derive(Debug, PartialEq)]
 pub enum LiteralsSection<'a> {
@@ -244,7 +233,7 @@ impl<'a> LiteralsSection<'a> {
                             total_streams_size - stream1_size - stream2_size - stream3_size;
 
                         if stream4_size < 1 {
-                            return Err(CorruptedDataError);
+                            return Err(Error::LiteralsError(CorruptedDataError));
                         }
 
                         Some([stream1_size, stream2_size, stream3_size])

@@ -19,7 +19,7 @@ impl<'a> ForwardBitParser<'a> {
     /// **Note**: partially parsed byte are **not** included.
     /// # Example
     /// ```
-    /// # use zstd_lib::parsing::{ForwardBitParser, Error};
+    /// # use zstd_lib::parsing::{ForwardBitParser, ParsingError};
     /// let mut parser = ForwardBitParser::new(&[0b0001_1010, 0b0110_0000]);
     /// assert_eq!(parser.len(), 2);
     /// parser.take(6)?;                // consume partially 1st byte
@@ -28,7 +28,7 @@ impl<'a> ForwardBitParser<'a> {
     /// assert_eq!(parser.len(), 1);    // only 2nd byte is unparsed
     /// parser.take(1)?;                // consume partially 2nd byte (only 1bit)
     /// assert_eq!(parser.len(), 0);    // no bytes are left fully unparsed
-    /// # Ok::<(), Error>(())
+    /// # Ok::<(), ParsingError>(())
     /// ```
     pub fn len(&self) -> usize {
         let include_first = self.position == 0;
@@ -38,10 +38,9 @@ impl<'a> ForwardBitParser<'a> {
     /// Check if the bitstream is exhausted
     /// # Example
     /// ```
-    /// # use zstd_lib::parsing::{ForwardBitParser, Error};
+    /// # use zstd_lib::parsing::{ForwardBitParser};
     /// let mut parser = ForwardBitParser::new(&[]);
     /// assert_eq!(parser.is_empty(), true);
-    /// # Ok::<(), Error>(())
     /// ```
     pub fn is_empty(&self) -> bool {
         self.bitstream.len() == 0
@@ -50,12 +49,12 @@ impl<'a> ForwardBitParser<'a> {
     /// Return the number of available bits in the parser
     /// # Example
     /// ```
-    /// # use zstd_lib::parsing::{ForwardBitParser, Error};
+    /// # use zstd_lib::parsing::{ForwardBitParser, ParsingError};
     /// let mut parser = ForwardBitParser::new(&[0b0100_1010]);
     /// assert_eq!(parser.available_bits(), 8);
     /// parser.take(2)?;
     /// assert_eq!(parser.available_bits(), 6);
-    /// # Ok::<(), Error>(())
+    /// # Ok::<(), ParsingError>(())
     /// ```
     pub fn available_bits(&self) -> usize {
         if self.is_empty() {
@@ -68,12 +67,12 @@ impl<'a> ForwardBitParser<'a> {
     /// Return an error when bit stream is empty. Returned value is either 0 or 1.
     /// # Example
     /// ```
-    /// # use zstd_lib::parsing::{ForwardBitParser, Error};
+    /// # use zstd_lib::parsing::{ForwardBitParser, ParsingError};
     /// let mut parser = ForwardBitParser::new(&[0b000_0010]);
     /// assert_eq!(parser.peek()?, 0);
     /// parser.take(1)?;
     /// assert_eq!(parser.peek()?, 1);
-    /// # Ok::<(), Error>(())
+    /// # Ok::<(), ParsingError>(())
     /// ```
     pub fn peek(&self) -> Result<u8> {
         let available_bits = self.available_bits();
@@ -93,10 +92,10 @@ impl<'a> ForwardBitParser<'a> {
     /// Panics when `len > 64` for obvious reason.
     /// # Example
     /// ```
-    /// # use zstd_lib::parsing::{ForwardBitParser, Error};
+    /// # use zstd_lib::parsing::{ForwardBitParser, ParsingError};
     /// let mut parser = ForwardBitParser::new(&[0b0111_1011, 0b1101_0010]);
     /// assert_eq!(parser.take(10)?, 0b10_0111_1011);
-    /// # Ok::<(), Error>(())
+    /// # Ok::<(), ParsingError>(())
     /// ```
     pub fn take(&mut self, len: usize) -> Result<u64> {
         if len == 0 {

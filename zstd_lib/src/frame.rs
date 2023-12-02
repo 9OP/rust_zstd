@@ -1,19 +1,8 @@
-use crate::block::{Block, Error as BlockErrors};
-use crate::decoders::{DecodingContext, Error as DecoderErrors};
-use crate::parsing::{ForwardByteParser, ParsingError};
+use super::{Block, DecodingContext, Error, ForwardByteParser, Result};
 use xxhash_rust::xxh64::xxh64;
 
 #[derive(Debug, thiserror::Error)]
 pub enum FrameError {
-    #[error(transparent)]
-    ParsingError(#[from] ParsingError),
-
-    #[error(transparent)]
-    BlockError(#[from] BlockErrors),
-
-    #[error(transparent)]
-    DecoderError(#[from] DecoderErrors),
-
     #[error("Unrecognized magic number: {0}")]
     UnrecognizedMagic(u32),
 
@@ -70,7 +59,7 @@ impl<'a> Frame<'a> {
                         _data: data,
                     }));
                 }
-                Err(UnrecognizedMagic(magic))
+                Err(Error::FrameError(UnrecognizedMagic(magic)))
             }
         }
     }
@@ -90,7 +79,7 @@ impl<'a> Frame<'a> {
                     .try_for_each(|block| block.decode(&mut context))?;
 
                 if !frame.verify_checksum(&context.decoded)? {
-                    return Err(ChecksumMismatch);
+                    return Err(Error::FrameError(ChecksumMismatch));
                 }
 
                 Ok(context.decoded)
@@ -152,7 +141,7 @@ impl FrameHeader {
         let window_descriptor: u8 = if single_segment_flag { 0 } else { input.u8()? };
 
         if reserved_bit != 0 {
-            return Err(InvalidReservedBit);
+            return Err(Error::FrameError(InvalidReservedBit));
         }
 
         // dictionnary is not implemented yet, but we still have to consume its bytes
@@ -218,7 +207,7 @@ impl<'a> Iterator for FrameIterator<'a> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use super::{super::ParsingError, *};
 
     mod frame {
         use super::*;
@@ -265,7 +254,7 @@ mod tests {
                 ]);
                 assert!(matches!(
                     Frame::parse(&mut parser),
-                    Err(ParsingError(Error::NotEnoughBytes {
+                    Err(Error::ParsingError(ParsingError::NotEnoughBytes {
                         requested: 3,
                         available: 2
                     }))
@@ -280,7 +269,7 @@ mod tests {
                 ]);
                 assert!(matches!(
                     Frame::parse(&mut parser),
-                    Err(ParsingError(Error::NotEnoughBytes {
+                    Err(Error::ParsingError(ParsingError::NotEnoughBytes {
                         requested: 4,
                         available: 0
                     }))
@@ -295,7 +284,7 @@ mod tests {
                 ]);
                 assert!(matches!(
                     Frame::parse(&mut parser),
-                    Err(UnrecognizedMagic(0xFD2FB520))
+                    Err(Error::FrameError(FrameError::UnrecognizedMagic(0xFD2FB520)))
                 ));
             }
 
@@ -377,7 +366,7 @@ mod tests {
                 let mut parser = ForwardByteParser::new(&[]);
                 assert!(matches!(
                     FrameHeader::parse(&mut parser),
-                    Err(ParsingError(Error::NotEnoughBytes {
+                    Err(Error::ParsingError(ParsingError::NotEnoughBytes {
                         requested: 1,
                         available: 0
                     }))

@@ -1,25 +1,7 @@
-use super::{Error::*, Result};
-use crate::{
-    decoders::{DecodingContext, Error as DecoderError},
-    literals::{Error as LiteralsError, LiteralsSection},
-    parsing::{ForwardByteParser, ParsingError},
-    sequences::{Error as SequencesError, Sequences},
-};
+use super::{DecodingContext, Error, ForwardByteParser, LiteralsSection, Result, Sequences};
 
 #[derive(Debug, thiserror::Error)]
 pub enum BlockError {
-    #[error(transparent)]
-    ParsingError(#[from] ParsingError),
-
-    #[error(transparent)]
-    LiteralsError(#[from] LiteralsError),
-
-    #[error(transparent)]
-    SequencesError(#[from] SequencesError),
-
-    #[error(transparent)]
-    DecodeError(#[from] DecoderError),
-
     #[error("Reserved block type")]
     ReservedBlockType,
 }
@@ -86,7 +68,7 @@ impl<'a> Block<'a> {
                 Ok((block, last_block))
             }
 
-            RESERVED_BLOCK_FLAG => Err(ReservedBlockType),
+            RESERVED_BLOCK_FLAG => Err(Error::BlockError(ReservedBlockType)),
 
             _ => panic!("unexpected block_type {block_type}"),
         }
@@ -118,17 +100,21 @@ impl<'a> Block<'a> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use super::{super::ParsingError, *};
 
-    #[rustfmt::skip]
     mod parse {
         use super::*;
 
         #[test]
         fn test_parse_raw_block_last() {
             let mut parser = ForwardByteParser::new(&[
-                0b0010_0001, 0x0, 0x0, // raw, last, len 4
-                0x10, 0x20, 0x30, 0x40, // content
+                0b0010_0001,
+                0x0,
+                0x0, // raw, last, len 4
+                0x10,
+                0x20,
+                0x30,
+                0x40, // content
                 0x50, // +extra byte
             ]);
             let (block, last) = Block::parse(&mut parser).unwrap();
@@ -159,9 +145,14 @@ mod tests {
         #[test]
         fn test_parse_reserved() {
             let mut parser = ForwardByteParser::new(&[
-                0b0000_0110, 0x0, 0x0, // reserved
+                0b0000_0110,
+                0x0,
+                0x0, // reserved
             ]);
-            assert!(matches!(Block::parse(&mut parser), Err(ReservedBlockType)));
+            assert!(matches!(
+                Block::parse(&mut parser),
+                Err(Error::BlockError(ReservedBlockType))
+            ));
         }
 
         #[test]
@@ -169,22 +160,25 @@ mod tests {
             let mut parser = ForwardByteParser::new(&[0x0, 0x0]);
             assert!(matches!(
                 Block::parse(&mut parser),
-                Err(ParsingError(ParsingError::NotEnoughBytes {
+                Err(Error::ParsingError(ParsingError::NotEnoughBytes {
                     requested: 3,
                     available: 2
                 }))
             ));
+
             assert_eq!(parser.len(), 2);
         }
 
         #[test]
         fn test_parse_rle_not_enough_byte() {
             let mut parser = ForwardByteParser::new(&[
-                0b0000_0010, 0x0, 0x0, // RLE not last
+                0b0000_0010,
+                0x0,
+                0x0, // RLE not last
             ]);
             assert!(matches!(
                 Block::parse(&mut parser),
-                Err(ParsingError(ParsingError::NotEnoughBytes {
+                Err(Error::ParsingError(ParsingError::NotEnoughBytes {
                     requested: 1,
                     available: 0
                 }))
@@ -196,12 +190,16 @@ mod tests {
         fn test_parse_raw_block_not_enough_size() {
             let mut parser = ForwardByteParser::new(&[
                 // Raw block, not last, len 8, content len 3
-                0b0010_0000, 0x0, 0x0, // raw, not last, len 4
-                0x10, 0x20, 0x30, // content
+                0b0010_0000,
+                0x0,
+                0x0, // raw, not last, len 4
+                0x10,
+                0x20,
+                0x30, // content
             ]);
             assert!(matches!(
                 Block::parse(&mut parser),
-                Err(ParsingError(ParsingError::NotEnoughBytes {
+                Err(Error::ParsingError(ParsingError::NotEnoughBytes {
                     requested: 4,
                     available: 3
                 }))

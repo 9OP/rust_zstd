@@ -1,12 +1,8 @@
 mod backward_bit_parser;
-// mod error;
 mod forward_bit_parser;
 mod forward_byte_parser;
 
-// use error::*;
-
 pub use backward_bit_parser::BackwardBitParser;
-// pub use error::ParsingError;
 pub use forward_bit_parser::ForwardBitParser;
 pub use forward_byte_parser::ForwardByteParser;
 

@@ -1,4 +1,4 @@
-use super::{Error::*, ForwardBitParser, Result};
+use super::{Error, ForwardBitParser, Result};
 
 #[derive(Clone, Copy)]
 pub struct ForwardByteParser<'a>(&'a [u8]);
@@ -13,15 +13,15 @@ impl<'a> ForwardByteParser<'a> {
     /// or `NotEnoughByte` error when the byte slice is empty.
     /// # Example
     /// ```
-    /// # use zstd_lib::parsing::{ForwardByteParser, Error};
+    /// # use zstd_lib::parsing::{ForwardByteParser, ParsingError};
     /// let mut parser = ForwardByteParser::new(&[0x01, 0x02, 0x03]);
     /// assert_eq!(parser.u8()?, 0x01);
     /// assert_eq!(parser.u8()?, 0x02);
     /// assert_eq!(parser.u8()?, 0x03);
-    /// # Ok::<(), Error>(())
+    /// # Ok::<(), ParsingError>(())
     /// ```
     pub fn u8(&mut self) -> Result<u8> {
-        let (first, rest) = self.0.split_first().ok_or(NotEnoughBytes {
+        let (first, rest) = self.0.split_first().ok_or(Error::NotEnoughBytes {
             requested: 1,
             available: 0,
         })?;
@@ -32,7 +32,7 @@ impl<'a> ForwardByteParser<'a> {
     /// Return the number of bytes still unparsed
     /// # Example
     /// ```
-    /// # use zstd_lib::parsing::{ForwardByteParser, Error};
+    /// # use zstd_lib::parsing::{ForwardByteParser};
     /// let mut parser = ForwardByteParser::new(&[0x01, 0x02, 0x03]);
     /// assert_eq!(parser.len(), 3);
     /// parser.u8();
@@ -45,7 +45,7 @@ impl<'a> ForwardByteParser<'a> {
     /// Return `true` if the byte slice is exhausted
     /// # Example
     /// ```
-    /// # use zstd_lib::parsing::{ForwardByteParser, Error};
+    /// # use zstd_lib::parsing::{ForwardByteParser};
     /// let mut parser = ForwardByteParser::new(&[0x01]);
     /// assert_eq!(parser.is_empty(), false);
     /// parser.u8();
@@ -58,7 +58,7 @@ impl<'a> ForwardByteParser<'a> {
     /// Return `len` bytes as a sub slice or NotEnoughByte when len > parser.len()
     /// # Example
     /// ```
-    /// # use zstd_lib::parsing::{ForwardByteParser, Error::{self, *}};
+    /// # use zstd_lib::parsing::{ForwardByteParser, ParsingError::{self, *}};
     /// let mut parser = ForwardByteParser::new(&[0x01, 0x02, 0x03, 0x04]);
     /// assert_eq!(parser.slice(2)?, &[0x01, 0x02]);
     /// assert!(matches!(
@@ -67,11 +67,11 @@ impl<'a> ForwardByteParser<'a> {
     ///         requested: 3,
     ///         available: 2,
     /// })));
-    /// # Ok::<(), Error>(())
+    /// # Ok::<(), ParsingError>(())
     /// ```
     pub fn slice(&mut self, len: usize) -> Result<&'a [u8]> {
         if len > self.len() {
-            return Err(NotEnoughBytes {
+            return Err(Error::NotEnoughBytes {
                 requested: len,
                 available: self.len(),
             });
@@ -85,10 +85,10 @@ impl<'a> ForwardByteParser<'a> {
     /// Consume and return a u32 in little-endian format or NotEnoughByte error.
     /// # Example
     /// ```
-    /// # use zstd_lib::parsing::{ForwardByteParser, Error::{self, *}};
+    /// # use zstd_lib::parsing::{ForwardByteParser, ParsingError};
     /// let mut parser = ForwardByteParser::new(&[0x01, 0x02, 0x03, 0x04, 0x05]);
     /// assert_eq!(parser.le_u32()?, 0x0403_0201);
-    /// # Ok::<(), Error>(())
+    /// # Ok::<(), ParsingError>(())
     /// ```
     pub fn le_u32(&mut self) -> Result<u32> {
         Ok(self.le(4)? as u32)
@@ -100,10 +100,10 @@ impl<'a> ForwardByteParser<'a> {
     /// This function panics when `size > 8` for obvious reason.
     /// # Example
     /// ```
-    /// # use zstd_lib::parsing::{ForwardByteParser, Error::{self, *}};
+    /// # use zstd_lib::parsing::{ForwardByteParser, ParsingError};
     /// let mut parser = ForwardByteParser::new(&[0x01, 0x02, 0x03, 0x04, 0x05]);
     /// assert_eq!(parser.le(2)?, 0x0201);
-    /// # Ok::<(), Error>(())
+    /// # Ok::<(), ParsingError>(())
     /// ```
     pub fn le(&mut self, size: usize) -> Result<usize> {
         assert!(size <= 8, "unexpected size: {size}");
@@ -145,7 +145,7 @@ mod tests {
         assert_eq!(parser.0.len(), 0);
         assert!(matches!(
             parser.u8(),
-            Err(NotEnoughBytes {
+            Err(Error::NotEnoughBytes {
                 requested: 1,
                 available: 0,
             })
@@ -179,7 +179,7 @@ mod tests {
         assert_eq!(&[0x34], parser.slice(1).unwrap());
         assert!(matches!(
             parser.slice(1),
-            Err(NotEnoughBytes {
+            Err(Error::NotEnoughBytes {
                 requested: 1,
                 available: 0,
             })
@@ -187,7 +187,7 @@ mod tests {
         let mut parser = ForwardByteParser::new(&[0x12, 0x23, 0x34]);
         assert!(matches!(
             parser.slice(4),
-            Err(NotEnoughBytes {
+            Err(Error::NotEnoughBytes {
                 requested: 4,
                 available: 3,
             })
@@ -207,7 +207,7 @@ mod tests {
         // Do not consume u8 when Error
         assert!(matches!(
             parser.le_u32(),
-            Err(NotEnoughBytes {
+            Err(Error::NotEnoughBytes {
                 requested: 4,
                 available: 1,
             })

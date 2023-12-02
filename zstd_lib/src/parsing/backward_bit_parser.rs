@@ -11,11 +11,11 @@ impl<'a> BackwardBitParser<'a> {
     /// The parser is initialized skipping all 0 and the first 1 from MSB.
     /// # Example
     /// ```
-    /// # use zstd_lib::parsing::{BackwardBitParser, Error};
+    /// # use zstd_lib::parsing::{BackwardBitParser, ParsingError};
     /// let mut parser = BackwardBitParser::new(&[0b0001_1010, 0b0110_0000])?;
     /// // stream: 0b0001_1010, 0b0011_0000
     /// //                        --^ skipped initial zeroes and first one from MSB to LSB
-    /// # Ok::<(), Error>(())
+    /// # Ok::<(), ParsingError>(())
     /// ```
     pub fn new(bitstream: &'a [u8]) -> Result<Self> {
         let (last_byte, rest) = bitstream.split_last().ok_or(Error::NotEnoughBytes {
@@ -50,14 +50,14 @@ impl<'a> BackwardBitParser<'a> {
     /// **Note**: partially parsed byte are **not** included.
     /// # Example
     /// ```
-    /// # use zstd_lib::parsing::{BackwardBitParser, Error};
+    /// # use zstd_lib::parsing::{BackwardBitParser, ParsingError};
     /// let mut parser = BackwardBitParser::new(&[0b0001_1010, 0b0110_0000])?;
     /// assert_eq!(parser.len(), 1);    // 2nd byte is partially parsed
     /// parser.take(6)?;                // consume all bits of 2nd byte
     /// assert_eq!(parser.len(), 1);    // 2nd byte fully parsed
     /// parser.take(1)?;                // consume 1st bit of 1st byte
     /// assert_eq!(parser.len(), 0);    // 1st byte partially parsed
-    /// # Ok::<(), Error>(())
+    /// # Ok::<(), ParsingError>(())
     /// ```
     pub fn len(&self) -> usize {
         let include_last = self.position == 7;
@@ -67,10 +67,10 @@ impl<'a> BackwardBitParser<'a> {
     /// Check if the bitstream is exhausted
     /// # Example
     /// ```
-    /// # use zstd_lib::parsing::{BackwardBitParser, Error};
+    /// # use zstd_lib::parsing::{BackwardBitParser, ParsingError};
     /// let mut parser = BackwardBitParser::new(&[0b0000_0001])?; // creates an empty parser
     /// assert_eq!(parser.is_empty(), true);
-    /// # Ok::<(), Error>(())
+    /// # Ok::<(), ParsingError>(())
     /// ```
     pub fn is_empty(&self) -> bool {
         self.bitstream.len() == 0
@@ -79,12 +79,12 @@ impl<'a> BackwardBitParser<'a> {
     /// Return the number of available bits in the parser
     /// # Example
     /// ```
-    /// # use zstd_lib::parsing::{BackwardBitParser, Error};
+    /// # use zstd_lib::parsing::{BackwardBitParser, ParsingError};
     /// let mut parser = BackwardBitParser::new(&[0b0100_1010])?;
     /// // stream: 0b0100_1010
     /// //           --^ skip the first 0 and first 1
     /// assert_eq!(parser.available_bits(), 6);
-    /// # Ok::<(), Error>(())
+    /// # Ok::<(), ParsingError>(())
     /// ```
     pub fn available_bits(&self) -> usize {
         if self.is_empty() {
@@ -99,14 +99,14 @@ impl<'a> BackwardBitParser<'a> {
     /// Panics when `len > 64` for obvious reason.
     /// # Example
     /// ```
-    /// # use zstd_lib::parsing::{BackwardBitParser, Error};
+    /// # use zstd_lib::parsing::{BackwardBitParser, ParsingError};
     /// let mut parser = BackwardBitParser::new(&[0b0111_1011])?;
     /// // stream: 0b0111_1011
     /// //           --^ skip the first 0 and first 1
     /// assert_eq!(parser.take(2)?, 0b11);
     /// assert_eq!(parser.take(1)?, 0b1);
     /// assert_eq!(parser.take(3)?, 0b011);
-    /// # Ok::<(), Error>(())
+    /// # Ok::<(), ParsingError>(())
     /// ```
     pub fn take(&mut self, len: usize) -> Result<u64> {
         if len == 0 {
@@ -217,7 +217,7 @@ mod tests {
         fn test_new_malformed_header() {
             assert!(matches!(
                 BackwardBitParser::new(&[0b0011_1100, 0b0000_0000]),
-                Err(MalformedBitstream)
+                Err(Error::MalformedBitstream)
             ));
         }
     }
