@@ -7,7 +7,7 @@ use std::fmt;
 
 // TODO:Create huffman error type
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Clone)]
 pub enum HuffmanDecoder {
     Absent,
     Symbol(u8),

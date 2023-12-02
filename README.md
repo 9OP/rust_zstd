@@ -5,14 +5,9 @@ helpers:
 - `cargo tarpaulin --count --line --force-clean -p zstd_lib --out html`
 
 ToDo:
-- check if relevant to use usize or use u64 instead. usize is portable but tied to architecture, find counter-example
 - add code coverage check
-- prop test
-- doc tests
-- fuzzy test
-- documentation
-- add logs (outside stdout)
-- huffman insert is not keeping the tree balanced, correct that
+- fuzz test
+ 
 
 
 Refactor:

@@ -1,15 +1,23 @@
+use std::{sync::Arc, thread};
+
 use crate::{
-    decoders::{self},
-    parsing::{self, BackwardBitParser},
+    decoders::{DecodingContext, Error as DecoderErrors, HuffmanDecoder},
+    parsing::{BackwardBitParser, Error as ParsingErrors, ForwardByteParser},
 };
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
     #[error("Frame parsing error: {0}")]
-    ParsingError(#[from] parsing::Error),
+    ParsingError(#[from] ParsingErrors),
 
     #[error("Decoder error: {0}")]
-    DecoderError(#[from] decoders::Error),
+    DecoderError(#[from] DecoderErrors),
+
+    #[error("Missing huffman decoder")]
+    MissingHuffmanDecoder,
+
+    #[error("Parallel decoding panicked")]
+    ParallelDecodingError,
 
     #[error("Data corrupted")]
     CorruptedDataError,
@@ -35,9 +43,9 @@ pub struct RLELiteralsBlock {
 
 #[derive(Debug, PartialEq)]
 pub struct CompressedLiteralsBlock<'a> {
-    huffman: Option<decoders::HuffmanDecoder>,
+    huffman: Option<HuffmanDecoder>,
     regenerated_size: usize,
-    jump_table: Option<[usize; 3]>, // three 2-bytes long offsets
+    jump_table: Option<[usize; 3]>,
     data: &'a [u8],
 }
 
@@ -50,7 +58,7 @@ impl<'a> LiteralsSection<'a> {
     /// Decompress the literals section. Update the Huffman decoder in
     /// `context` if appropriate (compressed literals block with a
     /// Huffman table inside).
-    pub fn decode(self, context: &mut decoders::DecodingContext) -> Result<Vec<u8>> {
+    pub fn decode(self, context: &mut DecodingContext) -> Result<Vec<u8>> {
         match self {
             LiteralsSection::RawLiteralsBlock(block) => {
                 let decoded = Vec::from(block.0);
@@ -68,41 +76,61 @@ impl<'a> LiteralsSection<'a> {
                 if let Some(huffman) = block.huffman {
                     context.huffman = Some(huffman);
                 }
-                // TODO: return error when huffman is none
-                let huffman = context.huffman.as_ref().unwrap();
+
+                let huffman = context.huffman.clone().ok_or(MissingHuffmanDecoder)?;
 
                 match block.jump_table {
                     None => {
                         let mut bitstream = BackwardBitParser::new(block.data)?;
-                        // while decoded.len() < block.regenerated_size {
+
                         while bitstream.available_bits() > 0 {
                             decoded.push(huffman.decode(&mut bitstream)?);
                         }
                     }
 
                     Some([stream1_size, stream2_size, stream3_size]) => {
-                        // TODO: decode in parallel
                         let idx2 = stream1_size;
                         let idx3 = idx2 + stream2_size;
                         let idx4 = idx3 + stream3_size;
 
-                        let mut stream_1 = BackwardBitParser::new(&block.data[..idx2])?;
-                        let mut stream_2 = BackwardBitParser::new(&block.data[idx2..idx3])?;
-                        let mut stream_3 = BackwardBitParser::new(&block.data[idx3..idx4])?;
-                        let mut stream_4 = BackwardBitParser::new(&block.data[idx4..])?;
+                        let data = Arc::new(Vec::from(block.data));
+                        let decoder = Arc::new(huffman);
 
-                        while stream_1.available_bits() > 0 {
-                            decoded.push(huffman.decode(&mut stream_1)?)
+                        fn process(
+                            decoder: Arc<HuffmanDecoder>,
+                            data: Arc<Vec<u8>>,
+                            range: (usize, usize),
+                        ) -> thread::JoinHandle<Result<Vec<u8>>> {
+                            thread::spawn(move || -> Result<Vec<u8>> {
+                                let mut decoded = vec![];
+                                let mut stream =
+                                    BackwardBitParser::new(&data.as_slice()[range.0..range.1])?;
+                                while stream.available_bits() > 0 {
+                                    decoded.push(decoder.decode(&mut stream)?)
+                                }
+                                Ok(decoded)
+                            })
                         }
-                        while stream_2.available_bits() > 0 {
-                            decoded.push(huffman.decode(&mut stream_2)?)
-                        }
-                        while stream_3.available_bits() > 0 {
-                            decoded.push(huffman.decode(&mut stream_3)?)
-                        }
-                        while stream_4.available_bits() > 0 {
-                            decoded.push(huffman.decode(&mut stream_4)?)
-                        }
+
+                        let r1 = (0, idx2);
+                        let r2 = (idx2, idx3);
+                        let r3 = (idx3, idx4);
+                        let r4 = (idx4, data.len());
+
+                        let h1 = process(Arc::clone(&decoder), Arc::clone(&data), r1);
+                        let h2 = process(Arc::clone(&decoder), Arc::clone(&data), r2);
+                        let h3 = process(Arc::clone(&decoder), Arc::clone(&data), r3);
+                        let h4 = process(Arc::clone(&decoder), Arc::clone(&data), r4);
+
+                        let stream1 = h1.join().map_err(|_| ParallelDecodingError)??;
+                        let stream2 = h2.join().map_err(|_| ParallelDecodingError)??;
+                        let stream3 = h3.join().map_err(|_| ParallelDecodingError)??;
+                        let stream4 = h4.join().map_err(|_| ParallelDecodingError)??;
+
+                        decoded.extend(stream1);
+                        decoded.extend(stream2);
+                        decoded.extend(stream3);
+                        decoded.extend(stream4);
                     }
                 }
 
@@ -111,7 +139,7 @@ impl<'a> LiteralsSection<'a> {
         }
     }
 
-    pub fn parse(input: &mut parsing::ForwardByteParser<'a>) -> Result<Self> {
+    pub fn parse(input: &mut ForwardByteParser<'a>) -> Result<Self> {
         let header = input.u8()?;
         let block_type = header & 0b0000_0011;
         let size_format = (header & 0b0000_1100) >> 2;
@@ -193,12 +221,15 @@ impl<'a> LiteralsSection<'a> {
 
                 if block_type == COMPRESSED_LITERALS_BLOCK {
                     let size_before = input.len();
-                    huffman = Some(decoders::HuffmanDecoder::parse(input)?);
+                    huffman = Some(HuffmanDecoder::parse(input)?);
                     let size_after = input.len();
                     assert!(size_before > size_after);
                     huffman_description_size = size_before - size_after;
                 }
 
+                // Actual total_streams_size depend on the number of streams.
+                // If there are 4 streams, 6bytes are remove from the total size to store
+                // the respective streams size.
                 let mut total_streams_size: usize = compressed_size - huffman_description_size;
 
                 let jump_table = match streams {
@@ -221,12 +252,14 @@ impl<'a> LiteralsSection<'a> {
                     _ => panic!("unexpected number of streams {streams}"),
                 };
 
+                let data = input.slice(total_streams_size)?;
+
                 Ok(LiteralsSection::CompressedLiteralsBlock(
                     CompressedLiteralsBlock {
                         huffman,
                         regenerated_size,
                         jump_table,
-                        data: input.slice(total_streams_size)?,
+                        data,
                     },
                 ))
             }
