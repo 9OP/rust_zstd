@@ -1,20 +1,18 @@
-use core::panic;
-
 use crate::{
     decoders::{
-        self, BitDecoder, DecodingContext, FseDecoder, FseTable, RLEDecoder, SequenceDecoder,
-        SymbolDecoder,
+        BitDecoder, DecodingContext, Error as DecoderErrors, FseDecoder, FseTable, RLEDecoder,
+        SequenceDecoder, SymbolDecoder,
     },
-    parsing::{self, BackwardBitParser, ForwardBitParser, ForwardByteParser},
+    parsing::{BackwardBitParser, Error as ParsingErrors, ForwardBitParser, ForwardByteParser},
 };
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
     #[error("Parsing error: {0}")]
-    ParsingError(#[from] parsing::Error),
+    ParsingError(#[from] ParsingErrors),
 
     #[error("Decoding error: {0}")]
-    DecodingError(#[from] decoders::Error),
+    DecodingError(#[from] DecoderErrors),
 
     #[error("Invalid reserved bits value")]
     InvalidDataError,
@@ -27,15 +25,15 @@ pub type Result<T, E = Error> = std::result::Result<T, E>;
 
 #[derive(Debug)]
 pub struct Sequences<'a> {
-    pub number_of_sequences: usize,
-    pub literal_lengths_mode: SymbolCompressionMode,
-    pub offsets_mode: SymbolCompressionMode,
-    pub match_lengths_mode: SymbolCompressionMode,
-    pub bitstream: &'a [u8],
+    number_of_sequences: usize,
+    literal_lengths_mode: SymbolCompressionMode,
+    offsets_mode: SymbolCompressionMode,
+    match_lengths_mode: SymbolCompressionMode,
+    bitstream: &'a [u8],
 }
 
 #[derive(Debug)]
-pub enum SymbolCompressionMode {
+enum SymbolCompressionMode {
     PredefinedMode,
     RLEMode(u8),
     FseCompressedMode(FseTable),
@@ -43,29 +41,40 @@ pub enum SymbolCompressionMode {
 }
 use SymbolCompressionMode::*;
 
-const LITERALS_LENGTH_DEFAULT_DISTRIBUTION: (u8, [i16; 36]) = (
-    6,
-    [
+enum SymbolType {
+    LiteralsLengths,
+    MatchLength,
+    Offset,
+}
+
+struct DefaultDistribution<'a> {
+    accuracy_log: u8,
+    distribution: &'a [i16],
+}
+
+const LITERALS_LENGTH_DEFAULT_DISTRIBUTION: DefaultDistribution<'_> = DefaultDistribution {
+    accuracy_log: 6,
+    distribution: &[
         4, 3, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 3, 2, 1, 1, 1,
         1, 1, -1, -1, -1, -1,
     ],
-);
-const MATCH_LENGTH_DEFAULT_DISTRIBUTION: (u8, [i16; 53]) = (
-    6,
-    [
+};
+const MATCH_LENGTH_DEFAULT_DISTRIBUTION: DefaultDistribution<'_> = DefaultDistribution {
+    accuracy_log: 6,
+    distribution: &[
         1, 4, 3, 2, 2, 2, 2, 2, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
         1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, -1, -1, -1, -1, -1, -1, -1,
     ],
-);
-const OFFSET_CODE_DEFAULT_DISTRIBUTION: (u8, [i16; 29]) = (
-    5,
-    [
+};
+const OFFSET_CODE_DEFAULT_DISTRIBUTION: DefaultDistribution<'_> = DefaultDistribution {
+    accuracy_log: 5,
+    distribution: &[
         1, 1, 1, 1, 1, 1, 2, 2, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, -1, -1, -1, -1, -1,
     ],
-);
+};
 
 impl SymbolCompressionMode {
-    pub fn parse(mode: u8, input: &mut ForwardByteParser) -> Result<Self> {
+    fn parse(mode: u8, input: &mut ForwardByteParser) -> Result<Self> {
         match mode {
             0 => Ok(Self::PredefinedMode),
             1 => Ok(Self::RLEMode(input.u8()?)),
@@ -81,6 +90,41 @@ impl SymbolCompressionMode {
             3 => Ok(Self::RepeatMode),
             _ => panic!("unexpected compression mode value {mode}"),
         }
+    }
+
+    fn parse_symbol_decoder(
+        &self,
+        symbol_type: SymbolType,
+        parser: &mut BackwardBitParser,
+    ) -> Result<Option<Box<SymbolDecoder>>> {
+        let decoder = match &self {
+            PredefinedMode => {
+                let def = match symbol_type {
+                    SymbolType::LiteralsLengths => LITERALS_LENGTH_DEFAULT_DISTRIBUTION,
+                    SymbolType::MatchLength => MATCH_LENGTH_DEFAULT_DISTRIBUTION,
+                    SymbolType::Offset => OFFSET_CODE_DEFAULT_DISTRIBUTION,
+                };
+
+                let fse_table = FseTable::from_distribution(def.accuracy_log, def.distribution);
+                let mut fse_decoder = FseDecoder::new(fse_table);
+                fse_decoder.initialize(parser)?;
+                Some(Box::new(fse_decoder) as Box<SymbolDecoder>)
+            }
+            RLEMode(byte) => {
+                let rle_decoder = RLEDecoder {
+                    symbol: *byte as u16,
+                };
+                Some(Box::new(rle_decoder) as Box<SymbolDecoder>)
+            }
+            FseCompressedMode(fse_table) => {
+                let mut fse_decoder = FseDecoder::new(fse_table.clone());
+                fse_decoder.initialize(parser)?;
+                Some(Box::new(fse_decoder) as Box<SymbolDecoder>)
+            }
+            RepeatMode => None,
+        };
+
+        Ok(decoder)
     }
 }
 
@@ -98,8 +142,7 @@ impl<'a> Sequences<'a> {
 
         let modes = input.u8()?;
 
-        // Parse SymbolCompression mode in this order: [literal][offset][match]
-        // Recall sequence layout: header,[literal_table],[offset_table],[match_table], bitstream
+        // Parse order: [literal][offset][match]
         let literal_lengths_mode = SymbolCompressionMode::parse((modes & 0b1100_0000) >> 6, input)?;
         let offsets_mode = SymbolCompressionMode::parse((modes & 0b0011_0000) >> 4, input)?;
         let match_lengths_mode = SymbolCompressionMode::parse((modes & 0b0000_1100) >> 2, input)?;
@@ -120,94 +163,6 @@ impl<'a> Sequences<'a> {
         })
     }
 
-    // TODO: factorize RLEmode, FSECompressedMode parsing and move it to SymbolCompressionMode instead
-    fn parse_literals_lengths_decoder(
-        &self,
-        parser: &mut BackwardBitParser,
-    ) -> Result<Option<Box<SymbolDecoder>>> {
-        let decoder = match &self.literal_lengths_mode {
-            PredefinedMode => {
-                let (acc_log, distribution) = LITERALS_LENGTH_DEFAULT_DISTRIBUTION;
-                let fse_table = FseTable::from_distribution(acc_log, &distribution);
-                let mut fse_decoder = FseDecoder::new(fse_table);
-                fse_decoder.initialize(parser)?;
-                Some(Box::new(fse_decoder) as Box<SymbolDecoder>)
-            }
-            RLEMode(byte) => {
-                let rle_decoder = RLEDecoder {
-                    symbol: *byte as u16,
-                };
-                Some(Box::new(rle_decoder) as Box<SymbolDecoder>)
-            }
-            FseCompressedMode(fse_table) => {
-                let mut fse_decoder = FseDecoder::new(fse_table.clone());
-                fse_decoder.initialize(parser)?;
-                Some(Box::new(fse_decoder) as Box<SymbolDecoder>)
-            }
-            RepeatMode => None,
-        };
-
-        Ok(decoder)
-    }
-
-    fn parse_offsets_decoder(
-        &self,
-        parser: &mut BackwardBitParser,
-    ) -> Result<Option<Box<SymbolDecoder>>> {
-        let decoder = match &self.offsets_mode {
-            PredefinedMode => {
-                let (acc_log, distribution) = OFFSET_CODE_DEFAULT_DISTRIBUTION;
-                let fse_table = FseTable::from_distribution(acc_log, &distribution);
-                let mut fse_decoder = FseDecoder::new(fse_table);
-                fse_decoder.initialize(parser)?;
-                Some(Box::new(fse_decoder) as Box<SymbolDecoder>)
-            }
-            RLEMode(byte) => {
-                let rle_decoder = RLEDecoder {
-                    symbol: *byte as u16,
-                };
-                Some(Box::new(rle_decoder) as Box<SymbolDecoder>)
-            }
-            FseCompressedMode(fse_table) => {
-                let mut fse_decoder = FseDecoder::new(fse_table.clone());
-                fse_decoder.initialize(parser)?;
-                Some(Box::new(fse_decoder) as Box<SymbolDecoder>)
-            }
-            RepeatMode => None,
-        };
-
-        Ok(decoder)
-    }
-
-    fn parse_match_lengths_decoder(
-        &self,
-        parser: &mut BackwardBitParser,
-    ) -> Result<Option<Box<SymbolDecoder>>> {
-        let decoder = match &self.match_lengths_mode {
-            PredefinedMode => {
-                let (acc_log, distribution) = MATCH_LENGTH_DEFAULT_DISTRIBUTION;
-                let fse_table = FseTable::from_distribution(acc_log, &distribution);
-                let mut fse_decoder = FseDecoder::new(fse_table);
-                fse_decoder.initialize(parser)?;
-                Some(Box::new(fse_decoder) as Box<SymbolDecoder>)
-            }
-            RLEMode(byte) => {
-                let rle_decoder = RLEDecoder {
-                    symbol: *byte as u16,
-                };
-                Some(Box::new(rle_decoder) as Box<SymbolDecoder>)
-            }
-            FseCompressedMode(fse_table) => {
-                let mut fse_decoder = FseDecoder::new(fse_table.clone());
-                fse_decoder.initialize(parser)?;
-                Some(Box::new(fse_decoder) as Box<SymbolDecoder>)
-            }
-            RepeatMode => None,
-        };
-
-        Ok(decoder)
-    }
-
     /// Parse the symbol decoders and update the context
     fn parse_symbol_decoders(
         &self,
@@ -215,14 +170,26 @@ impl<'a> Sequences<'a> {
         context: &mut DecodingContext,
     ) -> Result<()> {
         // initialize order: literals > offsets > match
-        if let Some(decoder) = self.parse_literals_lengths_decoder(parser)? {
-            context.literals_lengths_decoder = Some(decoder);
+        let ll_decoder = self
+            .literal_lengths_mode
+            .parse_symbol_decoder(SymbolType::LiteralsLengths, parser)?;
+
+        let om_decoder = self
+            .offsets_mode
+            .parse_symbol_decoder(SymbolType::Offset, parser)?;
+
+        let ml_decoder = self
+            .match_lengths_mode
+            .parse_symbol_decoder(SymbolType::MatchLength, parser)?;
+
+        if ll_decoder.is_some() {
+            context.literals_lengths_decoder = ll_decoder;
         }
-        if let Some(decoder) = self.parse_offsets_decoder(parser)? {
-            context.offsets_decoder = Some(decoder);
+        if om_decoder.is_some() {
+            context.offsets_decoder = om_decoder;
         }
-        if let Some(decoder) = self.parse_match_lengths_decoder(parser)? {
-            context.match_lengths_decoder = Some(decoder);
+        if ml_decoder.is_some() {
+            context.match_lengths_decoder = ml_decoder;
         }
 
         Ok(())
