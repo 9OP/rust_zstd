@@ -716,7 +716,6 @@ checksum = "9828b178da53440fa9c766a3d2f73f7cf5d0ac1fe3980c1e5018d899fd19e07b"
 name = "zstd_lib"
 version = "0.1.0"
 dependencies = [
- "proptest",
  "thiserror",
  "xxhash-rust",
 ]

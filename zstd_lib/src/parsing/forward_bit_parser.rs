@@ -1,4 +1,4 @@
-use super::{Error::*, Result};
+use super::{Error::*, ForwardByteParser, Result};
 
 pub struct ForwardBitParser<'a> {
     bitstream: &'a [u8],
@@ -152,6 +152,13 @@ impl<'a> ForwardBitParser<'a> {
         self.bitstream = new_bitstream;
 
         Ok(result)
+    }
+}
+
+impl<'a> From<ForwardBitParser<'a>> for ForwardByteParser<'a> {
+    fn from(parser: ForwardBitParser<'a>) -> Self {
+        // note: do not include partially consummed first byte
+        ForwardByteParser::new(&parser.bitstream[(parser.bitstream.len() - parser.len())..])
     }
 }
 

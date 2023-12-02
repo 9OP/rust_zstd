@@ -70,12 +70,12 @@ impl SymbolCompressionMode {
             0 => Ok(Self::PredefinedMode),
             1 => Ok(Self::RLEMode(input.u8()?)),
             2 => {
-                // TODO: use RLE when only one symbol is present
-                // TODO: there is magic for converting ByteParser->BitParser... implement from/into trait
-                let bitstream = input.slice(input.len())?;
-                let mut parser = ForwardBitParser::new(bitstream);
+                let mut parser = ForwardBitParser::from(*input);
                 let fse_table = FseTable::parse(&mut parser)?;
-                *input = ForwardByteParser::new(&bitstream[(bitstream.len() - parser.len())..]);
+                if fse_table.states.len() == 1 {
+                    return Ok(Self::PredefinedMode);
+                }
+                *input = ForwardByteParser::from(parser);
                 Ok(Self::FseCompressedMode(fse_table))
             }
             3 => Ok(Self::RepeatMode),
@@ -109,12 +109,14 @@ impl<'a> Sequences<'a> {
             return Err(InvalidDataError);
         }
 
+        let bitstream = <&[u8]>::from(*input);
+
         Ok(Sequences {
             number_of_sequences,
             literal_lengths_mode,
             offsets_mode,
             match_lengths_mode,
-            bitstream: input.slice(input.len())?, // TODO: create a function to get the bitstream
+            bitstream,
         })
     }
 
@@ -206,24 +208,29 @@ impl<'a> Sequences<'a> {
         Ok(decoder)
     }
 
-    /// Return vector of (literals length, offset value, match length) and update the
-    /// decoding context with the tables if appropriate.
-    pub fn decode(self, context: &mut DecodingContext) -> Result<Vec<(usize, usize, usize)>> {
-        let mut decoded_sequences = Vec::<(usize, usize, usize)>::new();
-        let mut parser = BackwardBitParser::new(self.bitstream)?;
-
-        // TODO: move to function parse_decoders()
+    /// Parse the symbol decoders and update the context
+    fn parse_symbol_decoders(
+        &self,
+        parser: &mut BackwardBitParser,
+        context: &mut DecodingContext,
+    ) -> Result<()> {
         // initialize order: literals > offsets > match
-        if let Some(decoder) = self.parse_literals_lengths_decoder(&mut parser)? {
+        if let Some(decoder) = self.parse_literals_lengths_decoder(parser)? {
             context.literals_lengths_decoder = Some(decoder);
         }
-        if let Some(decoder) = self.parse_offsets_decoder(&mut parser)? {
+        if let Some(decoder) = self.parse_offsets_decoder(parser)? {
             context.offsets_decoder = Some(decoder);
         }
-        if let Some(decoder) = self.parse_match_lengths_decoder(&mut parser)? {
+        if let Some(decoder) = self.parse_match_lengths_decoder(parser)? {
             context.match_lengths_decoder = Some(decoder);
         }
 
+        Ok(())
+    }
+
+    /// Extract the symbol decoders from the context and return a SequenceDecoder instance.
+    /// Return `MissingSequenceDecoder` when a symbol decoder is `None`.
+    fn get_sequence_decoder(context: &mut DecodingContext) -> Result<SequenceDecoder> {
         let literals_lengths_decoder = context
             .literals_lengths_decoder
             .as_mut()
@@ -237,11 +244,21 @@ impl<'a> Sequences<'a> {
             .as_mut()
             .ok_or(MissingSequenceDecoder)?;
 
-        let mut sequence_decoder = SequenceDecoder::new(
+        Ok(SequenceDecoder::new(
             literals_lengths_decoder,
             offsets_decoder,
             match_lengths_decoder,
-        );
+        ))
+    }
+
+    /// Return vector of (literals length, offset value, match length) and update the
+    /// decoding context with the tables if appropriate.
+    pub fn decode(self, context: &mut DecodingContext) -> Result<Vec<(usize, usize, usize)>> {
+        let mut decoded_sequences = Vec::<(usize, usize, usize)>::new();
+        let mut parser = BackwardBitParser::new(self.bitstream)?;
+
+        self.parse_symbol_decoders(&mut parser, context)?;
+        let mut sequence_decoder = Self::get_sequence_decoder(context)?;
 
         for i in 0..self.number_of_sequences {
             // decode order: offset > match > literals

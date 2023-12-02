@@ -339,14 +339,4 @@ mod tests {
             })
         );
     }
-
-    #[test]
-    fn test_parse_compressed_literal() {
-        // TODO
-    }
-
-    #[test]
-    fn test_parse_treeless_literal() {
-        // TODO
-    }
 }

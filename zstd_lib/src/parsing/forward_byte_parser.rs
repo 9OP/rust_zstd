@@ -1,5 +1,6 @@
-use super::{Error::*, Result};
+use super::{Error::*, ForwardBitParser, Result};
 
+#[derive(Clone, Copy)]
 pub struct ForwardByteParser<'a>(&'a [u8]);
 
 impl<'a> ForwardByteParser<'a> {
@@ -113,6 +114,18 @@ impl<'a> ForwardByteParser<'a> {
             result |= (byte_array[i] as usize) << (8 * i);
         }
         Ok(result.to_le())
+    }
+}
+
+impl<'a> From<ForwardByteParser<'a>> for &'a [u8] {
+    fn from(parser: ForwardByteParser<'a>) -> Self {
+        parser.0
+    }
+}
+
+impl<'a> From<ForwardByteParser<'a>> for ForwardBitParser<'a> {
+    fn from(parser: ForwardByteParser<'a>) -> Self {
+        ForwardBitParser::new(parser.0)
     }
 }
 
