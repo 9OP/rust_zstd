@@ -19,6 +19,9 @@ pub enum Error {
 
     #[error("Missing sequence decoder")]
     MissingSequenceDecoder,
+
+    #[error("Symbol code unknown")]
+    SymbolCodeUnknown,
 }
 use Error::*;
 pub type Result<T, E = Error> = std::result::Result<T, E>;
@@ -82,6 +85,7 @@ impl SymbolCompressionMode {
                 let mut parser = ForwardBitParser::from(*input);
                 let fse_table = FseTable::parse(&mut parser)?;
                 if fse_table.states.len() == 1 {
+                    // not sure, see: https://www.rfc-editor.org/rfc/rfc8878#name-sequences_section_header
                     return Ok(Self::PredefinedMode);
                 }
                 *input = ForwardByteParser::from(parser);
@@ -197,7 +201,13 @@ impl<'a> Sequences<'a> {
 
     /// Extract the symbol decoders from the context and return a SequenceDecoder instance.
     /// Return `MissingSequenceDecoder` when a symbol decoder is `None`.
-    fn get_sequence_decoder(context: &mut DecodingContext) -> Result<SequenceDecoder> {
+    fn get_sequence_decoder(
+        &'a self,
+        parser: &mut BackwardBitParser,
+        context: &'a mut DecodingContext,
+    ) -> Result<SequenceDecoder<'_>> {
+        self.parse_symbol_decoders(parser, context)?;
+
         let literals_lengths_decoder = context
             .literals_lengths_decoder
             .as_mut()
@@ -224,31 +234,27 @@ impl<'a> Sequences<'a> {
         let mut decoded_sequences = Vec::<(usize, usize, usize)>::new();
         let mut parser = BackwardBitParser::new(self.bitstream)?;
 
-        self.parse_symbol_decoders(&mut parser, context)?;
-        let mut sequence_decoder = Self::get_sequence_decoder(context)?;
+        let mut sequence_decoder = self.get_sequence_decoder(&mut parser, context)?;
 
         for i in 0..self.number_of_sequences {
             // decode order: offset > match > literals
             let (literals_symbol, offset_symbol, match_symbol) = sequence_decoder.symbol();
 
-            // offset
-            let offset_code =
-                ((1 as u64) << offset_symbol) + parser.take(offset_symbol as usize)?;
+            if offset_symbol > 31 {
+                // >31: comes from reference implementation
+                return Err(SymbolCodeUnknown);
+            }
 
-            // TODO: check the offset_symbol greater bound
-            // if of_code >= 32 {
-            //     return Err(DecodeSequenceError::UnsupportedOffset {
-            //         offset_code: of_code,
-            //     });
-            // }
+            // offset
+            let offset_code = (1_u64 << offset_symbol) + parser.take(offset_symbol.into())?;
 
             // match
-            let (match_value, match_num_bits) = match_lengths_code_lookup(match_symbol);
-            let match_code = match_value + parser.take(match_num_bits)? as usize;
+            let (value, num_bits) = match_lengths_code_lookup(match_symbol)?;
+            let match_code = value + parser.take(num_bits)? as usize;
 
             // literals
-            let (literals_value, literals_num_bits) = literals_lengths_code_lookup(literals_symbol);
-            let literals_code = literals_value + parser.take(literals_num_bits)? as usize;
+            let (value, num_bits) = literals_lengths_code_lookup(literals_symbol)?;
+            let literals_code = value + parser.take(num_bits)? as usize;
 
             decoded_sequences.push((literals_code, offset_code as usize, match_code));
 
@@ -262,8 +268,8 @@ impl<'a> Sequences<'a> {
     }
 }
 
-fn literals_lengths_code_lookup(symbol: u16) -> (usize, usize) {
-    match symbol {
+fn literals_lengths_code_lookup(symbol: u16) -> Result<(usize, usize)> {
+    let lookup = match symbol {
         0..=15 => (symbol as usize, 0),
         16 => (16, 1),
         17 => (18, 1),
@@ -285,12 +291,13 @@ fn literals_lengths_code_lookup(symbol: u16) -> (usize, usize) {
         33 => (16384, 14),
         34 => (32768, 15),
         35 => (65536, 16),
-        _ => panic!("unexpected symbol value {symbol}"), // TODO: return error instead SymbolOutOfRange
-    }
+        _ => return Err(SymbolCodeUnknown),
+    };
+    Ok(lookup)
 }
 
-fn match_lengths_code_lookup(symbol: u16) -> (usize, usize) {
-    match symbol {
+fn match_lengths_code_lookup(symbol: u16) -> Result<(usize, usize)> {
+    let lookup = match symbol {
         0..=31 => (symbol as usize + 3, 0),
         32 => (35, 1),
         33 => (37, 1),
@@ -313,6 +320,7 @@ fn match_lengths_code_lookup(symbol: u16) -> (usize, usize) {
         50 => (16387, 14),
         51 => (32771, 15),
         52 => (65539, 16),
-        _ => panic!("unexpected symbol value {symbol}"), // TODO: return error instead SymbolOutOfRange
-    }
+        _ => return Err(SymbolCodeUnknown),
+    };
+    Ok(lookup)
 }
