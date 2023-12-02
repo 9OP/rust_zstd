@@ -38,7 +38,6 @@ pub enum Block<'a> {
     },
 }
 
-const BLOCK_HEADER_LEN: usize = 3;
 const RAW_BLOCK_FLAG: u8 = 0;
 const RLE_BLOCK_FLAG: u8 = 1;
 const COMPRESSED_BLOCK_FLAG: u8 = 2;
@@ -46,8 +45,7 @@ const RESERVED_BLOCK_FLAG: u8 = 3;
 
 impl<'a> Block<'a> {
     pub fn parse(input: &mut parsing::ForwardByteParser<'a>) -> Result<(Block<'a>, bool)> {
-        // TrustMe™ unwrap is safe, we know the len
-        let header: &[u8; BLOCK_HEADER_LEN] = input.slice(BLOCK_HEADER_LEN)?.try_into().unwrap();
+        let header = input.slice(3)?;
 
         // Parse header with bit-mask and bit-shifts:
         //  last_block is LSB bit0
@@ -233,6 +231,29 @@ mod tests {
             block.decode(&mut ctx).unwrap();
             assert_eq!(196612, ctx.decoded.len());
             assert!(ctx.decoded.into_iter().all(|b| b == 0x42));
+        }
+
+        #[test]
+        fn test_decode_compressed() {
+            let mut ctx = decoders::DecodingContext::new(1000).unwrap();
+            let bitstream = [
+                189, 1, 0, 228, 2, 35, 35, 10, 35, 32, 87, 101, 108, 99, 111, 109, 101, 32, 116,
+                111, 32, 84, 101, 108, 101, 99, 111, 109, 32, 80, 97, 114, 105, 115, 32, 122, 115,
+                116, 100, 32, 101, 120, 97, 109, 112, 108, 101, 32, 35, 10, 35, 2, 0, 12, 202, 162,
+                4, 109, 63, 5, 217, 139,
+            ];
+            let mut parser = parsing::ForwardByteParser::new(&bitstream);
+            let (block, _) = Block::parse(&mut parser).unwrap();
+            block.decode(&mut ctx).unwrap();
+            let decoded = String::from_utf8(ctx.decoded).unwrap();
+
+            let expected = r##"
+#########################################
+# Welcome to Telecom Paris zstd example #
+#########################################
+            "##;
+
+            assert_eq!(expected.trim(), decoded);
         }
     }
 }
