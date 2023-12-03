@@ -12,7 +12,7 @@ impl RLEDecoder {
 
 impl BitDecoder<u16, Error> for RLEDecoder {
     fn initialize(&mut self, _: &mut BackwardBitParser) -> Result<(), Error> {
-        unimplemented!("initialize not supported for RLEDecoder")
+        Ok(())
     }
 
     fn expected_bits(&self) -> usize {
