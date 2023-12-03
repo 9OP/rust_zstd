@@ -6,6 +6,9 @@ pub enum FrameError {
     #[error("Unrecognized magic number: {0}")]
     UnrecognizedMagic(u32),
 
+    #[error("Dictionnary not supported: id {id}")]
+    DictNotSupported { id: usize },
+
     #[error("Frame header reserved bit must be 0")]
     InvalidReservedBit,
 
@@ -145,15 +148,17 @@ impl FrameHeader {
             return Err(Error::Frame(InvalidReservedBit));
         }
 
-        // TODO: fail when dict id is not 0
         // dictionnary is not implemented yet, but we still have to consume its bytes
-        let _dictionary_id = match dictionary_id_flag {
-            0 => input.slice(0)?,
-            1 => input.slice(1)?,
-            2 => input.slice(2)?,
-            3 => input.slice(4)?,
+        let dictionary_id = match dictionary_id_flag {
+            0 => input.le(0)?,
+            1 => input.le(1)?,
+            2 => input.le(2)?,
+            3 => input.le(4)?,
             _ => panic!("unexpected dictionary_id_flag {dictionary_id_flag}"),
         };
+        if dictionary_id != 0 {
+            return Err(Error::Frame(DictNotSupported { id: dictionary_id }));
+        }
 
         let frame_content_size = match frame_content_size_flag {
             0 => input.le(single_segment_flag as usize)?,

@@ -29,92 +29,51 @@ pub struct DecodingContext {
 }
 
 struct RepeatOffset {
-    offset_1: u64,
-    offset_2: u64,
-    offset_3: u64,
+    offset_1: usize,
+    offset_2: usize,
+    offset_3: usize,
 }
 
 impl RepeatOffset {
     /// Decode an offset and properly maintain the three repeat offsets
     fn compute_offset(&mut self, offset: usize, literals_length: usize) -> usize {
-        // from reference
-        let mut result_offset = 0;
-
-        if offset <= 3 {
-            let mut idx = offset - 1;
-
-            if literals_length == 0 {
-                idx += 1;
-            }
-
-            if idx == 0 {
-                result_offset = self.offset_1;
-            } else {
-                result_offset = if idx < 3 {
-                    match idx {
-                        0 => self.offset_1,
-                        1 => self.offset_2,
-                        2 => self.offset_3,
-                        _ => panic!("unexpected"),
-                    }
-                } else {
-                    self.offset_1 - 1
-                };
-
-                if idx > 1 {
-                    self.offset_3 = self.offset_2;
+        match offset {
+            1 => {
+                if literals_length == 0 {
+                    std::mem::swap(&mut self.offset_1, &mut self.offset_2);
                 }
-
-                self.offset_2 = self.offset_1;
-                self.offset_1 = result_offset;
             }
-        } else {
-            result_offset = (offset as u64) - 3;
-            self.offset_3 = self.offset_2;
-            self.offset_2 = self.offset_1;
-            self.offset_1 = result_offset as u64;
+            2 => {
+                if literals_length == 0 {
+                    let offset_1 = self.offset_1;
+                    let offset_2 = self.offset_2;
+                    self.offset_1 = self.offset_3;
+                    self.offset_2 = offset_1;
+                    self.offset_3 = offset_2;
+                } else {
+                    std::mem::swap(&mut self.offset_1, &mut self.offset_2);
+                }
+            }
+            3 => {
+                if literals_length == 0 {
+                    self.offset_3 = self.offset_2;
+                    self.offset_2 = self.offset_1;
+                    self.offset_1 -= 1;
+                } else {
+                    let offset_1 = self.offset_1;
+                    let offset_2 = self.offset_2;
+                    self.offset_1 = self.offset_3;
+                    self.offset_2 = offset_1;
+                    self.offset_3 = offset_2;
+                }
+            }
+            _ => {
+                self.offset_3 = self.offset_2;
+                self.offset_2 = self.offset_1;
+                self.offset_1 = offset - 3;
+            }
         }
-
-        result_offset as usize
-
-        // Old
-        // match offset {
-        //     1 => {
-        //         if literals_length == 0 {
-        //             std::mem::swap(&mut self.offset_1, &mut self.offset_2);
-        //         }
-        //     }
-        //     2 => {
-        //         if literals_length == 0 {
-        //             let offset_1 = self.offset_1;
-        //             let offset_2 = self.offset_2;
-        //             self.offset_1 = self.offset_3;
-        //             self.offset_2 = offset_1;
-        //             self.offset_3 = offset_2;
-        //         } else {
-        //             std::mem::swap(&mut self.offset_1, &mut self.offset_2);
-        //         }
-        //     }
-        //     3 => {
-        //         if literals_length == 0 {
-        //             self.offset_3 = self.offset_2;
-        //             self.offset_2 = self.offset_1;
-        //             self.offset_1 -= 1;
-        //         } else {
-        //             let offset_1 = self.offset_1;
-        //             let offset_2 = self.offset_2;
-        //             self.offset_1 = self.offset_3;
-        //             self.offset_2 = offset_1;
-        //             self.offset_3 = offset_2;
-        //         }
-        //     }
-        //     _ => {
-        //         self.offset_3 = self.offset_2;
-        //         self.offset_2 = self.offset_1;
-        //         self.offset_1 = offset - 3;
-        //     }
-        // }
-        // self.offset_1
+        self.offset_1
     }
 }
 
