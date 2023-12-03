@@ -43,6 +43,8 @@ const RLE_LITERALS_BLOCK: u8 = 1;
 const COMPRESSED_LITERALS_BLOCK: u8 = 2;
 const TREELESS_LITERALS_BLOCK: u8 = 3;
 
+const MAX_LITERALS_SIZE: usize = 1024 * 128; // 128kb
+
 impl<'a> LiteralsSection<'a> {
     /// Decompress the literals section. Update the Huffman decoder in
     /// `context` if appropriate (compressed literals block with a
@@ -149,6 +151,10 @@ impl<'a> LiteralsSection<'a> {
                     _ => panic!("unexpected size_format {size_format}"),
                 };
 
+                if regenerated_size > MAX_LITERALS_SIZE {
+                    return Err(Error::Literals(CorruptedDataError));
+                }
+
                 match block_type {
                     RAW_LITERALS_BLOCK => Ok(LiteralsSection::Raw(RawLiteralsBlock(
                         input.slice(regenerated_size)?,
@@ -205,6 +211,10 @@ impl<'a> LiteralsSection<'a> {
                     }
                     _ => panic!("unexpected size_format {size_format}"),
                 };
+
+                if regenerated_size > MAX_LITERALS_SIZE {
+                    return Err(Error::Literals(CorruptedDataError));
+                }
 
                 let mut huffman = None;
                 let mut huffman_description_size = 0;

@@ -7,6 +7,7 @@ mod rle;
 mod sequence;
 
 pub use crate::parsing::ParsingError;
+pub use crate::sequences::SequenceCommand;
 pub use alternating::*;
 pub use bit_decoder::*;
 pub use decoding_context::*;

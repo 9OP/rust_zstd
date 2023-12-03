@@ -28,6 +28,12 @@ pub struct Sequences<'a> {
     bitstream: &'a [u8],
 }
 
+pub struct SequenceCommand {
+    pub literal_length: usize,
+    pub match_length: usize,
+    pub offset: usize,
+}
+
 #[derive(Debug)]
 enum SymbolCompressionMode {
     Predefined,
@@ -243,8 +249,8 @@ impl<'a> Sequences<'a> {
 
     /// Return vector of (literals length, offset value, match length) and update the
     /// decoding context with the tables if appropriate.
-    pub fn decode(self, context: &mut DecodingContext) -> Result<Vec<(usize, usize, usize)>> {
-        let mut decoded_sequences = Vec::<(usize, usize, usize)>::new();
+    pub fn decode(self, context: &mut DecodingContext) -> Result<Vec<SequenceCommand>> {
+        let mut decoded_sequences = Vec::<SequenceCommand>::new();
         let mut parser = BackwardBitParser::new(self.bitstream)?;
 
         let mut sequence_decoder = self.get_sequence_decoder(&mut parser, context)?;
@@ -264,6 +270,9 @@ impl<'a> Sequences<'a> {
             //     parser.available_bits()
             // );
             // TODO: complete with zeroes
+            if offset_symbol as usize > parser.available_bits() {
+                return Ok(decoded_sequences);
+            }
             let offset_code = (1_u64 << offset_symbol) + parser.take(offset_symbol.into())?;
             // println!("end offset");
             // let offset_code = offset_code_lookup(offset_symbol, &mut parser);
@@ -276,7 +285,11 @@ impl<'a> Sequences<'a> {
             let (value, num_bits) = literals_lengths_code_lookup(literals_symbol)?;
             let literals_code = value + parser.take(num_bits)? as usize;
 
-            decoded_sequences.push((literals_code, offset_code as usize, match_code));
+            decoded_sequences.push(SequenceCommand {
+                literal_length: literals_code,
+                match_length: match_code,
+                offset: offset_code as usize,
+            });
 
             // update bits if it is not the last sequence
             if i != self.number_of_sequences - 1 {

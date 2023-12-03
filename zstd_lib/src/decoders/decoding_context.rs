@@ -1,4 +1,4 @@
-use super::{Error, HuffmanDecoder, Result, SymbolDecoder};
+use super::{Error, HuffmanDecoder, Result, SequenceCommand, SymbolDecoder};
 
 #[derive(Debug, thiserror::Error)]
 pub enum ContextError {
@@ -14,13 +14,18 @@ pub enum ContextError {
 use ContextError::*;
 
 pub struct DecodingContext {
+    // Entropy tables
+    pub huffman: Option<HuffmanDecoder>,
+    pub literals_lengths_decoder: Option<Box<SymbolDecoder>>,
+    pub match_lengths_decoder: Option<Box<SymbolDecoder>>,
+    pub offsets_decoder: Option<Box<SymbolDecoder>>,
+
+    // Raw content for back references
     pub decoded: Vec<u8>,
     window_size: usize,
-    pub huffman: Option<HuffmanDecoder>,
+
+    // Offset history
     repeat_offsets: RepeatOffset,
-    pub literals_lengths_decoder: Option<Box<SymbolDecoder>>,
-    pub offsets_decoder: Option<Box<SymbolDecoder>>,
-    pub match_lengths_decoder: Option<Box<SymbolDecoder>>,
 }
 
 struct RepeatOffset {
@@ -101,11 +106,11 @@ impl DecodingContext {
         let offset = self.repeat_offsets.decode_offset(offset, literals_length);
 
         if offset > self.window_size || offset > self.decoded.len() {
-            // println!(
-            //     "offset: {offset} {} {}",
-            //     self.window_size,
-            //     self.decoded.len()
-            // );
+            println!(
+                "offset: {offset} {} {}",
+                self.window_size,
+                self.decoded.len()
+            );
             return Err(Error::Context(OffsetError));
         }
 
@@ -115,19 +120,19 @@ impl DecodingContext {
     /// Execute the sequences while updating the offsets
     pub fn execute_sequences(
         &mut self,
-        sequences: Vec<(usize, usize, usize)>,
+        sequences: Vec<SequenceCommand>,
         literals: &[u8],
     ) -> Result<()> {
         let mut copy_index = 0;
 
-        for (literals_length, offset_value, match_value) in sequences {
+        for seq in sequences {
             let start = copy_index;
-            let end = copy_index + literals_length;
+            let end = copy_index + seq.literal_length;
             copy_index = end;
 
             if end > literals.len() {
                 return Err(Error::Context(NotEnoughBytes {
-                    requested: literals_length,
+                    requested: seq.literal_length,
                     available: literals.len(),
                 }));
             }
@@ -136,10 +141,10 @@ impl DecodingContext {
             self.decoded.extend_from_slice(&literals[start..end]);
 
             // Offset + match copy
-            let offset = self.decode_offset(offset_value, literals_length)?;
+            let offset = self.decode_offset(seq.offset, seq.literal_length)?;
             let mut index = self.decoded.len() - offset;
 
-            for _ in 0..match_value {
+            for _ in 0..seq.match_length {
                 let byte = self
                     .decoded
                     .get(index)

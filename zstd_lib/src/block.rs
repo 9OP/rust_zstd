@@ -25,7 +25,7 @@ const RLE_BLOCK_FLAG: u8 = 1;
 const COMPRESSED_BLOCK_FLAG: u8 = 2;
 const RESERVED_BLOCK_FLAG: u8 = 3;
 
-const KB_128: usize = 1024 * 128;
+const BLOCK_SIZE_MAX: usize = 1024 * 128; // 128kb
 
 impl<'a> Block<'a> {
     pub fn parse(
@@ -62,7 +62,7 @@ impl<'a> Block<'a> {
             COMPRESSED_BLOCK_FLAG => {
                 // The size of Block_Content is limited by the smallest of:
                 // window_size or 128 KB
-                let max_block_size = std::cmp::min(KB_128, window_size);
+                let max_block_size = std::cmp::min(BLOCK_SIZE_MAX, window_size);
                 let block_size = std::cmp::min(block_size, max_block_size);
 
                 let compressed_data = input.slice(block_size)?;
