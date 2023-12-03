@@ -260,45 +260,54 @@ impl<'a> Sequences<'a> {
         ))
     }
 
+    fn decode_sequence(
+        decoder: &mut SequenceDecoder,
+        input: &mut BackwardBitParser,
+        is_last: bool,
+    ) -> Result<SequenceCommand> {
+        // decode order: offset > match > literals
+        let (literals_symbol, offset_symbol, match_symbol) = decoder.symbol();
+
+        if offset_symbol > 31 {
+            // >31: from reference implementation
+            return Err(Error::Sequences(SymbolCodeUnknown));
+        }
+
+        // offset
+        let offset_code = (1_u64 << offset_symbol) + input.take(offset_symbol.into())?;
+
+        // match
+        let (value, num_bits) = match_lengths_code_lookup(match_symbol)?;
+        let match_code = value + input.take(num_bits)? as usize;
+
+        // literals
+        let (value, num_bits) = literals_lengths_code_lookup(literals_symbol)?;
+        let literals_code = value + input.take(num_bits)? as usize;
+
+        // update bits if it is not the last sequence
+        if !is_last {
+            decoder.update_bits(input)?;
+        }
+
+        Ok(SequenceCommand {
+            literal_length: literals_code,
+            match_length: match_code,
+            offset: offset_code as usize,
+        })
+        // sequence_decoder.update_bits(&mut parser)?;
+    }
+
     /// Return vector of (literals length, offset value, match length) and update the
     /// decoding context with the tables if appropriate.
     pub fn decode(self, context: &mut DecodingContext) -> Result<Vec<SequenceCommand>> {
         let mut decoded_sequences = Vec::<SequenceCommand>::new();
         let mut parser = BackwardBitParser::new(self.bitstream)?;
-
         let mut sequence_decoder = self.parse_sequence_decoder(&mut parser, context)?;
 
         for i in 0..self.number_of_sequences {
-            // decode order: offset > match > literals
-            let (literals_symbol, offset_symbol, match_symbol) = sequence_decoder.symbol();
-
-            if offset_symbol > 31 {
-                // >31: from reference implementation
-                return Err(Error::Sequences(SymbolCodeUnknown));
-            }
-
-            // offset
-            let offset_code = (1_u64 << offset_symbol) + parser.take(offset_symbol.into())?;
-
-            // match
-            let (value, num_bits) = match_lengths_code_lookup(match_symbol)?;
-            let match_code = value + parser.take(num_bits)? as usize;
-
-            // literals
-            let (value, num_bits) = literals_lengths_code_lookup(literals_symbol)?;
-            let literals_code = value + parser.take(num_bits)? as usize;
-
-            decoded_sequences.push(SequenceCommand {
-                literal_length: literals_code,
-                match_length: match_code,
-                offset: offset_code as usize,
-            });
-
-            // update bits if it is not the last sequence
-            if i != self.number_of_sequences - 1 {
-                sequence_decoder.update_bits(&mut parser)?;
-            }
-            // sequence_decoder.update_bits(&mut parser)?;
+            let is_last = i == self.number_of_sequences - 1;
+            let command = Self::decode_sequence(&mut sequence_decoder, &mut parser, is_last)?;
+            decoded_sequences.push(command);
         }
 
         Ok(decoded_sequences)
