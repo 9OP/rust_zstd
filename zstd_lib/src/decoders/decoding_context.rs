@@ -147,38 +147,7 @@ impl DecodingContext {
         let offset = self.repeat_offsets.compute_offset(offset, literals_length);
         let total_output = self.decoded.len();
 
-        // if offset > self.window_size || offset > self.decoded.len() {
-        // println!("decoded: {:?}", String::from_utf8(self.decoded.clone()));
-        // println!(
-        // "offset: {offset} {} {}",
-        // self.window_size,
-        // self.decoded.len()
-        // );
-        // return Err(Error::Context(OffsetError));
-        // }
-
-        // println!(
-        //     "{offset} {total_output} {} {} {} {}",
-        //     self.window_size,
-        //     self.repeat_offsets.offset_1,
-        //     self.repeat_offsets.offset_2,
-        //     self.repeat_offsets.offset_3
-        // );
-
-        if total_output < self.window_size {
-            // panic!("stop here");
-            // if offset > total_output + dict_content_len {
-            // panic!("offset goes beyound dict");
-            // }
-
-            // if offset > total_output {
-            //     let dict_copy = std::cmp::min(offset - total_output, match_length);
-            //     // let dict_offset = dict_content - (offset - total_output);
-            //     //         memcpy(write_ptr, ctx->dict_content + dict_offset, dict_copy);
-            //     //         write_ptr += dict_copy;
-            //     //         match_length -= dict_copy;
-            // }
-        } else if offset > self.window_size {
+        if offset > self.window_size || offset > total_output {
             return Err(Error::Context(OffsetError));
         }
 

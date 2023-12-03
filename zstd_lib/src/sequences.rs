@@ -112,8 +112,6 @@ impl SymbolCompressionMode {
         symbol_type: SymbolType,
         parser: &mut BackwardBitParser,
     ) -> Result<Option<Box<SymbolDecoder>>> {
-        println!("compression mode {:#?} - {:?}", symbol_type, self);
-
         let decoder = match &self {
             SymbolCompressionMode::Predefined => {
                 let def = match symbol_type {
@@ -256,7 +254,6 @@ impl<'a> Sequences<'a> {
         for i in 0..self.number_of_sequences {
             // decode order: offset > match > literals
             let (literals_symbol, offset_symbol, match_symbol) = sequence_decoder.symbol();
-            println!("{literals_symbol} {offset_symbol} {match_symbol} {i}");
 
             if offset_symbol > 31 {
                 // >31: from reference implementation
@@ -264,9 +261,7 @@ impl<'a> Sequences<'a> {
             }
 
             // offset
-            // let offset_code = offset_code_lookup(offset_symbol, &mut parser);
             let offset_code = (1_u64 << offset_symbol) + parser.take(offset_symbol.into())?;
-            // println!("{offset_code} {offset_symbol}");
 
             // match
             let (value, num_bits) = match_lengths_code_lookup(match_symbol)?;
@@ -291,17 +286,6 @@ impl<'a> Sequences<'a> {
 
         Ok(decoded_sequences)
     }
-}
-
-fn offset_code_lookup(symbol: u16, parser: &mut BackwardBitParser) -> usize {
-    let code = if parser.available_bits() < symbol as usize {
-        let diff = symbol as usize - parser.available_bits();
-        (1_u64 << symbol) + parser.take(parser.available_bits()).unwrap() << diff
-    } else {
-        (1_u64 << symbol) + parser.take(symbol.into()).unwrap()
-    };
-
-    code as usize
 }
 
 fn literals_lengths_code_lookup(symbol: u16) -> Result<(usize, usize)> {

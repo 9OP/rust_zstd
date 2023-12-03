@@ -145,6 +145,7 @@ impl FrameHeader {
             return Err(Error::Frame(InvalidReservedBit));
         }
 
+        // TODO: fail when dict id is not 0
         // dictionnary is not implemented yet, but we still have to consume its bytes
         let _dictionary_id = match dictionary_id_flag {
             0 => input.slice(0)?,

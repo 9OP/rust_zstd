@@ -55,11 +55,9 @@ impl FseTable {
         let table_length = 1 << accuracy_log;
         let mut states = vec![FseState::default(); table_length];
 
-        // Filter out symbols with 0 probability
         let distribution: Vec<(Symbol, Probability)> = distribution
             .iter()
             .enumerate()
-            .filter(|(_, &probability)| probability != 0)
             .map(|(symbol, &probability)| (symbol as Symbol, probability))
             .collect();
 
@@ -73,10 +71,12 @@ impl FseTable {
         // sort symbols based on lowest value first
         less_than_one.sort();
         for (i, symbol) in less_than_one.iter().enumerate() {
-            let state = &mut states[table_length - 1 - i];
-            state.base_line = 0;
-            state.num_bits = accuracy_log as usize;
-            state.symbol = *symbol;
+            let state = FseState {
+                symbol: *symbol,
+                base_line: 0,
+                num_bits: accuracy_log as usize,
+            };
+            states[table_length - 1 - i] = state;
         }
 
         // closure iterator that generates next state index
@@ -87,7 +87,7 @@ impl FseTable {
             }
             Some(new_state)
         })
-        .filter(|&index| states[index].symbol == 0);
+        .filter(|&index| index < table_length - less_than_one.len());
 
         // Symbols with positive probabilities
         let positives: Result<Vec<(Symbol, Probability, Vec<usize>)>> = distribution
