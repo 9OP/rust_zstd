@@ -17,7 +17,7 @@ Decompress a file:
 - `cargo run tests/fixtures/txt/mobydick.zst `
 
 Fuzzing:
-- `cargo fuzz run fuzz_decode`
+- `cargo fuzz run fuzz_decode -- -timeout=10`
 
 ToDo:
 - add code coverage check

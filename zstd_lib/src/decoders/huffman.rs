@@ -21,6 +21,9 @@ pub enum HuffmanError {
 
     #[error("Too many Huffman weights")]
     TooManyWeights,
+
+    #[error("Huffman fse compressed AL is too large")]
+    FseALTooLarge,
 }
 use HuffmanError::*;
 
@@ -32,6 +35,7 @@ pub enum HuffmanDecoder {
 }
 
 const MAX_NUM_BITS: u32 = 11;
+const MAX_FSE_AL: u32 = 6;
 
 impl<'a> HuffmanDecoder {
     fn from_number_of_bits(widths: Vec<u8>) -> Self {
@@ -229,10 +233,16 @@ impl<'a> HuffmanDecoder {
         let bitstream = input.slice(compressed_size as usize)?;
         let mut forward_bit_parser = ForwardBitParser::new(bitstream);
         let fse_table = FseTable::parse(&mut forward_bit_parser)?;
+
+        // `The maximum possible decompressed size is 255, since literal values span from 0 to 255,
+        // and last symbol's Weight is not represented.`
+        // `For a list of Huffman weights, the maximum accuracy log is 6 bits.`
+        if fse_table.accuracy_log() > MAX_FSE_AL {
+            return Err(Error::Huffman(FseALTooLarge));
+        }
+
         let mut decoder = AlternatingDecoder::new(&fse_table);
-
         let mut backward_bit_parser = BackwardBitParser::try_from(forward_bit_parser)?;
-
         decoder.initialize(&mut backward_bit_parser)?;
 
         loop {

@@ -40,3 +40,16 @@ fn test_fuzz_3() {
     ];
     let _ = zstd_lib::decode(input.to_vec(), false);
 }
+
+#[test]
+fn test_fuzz_4() {
+    // git log: 4da237f49c9cd31b857fe4eacdf3ee5f09b2cf68
+    // panicked at zstd_lib/src/decoders/huffman.rs:239:54: called `Result::unwrap()` on an `Err` value: TryFromIntError(())
+    let input = [
+        40, 181, 47, 253, 32, 59, 253, 4, 173, 74, 36, 0, 75, 40, 162, 162, 162, 162, 162, 162,
+        202, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
+        255, 255, 255, 255, 255, 255, 255, 255, 255, 0, 0, 0, 175, 255, 255, 255, 255, 255, 255,
+        255, 255, 0, 0, 0, 0, 0, 51, 51, 191, 176, 0,
+    ];
+    let _ = zstd_lib::decode(input.to_vec(), false);
+}
