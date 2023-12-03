@@ -75,6 +75,7 @@ impl<'a> Block<'a> {
                     literals,
                     sequences,
                 };
+
                 Ok((block, last_block))
             }
 
@@ -100,6 +101,7 @@ impl<'a> Block<'a> {
             } => {
                 let literals = literals.decode(context)?;
                 let sequences = sequences.decode(context)?;
+
                 context.execute_sequences(sequences, literals.as_slice())?;
             }
         };

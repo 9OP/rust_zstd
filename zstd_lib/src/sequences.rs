@@ -189,6 +189,16 @@ impl<'a> Sequences<'a> {
     /// Parse the sequences data from the stream
     pub fn parse(input: &mut ForwardByteParser<'a>) -> Result<Self> {
         let number_of_sequences = Self::parse_number_of_sequences(input)?;
+        if number_of_sequences == 0 {
+            return Ok(Sequences {
+                number_of_sequences: 0,
+                literal_lengths_mode: SymbolCompressionMode::Predefined,
+                offsets_mode: SymbolCompressionMode::Predefined,
+                match_lengths_mode: SymbolCompressionMode::Predefined,
+                bitstream: &[],
+            });
+        }
+
         let (ll, of, ml) = Self::parse_compression_modes(input)?;
 
         let bitstream = <&[u8]>::from(*input);
@@ -272,6 +282,10 @@ impl<'a> Sequences<'a> {
     /// Return vector of (literals length, offset value, match length) and update the
     /// decoding context with the tables if appropriate.
     pub fn decode(self, context: &mut DecodingContext) -> Result<Vec<SequenceCommand>> {
+        if self.number_of_sequences == 0 {
+            return Ok(vec![]);
+        }
+
         let mut decoded_sequences = Vec::<SequenceCommand>::new();
         let mut parser = BackwardBitParser::new(self.bitstream)?;
         let mut sequence_decoder = self.parse_sequence_decoder(&mut parser, context)?;

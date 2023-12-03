@@ -2,7 +2,8 @@ use zstd_lib;
 
 /*
     Replay the pathological inputs that did broke the implementation once.
-
+    Run fuzzing:
+        cargo fuzz run fuzz_decode -- -timeout=10
 
     Please provide:
         - The git log to replicate the bug

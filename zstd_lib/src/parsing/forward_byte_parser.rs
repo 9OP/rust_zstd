@@ -1,6 +1,6 @@
 use super::{Error, ForwardBitParser, Result};
 
-#[derive(Clone, Copy)]
+#[derive(Debug, Clone, Copy)]
 pub struct ForwardByteParser<'a>(&'a [u8]);
 
 impl<'a> ForwardByteParser<'a> {
