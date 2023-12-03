@@ -67,12 +67,25 @@ fn test_fuzz_5() {
 }
 
 #[test]
-fn test_fuzz6() {
+fn test_fuzz_6() {
     // git log: 2991a6bf1957fe67fec857386639c4f01119af95
     // panicked at zstd_lib/src/decoders/rle.rs:15:9: not implemented: initialize not supported for RLEDecoder
     let input = [
         40, 181, 47, 253, 32, 12, 36, 39, 46, 181, 0, 0, 0, 64, 32, 40, 0, 0, 0, 0, 27, 237, 115,
         115, 0, 196, 196, 196, 40, 181, 47, 253, 32, 196, 0, 196, 196,
+    ];
+    let _ = zstd_lib::decode(input.to_vec(), false);
+}
+
+#[test]
+fn test_fuzz_7() {
+    // git log: 2766db59b4bdf1a64a351a62e7af2ec58fd44616
+    // panicked at zstd_lib/src/decoders/huffman.rs:42:9: unexpected number of symbols
+    let input = [
+        40, 181, 47, 253, 32, 59, 253, 4, 173, 74, 36, 0, 75, 40, 0, 235, 235, 235, 235, 24, 20,
+        20, 20, 235, 64, 203, 235, 119, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0,
+        0, 0, 235, 235, 235, 235, 235, 235, 235, 235, 235, 255, 255, 255, 255, 255, 255, 255, 255,
+        255, 0,
     ];
     let _ = zstd_lib::decode(input.to_vec(), false);
 }

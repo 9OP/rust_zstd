@@ -39,8 +39,6 @@ const MAX_FSE_AL: u32 = 6;
 
 impl<'a> HuffmanDecoder {
     fn from_number_of_bits(widths: Vec<u8>) -> Self {
-        assert!(widths.len() <= 255, "unexpected number of symbols");
-
         // Build a list of symbols and their widths
         let mut symbols: Vec<(u8, u8)> = widths
             .iter()
