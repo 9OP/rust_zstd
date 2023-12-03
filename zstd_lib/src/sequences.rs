@@ -109,7 +109,7 @@ impl SymbolCompressionMode {
     }
 
     /// Parse the compression mode respective decoder
-    fn parse_symbol_decoder(
+    fn parse_decoder(
         &self,
         symbol_type: SymbolType,
         parser: &mut BackwardBitParser,
@@ -202,6 +202,19 @@ impl<'a> Sequences<'a> {
         })
     }
 
+    #[rustfmt::skip]
+    fn parse_symbol_decoder(
+        &self,
+        parser: &mut BackwardBitParser,
+        symbol_type: SymbolType,
+    ) -> Result<Option<Box<SymbolDecoder>>> {
+        match symbol_type {
+            SymbolType::LiteralsLengths => self.literal_lengths_mode.parse_decoder(symbol_type, parser),
+            SymbolType::Offset => self.offsets_mode.parse_decoder(symbol_type, parser),
+            SymbolType::MatchLength => self.match_lengths_mode.parse_decoder(symbol_type, parser),
+        }
+    }
+
     /// Parse the symbol decoders and update the context
     fn parse_sequence_decoder(
         &'a self,
@@ -209,55 +222,14 @@ impl<'a> Sequences<'a> {
         context: &'a mut DecodingContext,
     ) -> Result<SequenceDecoder<'_>> {
         // initialize order: literals > offsets > match
-        let ll_decoder = self
-            .literal_lengths_mode
-            .parse_symbol_decoder(SymbolType::LiteralsLengths, parser)?;
+        let ll_decoder = self.parse_symbol_decoder(parser, SymbolType::LiteralsLengths)?;
+        let of_decoder = self.parse_symbol_decoder(parser, SymbolType::Offset)?;
+        let ml_decoder: Option<Box<dyn BitDecoder<u16, crate::decoders::DecoderError>>> =
+            self.parse_symbol_decoder(parser, SymbolType::MatchLength)?;
 
-        let of_decoder = self
-            .offsets_mode
-            .parse_symbol_decoder(SymbolType::Offset, parser)?;
+        context.update_decoders(ll_decoder, of_decoder, ml_decoder)?;
 
-        let ml_decoder = self
-            .match_lengths_mode
-            .parse_symbol_decoder(SymbolType::MatchLength, parser)?;
-
-        // TODO: move the code below in a function in decoding_context
-        // Update the context decoders or reset them
-        if ll_decoder.is_some() {
-            context.literals_lengths_decoder = ll_decoder;
-        } else {
-            context
-                .literals_lengths_decoder
-                .as_mut()
-                .ok_or(MissingSequenceDecoder)?
-                .reset();
-        }
-
-        if of_decoder.is_some() {
-            context.offsets_decoder = of_decoder;
-        } else {
-            context
-                .offsets_decoder
-                .as_mut()
-                .ok_or(MissingSequenceDecoder)?
-                .reset();
-        }
-
-        if ml_decoder.is_some() {
-            context.match_lengths_decoder = ml_decoder;
-        } else {
-            context
-                .match_lengths_decoder
-                .as_mut()
-                .ok_or(MissingSequenceDecoder)?
-                .reset();
-        }
-
-        Ok(SequenceDecoder::new(
-            context.literals_lengths_decoder.as_mut().unwrap(),
-            context.offsets_decoder.as_mut().unwrap(),
-            context.match_lengths_decoder.as_mut().unwrap(),
-        ))
+        Ok(context.get_sequence_decoder()?)
     }
 
     fn decode_sequence(

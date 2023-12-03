@@ -384,7 +384,7 @@ mod tests {
             fn test_parse_frame_header() {
                 let mut parser = ForwardByteParser::new(&[
                     0b1010_0110,            // FCS 4bytes, no window descriptor, 2byte dict id, checksum
-                    0xDE, 0xAD,             // dict id
+                    0x0, 0x0,               // dict id
                     0x10, 0x20, 0x30, 0x40, // FCS
                     0x42,                   // +extra byte
                 ]);

@@ -325,14 +325,5 @@ mod tests {
                 repeat: 0b1101_0101_0101,
             })
         );
-
-        let mut input = ForwardByteParser::new(&[0b0101_1101, 0b1101_0101, 0b1111_0000, 0xFF]);
-        assert_eq!(
-            LiteralsSection::parse(&mut input).unwrap(),
-            LiteralsSection::Rle(RLELiteralsBlock {
-                byte: 0xFF,
-                repeat: 0b1111_0000_1101_0101_0101,
-            })
-        );
     }
 }

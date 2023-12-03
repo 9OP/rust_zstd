@@ -1,4 +1,4 @@
-use super::{Error, HuffmanDecoder, Result, SequenceCommand, SymbolDecoder};
+use super::{Error, HuffmanDecoder, Result, SequenceCommand, SequenceDecoder, SymbolDecoder};
 
 #[derive(Debug, thiserror::Error)]
 pub enum ContextError {
@@ -8,8 +8,14 @@ pub enum ContextError {
     #[error("Offset size error")]
     OffsetError,
 
+    #[error("Missing symbol decoder")]
+    MissingSymbolDecoder,
+
     #[error("Not enough bytes: {requested} requested out of {available} available")]
     NotEnoughBytes { requested: usize, available: usize },
+
+    #[error("Copy match error")]
+    CopyMatchError,
 }
 use ContextError::*;
 
@@ -113,20 +119,69 @@ impl DecodingContext {
         Ok(offset)
     }
 
+    pub fn update_decoders(
+        &mut self,
+        ll: Option<Box<SymbolDecoder>>,
+        of: Option<Box<SymbolDecoder>>,
+        ml: Option<Box<SymbolDecoder>>,
+    ) -> Result<()> {
+        if ll.is_some() {
+            self.literals_lengths_decoder = ll;
+        } else {
+            self.literals_lengths_decoder
+                .as_mut()
+                .ok_or(Error::Context(MissingSymbolDecoder))?
+                .reset();
+        }
+
+        if of.is_some() {
+            self.offsets_decoder = of;
+        } else {
+            self.offsets_decoder
+                .as_mut()
+                .ok_or(Error::Context(MissingSymbolDecoder))?
+                .reset();
+        }
+
+        if ml.is_some() {
+            self.match_lengths_decoder = ml;
+        } else {
+            self.match_lengths_decoder
+                .as_mut()
+                .ok_or(Error::Context(MissingSymbolDecoder))?
+                .reset();
+        }
+
+        Ok(())
+    }
+
+    pub fn get_sequence_decoder(&mut self) -> Result<SequenceDecoder<'_>> {
+        Ok(SequenceDecoder::new(
+            self.literals_lengths_decoder
+                .as_mut()
+                .ok_or(Error::Context(MissingSymbolDecoder))?,
+            self.offsets_decoder
+                .as_mut()
+                .ok_or(Error::Context(MissingSymbolDecoder))?,
+            self.match_lengths_decoder
+                .as_mut()
+                .ok_or(Error::Context(MissingSymbolDecoder))?,
+        ))
+    }
+
     /// Execute the sequences while updating the offsets
     pub fn execute_sequences(
         &mut self,
         sequences: Vec<SequenceCommand>,
         literals: &[u8],
     ) -> Result<()> {
-        let mut copy_index = 0;
+        let mut position = 0;
 
         for seq in sequences {
-            let start = copy_index;
-            let end = copy_index + seq.literal_length;
-            copy_index = end;
+            let start = position;
+            position += seq.literal_length;
 
-            if end > literals.len() {
+            if position > literals.len() {
                 return Err(Error::Context(NotEnoughBytes {
                     requested: seq.literal_length,
                     available: literals.len(),
@@ -134,24 +189,23 @@ impl DecodingContext {
             }
 
             // Copy from literals
-            self.decoded.extend_from_slice(&literals[start..end]);
+            self.decoded.extend_from_slice(&literals[start..position]);
 
             // Offset + match copy
-            let offset = self.compute_offset(seq.offset, seq.literal_length)?;
-            let mut index = self.decoded.len() - offset;
+            let mut index =
+                self.decoded.len() - self.compute_offset(seq.offset, seq.literal_length)?;
 
             for _ in 0..seq.match_length {
                 let byte = self
                     .decoded
                     .get(index)
-                    .unwrap_or_else(|| panic!("unexpected sequence index: {index}"));
+                    .ok_or(Error::Context(CopyMatchError))?;
                 self.decoded.push(*byte);
                 index += 1;
             }
         }
 
-        let (_, rest) = literals.split_at(copy_index);
-        self.decoded.extend_from_slice(rest);
+        self.decoded.extend_from_slice(&literals[position..]);
 
         Ok(())
     }
