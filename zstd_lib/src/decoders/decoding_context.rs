@@ -101,6 +101,11 @@ impl DecodingContext {
         let offset = self.repeat_offsets.decode_offset(offset, literals_length);
 
         if offset > self.window_size || offset > self.decoded.len() {
+            // println!(
+            //     "offset: {offset} {} {}",
+            //     self.window_size,
+            //     self.decoded.len()
+            // );
             return Err(Error::Context(OffsetError));
         }
 

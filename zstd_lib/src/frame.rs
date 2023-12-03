@@ -92,10 +92,11 @@ impl<'a> Frame<'a> {
 impl<'a> ZstandardFrame<'a> {
     pub fn parse(input: &mut ForwardByteParser<'a>) -> Result<Self> {
         let frame_header = FrameHeader::parse(input)?;
+        let window_size = frame_header.window_size();
         let mut blocks: Vec<Block> = Vec::new();
 
         loop {
-            let (block, is_last) = Block::parse(input)?;
+            let (block, is_last) = Block::parse(input, window_size)?;
             blocks.push(block);
             if is_last {
                 break;

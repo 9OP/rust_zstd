@@ -13,6 +13,9 @@ pub enum SequencesError {
 
     #[error("Symbol code unknown")]
     SymbolCodeUnknown,
+
+    #[error("FSE AL is too large")]
+    ALTooLarge,
 }
 use SequencesError::*;
 
@@ -67,13 +70,21 @@ const OFFSET_CODE_DEFAULT_DISTRIBUTION: DefaultDistribution<'_> = DefaultDistrib
 
 impl SymbolCompressionMode {
     /// Parse the compression mode
-    fn parse(mode: u8, input: &mut ForwardByteParser) -> Result<Self> {
+    fn parse(mode: u8, input: &mut ForwardByteParser, symbol_type: SymbolType) -> Result<Self> {
         match mode {
             0 => Ok(Self::Predefined),
             1 => Ok(Self::Rle(input.u8()?)),
             2 => {
                 let mut parser = ForwardBitParser::from(*input);
                 let fse_table = FseTable::parse(&mut parser)?;
+
+                let max_al = match symbol_type {
+                    SymbolType::MatchLength | SymbolType::LiteralsLengths => 9,
+                    SymbolType::Offset => 8,
+                };
+                if fse_table.accuracy_log() > max_al {
+                    return Err(Error::Sequences(ALTooLarge));
+                }
 
                 // not sure, see: https://www.rfc-editor.org/rfc/rfc8878#name-sequences_section_header
                 if fse_table.accuracy_log() == 0 {
@@ -138,9 +149,18 @@ impl<'a> Sequences<'a> {
         let modes = input.u8()?;
 
         // Parse order: [literal][offset][match]
-        let literal_lengths_mode = SymbolCompressionMode::parse((modes & 0b1100_0000) >> 6, input)?;
-        let offsets_mode = SymbolCompressionMode::parse((modes & 0b0011_0000) >> 4, input)?;
-        let match_lengths_mode = SymbolCompressionMode::parse((modes & 0b0000_1100) >> 2, input)?;
+        let literal_lengths_mode = SymbolCompressionMode::parse(
+            (modes & 0b1100_0000) >> 6,
+            input,
+            SymbolType::LiteralsLengths,
+        )?;
+        let offsets_mode =
+            SymbolCompressionMode::parse((modes & 0b0011_0000) >> 4, input, SymbolType::Offset)?;
+        let match_lengths_mode = SymbolCompressionMode::parse(
+            (modes & 0b0000_1100) >> 2,
+            input,
+            SymbolType::MatchLength,
+        )?;
 
         let reserved = modes & 0b11;
         if reserved != 0 {
@@ -239,7 +259,14 @@ impl<'a> Sequences<'a> {
             }
 
             // offset
+            // println!(
+            //     "start offset {offset_symbol} {} {literals_symbol} {match_symbol}",
+            //     parser.available_bits()
+            // );
+            // TODO: complete with zeroes
             let offset_code = (1_u64 << offset_symbol) + parser.take(offset_symbol.into())?;
+            // println!("end offset");
+            // let offset_code = offset_code_lookup(offset_symbol, &mut parser);
 
             // match
             let (value, num_bits) = match_lengths_code_lookup(match_symbol)?;
@@ -255,10 +282,23 @@ impl<'a> Sequences<'a> {
             if i != self.number_of_sequences - 1 {
                 sequence_decoder.update_bits(&mut parser)?;
             }
+            // sequence_decoder.update_bits(&mut parser)?;
         }
 
         Ok(decoded_sequences)
     }
+}
+
+fn offset_code_lookup(symbol: u16, parser: &mut BackwardBitParser) -> usize {
+    //
+    let code = if parser.available_bits() < symbol as usize {
+        let diff = symbol as usize - parser.available_bits();
+        (1_u64 << symbol) + parser.take(parser.available_bits()).unwrap()
+    } else {
+        (1_u64 << symbol) + parser.take(symbol.into()).unwrap()
+    };
+
+    code as usize
 }
 
 fn literals_lengths_code_lookup(symbol: u16) -> Result<(usize, usize)> {

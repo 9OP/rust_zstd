@@ -1,3 +1,849 @@
+﻿The Project Gutenberg eBook of Moby-Dick; or The Whale, by Herman Melville
+
+This eBook is for the use of anyone anywhere in the United States and
+most other parts of the world at no cost and with almost no restrictions
+whatsoever. You may copy it, give it away or re-use it under the terms
+of the Project Gutenberg License included with this eBook or online at
+www.gutenberg.org. If you are not located in the United States, you
+will have to check the laws of the country where you are located before
+using this eBook.
+
+Title: Moby-Dick; or The Whale
+
+Author: Herman Melville
+
+Release Date: June, 2001 [eBook #2701]
+[Most recently updated: August 18, 2021]
+
+Language: English
+
+Character set encoding: UTF-8
+
+Produced by: Daniel Lazarus, Jonesey, and David Widger
+
+*** START OF THE PROJECT GUTENBERG EBOOK MOBY-DICK; OR THE WHALE ***
+
+
+
+
+MOBY-DICK;
+
+or, THE WHALE.
+
+By Herman Melville
+
+
+
+CONTENTS
+
+ETYMOLOGY.
+
+EXTRACTS (Supplied by a Sub-Sub-Librarian).
+
+CHAPTER 1. Loomings.
+
+CHAPTER 2. The Carpet-Bag.
+
+CHAPTER 3. The Spouter-Inn.
+
+CHAPTER 4. The Counterpane.
+
+CHAPTER 5. Breakfast.
+
+CHAPTER 6. The Street.
+
+CHAPTER 7. The Chapel.
+
+CHAPTER 8. The Pulpit.
+
+CHAPTER 9. The Sermon.
+
+CHAPTER 10. A Bosom Friend.
+
+CHAPTER 11. Nightgown.
+
+CHAPTER 12. Biographical.
+
+CHAPTER 13. Wheelbarrow.
+
+CHAPTER 14. Nantucket.
+
+CHAPTER 15. Chowder.
+
+CHAPTER 16. The Ship.
+
+CHAPTER 17. The Ramadan.
+
+CHAPTER 18. His Mark.
+
+CHAPTER 19. The Prophet.
+
+CHAPTER 20. All Astir.
+
+CHAPTER 21. Going Aboard.
+
+CHAPTER 22. Merry Christmas.
+
+CHAPTER 23. The Lee Shore.
+
+CHAPTER 24. The Advocate.
+
+CHAPTER 25. Postscript.
+
+CHAPTER 26. Knights and Squires.
+
+CHAPTER 27. Knights and Squires.
+
+CHAPTER 28. Ahab.
+
+CHAPTER 29. Enter Ahab; to Him, Stubb.
+
+CHAPTER 30. The Pipe.
+
+CHAPTER 31. Queen Mab.
+
+CHAPTER 32. Cetology.
+
+CHAPTER 33. The Specksnyder.
+
+CHAPTER 34. The Cabin-Table.
+
+CHAPTER 35. The Mast-Head.
+
+CHAPTER 36. The Quarter-Deck.
+
+CHAPTER 37. Sunset.
+
+CHAPTER 38. Dusk.
+
+CHAPTER 39. First Night-Watch.
+
+CHAPTER 40. Midnight, Forecastle.
+
+CHAPTER 41. Moby Dick.
+
+CHAPTER 42. The Whiteness of the Whale.
+
+CHAPTER 43. Hark!
+
+CHAPTER 44. The Chart.
+
+CHAPTER 45. The Affidavit.
+
+CHAPTER 46. Surmises.
+
+CHAPTER 47. The Mat-Maker.
+
+CHAPTER 48. The First Lowering.
+
+CHAPTER 49. The Hyena.
+
+CHAPTER 50. Ahab’s Boat and Crew. Fedallah.
+
+CHAPTER 51. The Spirit-Spout.
+
+CHAPTER 52. The Albatross.
+
+CHAPTER 53. The Gam.
+
+CHAPTER 54. The Town-Ho’s Story.
+
+CHAPTER 55. Of the Monstrous Pictures of Whales.
+
+CHAPTER 56. Of the Less Erroneous Pictures of Whales, and the True
+Pictures of Whaling Scenes.
+
+CHAPTER 57. Of Whales in Paint; in Teeth; in Wood; in Sheet-Iron; in
+Stone; in Mountains; in Stars.
+
+CHAPTER 58. Brit.
+
+CHAPTER 59. Squid.
+
+CHAPTER 60. The Line.
+
+CHAPTER 61. Stubb Kills a Whale.
+
+CHAPTER 62. The Dart.
+
+CHAPTER 63. The Crotch.
+
+CHAPTER 64. Stubb’s Supper.
+
+CHAPTER 65. The Whale as a Dish.
+
+CHAPTER 66. The Shark Massacre.
+
+CHAPTER 67. Cutting In.
+
+CHAPTER 68. The Blanket.
+
+CHAPTER 69. The Funeral.
+
+CHAPTER 70. The Sphynx.
+
+CHAPTER 71. The Jeroboam’s Story.
+
+CHAPTER 72. The Monkey-Rope.
+
+CHAPTER 73. Stubb and Flask kill a Right Whale; and Then Have a Talk
+over Him.
+
+CHAPTER 74. The Sperm Whale’s Head—Contrasted View.
+
+CHAPTER 75. The Right Whale’s Head—Contrasted View.
+
+CHAPTER 76. The Battering-Ram.
+
+CHAPTER 77. The Great Heidelburgh Tun.
+
+CHAPTER 78. Cistern and Buckets.
+
+CHAPTER 79. The Prairie.
+
+CHAPTER 80. The Nut.
+
+CHAPTER 81. The Pequod Meets The Virgin.
+
+CHAPTER 82. The Honor and Glory of Whaling.
+
+CHAPTER 83. Jonah Historically Regarded.
+
+CHAPTER 84. Pitchpoling.
+
+CHAPTER 85. The Fountain.
+
+CHAPTER 86. The Tail.
+
+CHAPTER 87. The Grand Armada.
+
+CHAPTER 88. Schools and Schoolmasters.
+
+CHAPTER 89. Fast-Fish and Loose-Fish.
+
+CHAPTER 90. Heads or Tails.
+
+CHAPTER 91. The Pequod Meets The Rose-Bud.
+
+CHAPTER 92. Ambergris.
+
+CHAPTER 93. The Castaway.
+
+CHAPTER 94. A Squeeze of the Hand.
+
+CHAPTER 95. The Cassock.
+
+CHAPTER 96. The Try-Works.
+
+CHAPTER 97. The Lamp.
+
+CHAPTER 98. Stowing Down and Clearing Up.
+
+CHAPTER 99. The Doubloon.
+
+CHAPTER 100. Leg and Arm.
+
+CHAPTER 101. The Decanter.
+
+CHAPTER 102. A Bower in the Arsacides.
+
+CHAPTER 103. Measurement of The Whale’s Skeleton.
+
+CHAPTER 104. The Fossil Whale.
+
+CHAPTER 105. Does the Whale’s Magnitude Diminish?—Will He Perish?
+
+CHAPTER 106. Ahab’s Leg.
+
+CHAPTER 107. The Carpenter.
+
+CHAPTER 108. Ahab and the Carpenter.
+
+CHAPTER 109. Ahab and Starbuck in the Cabin.
+
+CHAPTER 110. Queequeg in His Coffin.
+
+CHAPTER 111. The Pacific.
+
+CHAPTER 112. The Blacksmith.
+
+CHAPTER 113. The Forge.
+
+CHAPTER 114. The Gilder.
+
+CHAPTER 115. The Pequod Meets The Bachelor.
+
+CHAPTER 116. The Dying Whale.
+
+CHAPTER 117. The Whale Watch.
+
+CHAPTER 118. The Quadrant.
+
+CHAPTER 119. The Candles.
+
+CHAPTER 120. The Deck Towards the End of the First Night Watch.
+
+CHAPTER 121. Midnight.—The Forecastle Bulwarks.
+
+CHAPTER 122. Midnight Aloft.—Thunder and Lightning.
+
+CHAPTER 123. The Musket.
+
+CHAPTER 124. The Needle.
+
+CHAPTER 125. The Log and Line.
+
+CHAPTER 126. The Life-Buoy.
+
+CHAPTER 127. The Deck.
+
+CHAPTER 128. The Pequod Meets The Rachel.
+
+CHAPTER 129. The Cabin.
+
+CHAPTER 130. The Hat.
+
+CHAPTER 131. The Pequod Meets The Delight.
+
+CHAPTER 132. The Symphony.
+
+CHAPTER 133. The Chase—First Day.
+
+CHAPTER 134. The Chase—Second Day.
+
+CHAPTER 135. The Chase.—Third Day.
+
+Epilogue
+
+
+
+
+Original Transcriber’s Notes:
+
+
+
+
+
+This text is a combination of etexts, one from the now-defunct ERIS
+project at Virginia Tech and one from Project Gutenberg’s archives. The
+proofreaders of this version are indebted to The University of Adelaide
+Library for preserving the Virginia Tech version. The resulting etext
+was compared with a public domain hard copy version of the text.
+
+
+
+
+
+  ETYMOLOGY.
+
+
+  (Supplied by a Late Consumptive Usher to a Grammar School.)
+
+  The pale Usher—threadbare in coat, heart, body, and brain; I see him
+  now. He was ever dusting his old lexicons and grammars, with a queer
+  handkerchief, mockingly embellished with all the gay flags of all the
+  known nations of the world. He loved to dust his old grammars; it
+  somehow mildly reminded him of his mortality.
+
+  “While you take in hand to school others, and to teach them by what
+  name a whale-fish is to be called in our tongue, leaving out, through
+  ignorance, the letter H, which almost alone maketh up the
+  signification of the word, you deliver that which is not true.”
+  —_Hackluyt._
+
+  “WHALE. * * * Sw. and Dan. _hval_. This animal is named from
+  roundness or rolling; for in Dan. _hvalt_ is arched or vaulted.”
+  —_Webster’s Dictionary._
+
+  “WHALE. * * * It is more immediately from the Dut. and Ger. _Wallen_;
+  A.S. _Walw-ian_, to roll, to wallow.” —_Richardson’s Dictionary._
+
+
+  חו,                 _Hebrew_.
+  ϰητος,              _Greek_.
+  CETUS,              _Latin_.
+  WHŒL,               _Anglo-Saxon_.
+  HVALT,              _Danish_.
+  WAL,                _Dutch_.
+  HWAL,               _Swedish_.
+  WHALE,              _Icelandic_.
+  WHALE,              _English_.
+  BALLENA,            _Spanish_.
+  PEKEE-NUEE-NUEE,    _Fegee_.
+  PEHEE-NUEE-NUEE,    _Erromangoan_.
+
+
+
+  EXTRACTS. (Supplied by a Sub-Sub-Librarian).
+
+
+
+  It will be seen that this mere painstaking burrower and grub-worm of
+  a poor devil of a Sub-Sub appears to have gone through the long
+  Vaticans and street-stalls of the earth, picking up whatever random
+  allusions to whales he could anyways find in any book whatsoever,
+  sacred or profane. Therefore you must not, in every case at least,
+  take the higgledy-piggledy whale statements, however authentic, in
+  these extracts, for veritable gospel cetology. Far from it. As
+  touching the ancient authors generally, as well as the poets here
+  appearing, these extracts are solely valuable or entertaining, as
+  affording a glancing bird’s eye view of what has been promiscuously
+  said, thought, fancied, and sung of Leviathan, by many nations and
+  generations, including our own.
+
+  So fare thee well, poor devil of a Sub-Sub, whose commentator I am.
+  Thou belongest to that hopeless, sallow tribe which no wine of this
+  world will ever warm; and for whom even Pale Sherry would be too
+  rosy-strong; but with whom one sometimes loves to sit, and feel
+  poor-devilish, too; and grow convivial upon tears; and say to them
+  bluntly, with full eyes and empty glasses, and in not altogether
+  unpleasant sadness—Give it up, Sub-Subs! For by how much the more
+  pains ye take to please the world, by so much the more shall ye for
+  ever go thankless! Would that I could clear out Hampton Court and the
+  Tuileries for ye! But gulp down your tears and hie aloft to the
+  royal-mast with your hearts; for your friends who have gone before
+  are clearing out the seven-storied heavens, and making refugees of
+  long-pampered Gabriel, Michael, and Raphael, against your coming.
+  Here ye strike but splintered hearts together—there, ye shall strike
+  unsplinterable glasses!
+
+EXTRACTS.
+
+  “And God created great whales.” —_Genesis_.
+
+  “Leviathan maketh a path to shine after him; One would think the deep
+  to be hoary.” —_Job_.
+
+  “Now the Lord had prepared a great fish to swallow up Jonah.”
+  —_Jonah_.
+
+  “There go the ships; there is that Leviathan whom thou hast made to
+  play therein.” —_Psalms_.
+
+  “In that day, the Lord with his sore, and great, and strong sword,
+  shall punish Leviathan the piercing serpent, even Leviathan that
+  crooked serpent; and he shall slay the dragon that is in the sea.”
+  —_Isaiah_.
+
+  “And what thing soever besides cometh within the chaos of this
+  monster’s mouth, be it beast, boat, or stone, down it goes all
+  incontinently that foul great swallow of his, and perisheth in the
+  bottomless gulf of his paunch.” —_Holland’s Plutarch’s Morals_.
+
+  “The Indian Sea breedeth the most and the biggest fishes that are:
+  among which the Whales and Whirlpooles called Balaene, take up as
+  much in length as four acres or arpens of land.” —_Holland’s Pliny_.
+
+  “Scarcely had we proceeded two days on the sea, when about sunrise a
+  great many Whales and other monsters of the sea, appeared. Among the
+  former, one was of a most monstrous size.... This came towards us,
+  open-mouthed, raising the waves on all sides, and beating the sea
+  before him into a foam.” —_Tooke’s Lucian_. “_The True History_.”
+
+
+
+
+  “He visited this country also with a view of catching horse-whales,
+  which had bones of very great value for their teeth, of which he
+  brought some to the king.... The best whales were catched in his own
+  country, of which some were forty-eight, some fifty yards long. He
+  said that he was one of six who had killed sixty in two days.”
+  —_Other or Other’s verbal narrative taken down from his mouth by King
+  Alfred, A.D._ 890.
+
+  “And whereas all the other things, whether beast or vessel, that
+  enter into the dreadful gulf of this monster’s (whale’s) mouth, are
+  immediately lost and swallowed up, the sea-gudgeon retires into it in
+  great security, and there sleeps.” —MONTAIGNE. —_Apology for Raimond
+  Sebond_.
+
+  “Let us fly, let us fly! Old Nick take me if it is not Leviathan
+  described by the noble prophet Moses in the life of patient Job.”
+  —_Rabelais_.
+
+  “This whale’s liver was two cartloads.” —_Stowe’s Annals_.
+
+  “The great Leviathan that maketh the seas to seethe like boiling
+  pan.” —_Lord Bacon’s Version of the Psalms_.
+
+  “Touching that monstrous bulk of the whale or ork we have received
+  nothing certain. They grow exceeding fat, insomuch that an incredible
+  quantity of oil will be extracted out of one whale.” —_Ibid_.
+  “_History of Life and Death_.”
+
+
+
+
+  “The sovereignest thing on earth is parmacetti for an inward bruise.”
+  —_King Henry_.
+
+  “Very like a whale.” —_Hamlet_.
+
+
+  “Which to secure, no skill of leach’s art Mote him availle, but to
+  returne againe To his wound’s worker, that with lowly dart, Dinting
+  his breast, had bred his restless paine, Like as the wounded whale to
+  shore flies thro’ the maine.” —_The Fairie Queen_.
+
+
+
+  “Immense as whales, the motion of whose vast bodies can in a peaceful
+  calm trouble the ocean till it boil.” —_Sir William Davenant. Preface
+  to Gondibert_.
+
+  “What spermacetti is, men might justly doubt, since the learned
+  Hosmannus in his work of thirty years, saith plainly, _Nescio quid
+  sit_.” —_Sir T. Browne. Of Sperma Ceti and the Sperma Ceti Whale.
+  Vide his V. E._
+
+
+  “Like Spencer’s Talus with his modern flail He threatens ruin with
+  his ponderous tail. ... Their fixed jav’lins in his side he wears,
+  And on his back a grove of pikes appears.” —_Waller’s Battle of the
+  Summer Islands_.
+
+
+
+  “By art is created that great Leviathan, called a Commonwealth or
+  State—(in Latin, Civitas) which is but an artificial man.” —_Opening
+  sentence of Hobbes’s Leviathan_.
+
+  “Silly Mansoul swallowed it without chewing, as if it had been a
+  sprat in the mouth of a whale.” —_Pilgrim’s Progress_.
+
+
+  “That sea beast Leviathan, which God of all his works Created hugest
+  that swim the ocean stream.” —_Paradise Lost_.
+
+  —“There Leviathan, Hugest of living creatures, in the deep Stretched
+  like a promontory sleeps or swims, And seems a moving land; and at
+  his gills Draws in, and at his breath spouts out a sea.” —_Ibid_.
+
+
+
+  “The mighty whales which swim in a sea of water, and have a sea of
+  oil swimming in them.” —_Fuller’s Profane and Holy State_.
+
+
+  “So close behind some promontory lie The huge Leviathan to attend
+  their prey, And give no chance, but swallow in the fry, Which through
+  their gaping jaws mistake the way.” —_Dryden’s Annus Mirabilis_.
+
+
+
+  “While the whale is floating at the stern of the ship, they cut off
+  his head, and tow it with a boat as near the shore as it will come;
+  but it will be aground in twelve or thirteen feet water.” —_Thomas
+  Edge’s Ten Voyages to Spitzbergen, in Purchas_.
+
+  “In their way they saw many whales sporting in the ocean, and in
+  wantonness fuzzing up the water through their pipes and vents, which
+  nature has placed on their shoulders.” —_Sir T. Herbert’s Voyages
+  into Asia and Africa. Harris Coll_.
+
+  “Here they saw such huge troops of whales, that they were forced to
+  proceed with a great deal of caution for fear they should run their
+  ship upon them.” —_Schouten’s Sixth Circumnavigation_.
+
+  “We set sail from the Elbe, wind N.E. in the ship called The
+  Jonas-in-the-Whale.... Some say the whale can’t open his mouth, but
+  that is a fable.... They frequently climb up the masts to see whether
+  they can see a whale, for the first discoverer has a ducat for his
+  pains.... I was told of a whale taken near Shetland, that had above a
+  barrel of herrings in his belly.... One of our harpooneers told me
+  that he caught once a whale in Spitzbergen that was white all over.”
+  —_A Voyage to Greenland, A.D._ 1671. _Harris Coll_.
+
+  “Several whales have come in upon this coast (Fife) Anno 1652, one
+  eighty feet in length of the whale-bone kind came in, which (as I was
+  informed), besides a vast quantity of oil, did afford 500 weight of
+  baleen. The jaws of it stand for a gate in the garden of Pitferren.”
+  —_Sibbald’s Fife and Kinross_.
+
+  “Myself have agreed to try whether I can master and kill this
+  Sperma-ceti whale, for I could never hear of any of that sort that
+  was killed by any man, such is his fierceness and swiftness.”
+  —_Richard Strafford’s Letter from the Bermudas. Phil. Trans. A.D._
+  1668.
+
+  “Whales in the sea God’s voice obey.” —_N. E. Primer_.
+
+  “We saw also abundance of large whales, there being more in those
+  southern seas, as I may say, by a hundred to one; than we have to the
+  northward of us.” —_Captain Cowley’s Voyage round the Globe, A.D._
+  1729.
+
+  “... and the breath of the whale is frequently attended with such an
+  insupportable smell, as to bring on a disorder of the brain.”
+  —_Ulloa’s South America_.
+
+
+  “To fifty chosen sylphs of special note, We trust the important
+  charge, the petticoat. Oft have we known that seven-fold fence to
+  fail, Tho’ stuffed with hoops and armed with ribs of whale.” —_Rape
+  of the Lock_.
+
+
+
+  “If we compare land animals in respect to magnitude, with those that
+  take up their abode in the deep, we shall find they will appear
+  contemptible in the comparison. The whale is doubtless the largest
+  animal in creation.” —_Goldsmith, Nat. Hist_.
+
+  “If you should write a fable for little fishes, you would make them
+  speak like great whales.” —_Goldsmith to Johnson_.
+
+  “In the afternoon we saw what was supposed to be a rock, but it was
+  found to be a dead whale, which some Asiatics had killed, and were
+  then towing ashore. They seemed to endeavor to conceal themselves
+  behind the whale, in order to avoid being seen by us.” —_Cook’s
+  Voyages_.
+
+  “The larger whales, they seldom venture to attack. They stand in so
+  great dread of some of them, that when out at sea they are afraid to
+  mention even their names, and carry dung, lime-stone, juniper-wood,
+  and some other articles of the same nature in their boats, in order
+  to terrify and prevent their too near approach.” —_Uno Von Troil’s
+  Letters on Banks’s and Solander’s Voyage to Iceland in_ 1772.
+
+  “The Spermacetti Whale found by the Nantuckois, is an active, fierce
+  animal, and requires vast address and boldness in the fishermen.”
+  —_Thomas Jefferson’s Whale Memorial to the French minister in_ 1778.
+
+  “And pray, sir, what in the world is equal to it?” —_Edmund Burke’s
+  reference in Parliament to the Nantucket Whale-Fishery_.
+
+  “Spain—a great whale stranded on the shores of Europe.” —_Edmund
+  Burke_. (_somewhere_.)
+
+  “A tenth branch of the king’s ordinary revenue, said to be grounded
+  on the consideration of his guarding and protecting the seas from
+  pirates and robbers, is the right to _royal_ fish, which are whale
+  and sturgeon. And these, when either thrown ashore or caught near the
+  coast, are the property of the king.” —_Blackstone_.
+
+
+  “Soon to the sport of death the crews repair: Rodmond unerring o’er
+  his head suspends The barbed steel, and every turn attends.”
+  —_Falconer’s Shipwreck_.
+
+  “Bright shone the roofs, the domes, the spires, And rockets blew self
+  driven, To hang their momentary fire Around the vault of heaven.
+
+  “So fire with water to compare, The ocean serves on high, Up-spouted
+  by a whale in air, To express unwieldy joy.” —_Cowper, on the Queen’s
+  Visit to London_.
+
+
+
+  “Ten or fifteen gallons of blood are thrown out of the heart at a
+  stroke, with immense velocity.” —_John Hunter’s account of the
+  dissection of a whale_. (_A small sized one_.)
+
+  “The aorta of a whale is larger in the bore than the main pipe of the
+  water-works at London Bridge, and the water roaring in its passage
+  through that pipe is inferior in impetus and velocity to the blood
+  gushing from the whale’s heart.” —_Paley’s Theology_.
+
+  “The whale is a mammiferous animal without hind feet.” —_Baron
+  Cuvier_.
+
+  “In 40 degrees south, we saw Spermacetti Whales, but did not take any
+  till the first of May, the sea being then covered with them.”
+  —_Colnett’s Voyage for the Purpose of Extending the Spermaceti Whale
+  Fishery_.
+
+
+  “In the free element beneath me swam, Floundered and dived, in play,
+  in chace, in battle, Fishes of every colour, form, and kind; Which
+  language cannot paint, and mariner Had never seen; from dread
+  Leviathan To insect millions peopling every wave: Gather’d in shoals
+  immense, like floating islands, Led by mysterious instincts through
+  that waste And trackless region, though on every side Assaulted by
+  voracious enemies, Whales, sharks, and monsters, arm’d in front or
+  jaw, With swords, saws, spiral horns, or hooked fangs.”
+  —_Montgomery’s World before the Flood_.
+
+  “Io!  Paean!  Io! sing. To the finny people’s king. Not a mightier
+  whale than this In the vast Atlantic is; Not a fatter fish than he,
+  Flounders round the Polar Sea.” —_Charles Lamb’s Triumph of the
+  Whale_.
+
+
+
+  “In the year 1690 some persons were on a high hill observing the
+  whales spouting and sporting with each other, when one observed:
+  there—pointing to the sea—is a green pasture where our children’s
+  grand-children will go for bread.” —_Obed Macy’s History of
+  Nantucket_.
+
+  “I built a cottage for Susan and myself and made a gateway in the
+  form of a Gothic Arch, by setting up a whale’s jaw bones.”
+  —_Hawthorne’s Twice Told Tales_.
+
+  “She came to bespeak a monument for her first love, who had been
+  killed by a whale in the Pacific ocean, no less than forty years
+  ago.” —_Ibid_.
+
+  “No, Sir, ’tis a Right Whale,” answered Tom; “I saw his sprout; he
+  threw up a pair of as pretty rainbows as a Christian would wish to
+  look at. He’s a raal oil-butt, that fellow!” —_Cooper’s Pilot_.
+
+  “The papers were brought in, and we saw in the Berlin Gazette that
+  whales had been introduced on the stage there.” —_Eckermann’s
+  Conversations with Goethe_.
+
+  “My God! Mr. Chace, what is the matter?” I answered, “we have been
+  stove by a whale.” —“_Narrative of the Shipwreck of the Whale Ship
+  Essex of Nantucket, which was attacked and finally destroyed by a
+  large Sperm Whale in the Pacific Ocean_.” _By Owen Chace of
+  Nantucket, first mate of said vessel. New York_, 1821.
+
+
+  “A mariner sat in the shrouds one night, The wind was piping free;
+  Now bright, now dimmed, was the moonlight pale, And the phospher
+  gleamed in the wake of the whale, As it floundered in the sea.”
+  —_Elizabeth Oakes Smith_.
+
+
+
+  “The quantity of line withdrawn from the boats engaged in the capture
+  of this one whale, amounted altogether to 10,440 yards or nearly six
+  English miles....
+
+  “Sometimes the whale shakes its tremendous tail in the air, which,
+  cracking like a whip, resounds to the distance of three or four
+  miles.” —_Scoresby_.
+
+  “Mad with the agonies he endures from these fresh attacks, the
+  infuriated Sperm Whale rolls over and over; he rears his enormous
+  head, and with wide expanded jaws snaps at everything around him; he
+  rushes at the boats with his head; they are propelled before him with
+  vast swiftness, and sometimes utterly destroyed.... It is a matter of
+  great astonishment that the consideration of the habits of so
+  interesting, and, in a commercial point of view, so important an
+  animal (as the Sperm Whale) should have been so entirely neglected,
+  or should have excited so little curiosity among the numerous, and
+  many of them competent observers, that of late years, must have
+  possessed the most abundant and the most convenient opportunities of
+  witnessing their habitudes.” —_Thomas Beale’s History of the Sperm
+  Whale_, 1839.
+
+  “The Cachalot” (Sperm Whale) “is not only better armed than the True
+  Whale” (Greenland or Right Whale) “in possessing a formidable weapon
+  at either extremity of its body, but also more frequently displays a
+  disposition to employ these weapons offensively and in manner at once
+  so artful, bold, and mischievous, as to lead to its being regarded as
+  the most dangerous to attack of all the known species of the whale
+  tribe.” —_Frederick Debell Bennett’s Whaling Voyage Round the Globe_,
+  1840.
+
+
+  October 13.  “There she blows,” was sung out from the mast-head.
+  “Where away?” demanded the captain. “Three points off the lee bow,
+  sir.” “Raise up your wheel.  Steady!”  “Steady, sir.” “Mast-head
+  ahoy! Do you see that whale now?” “Ay ay, sir!  A shoal of Sperm
+  Whales! There she blows!  There she breaches!” “Sing out! sing out
+  every time!” “Ay Ay, sir!  There she blows! there—there—_thar_ she
+  blows—bowes—bo-o-os!” “How far off?” “Two miles and a half.” “Thunder
+  and lightning! so near!  Call all hands.” —_J. Ross Browne’s Etchings
+  of a Whaling Cruize_.  1846.
+
+
+
+  “The Whale-ship Globe, on board of which vessel occurred the horrid
+  transactions we are about to relate, belonged to the island of
+  Nantucket.” —“_Narrative of the Globe Mutiny_,” _by Lay and Hussey
+  survivors. A.D._ 1828.
+
+  Being once pursued by a whale which he had wounded, he parried the
+  assault for some time with a lance; but the furious monster at length
+  rushed on the boat; himself and comrades only being preserved by
+  leaping into the water when they saw the onset was inevitable.”
+  —_Missionary Journal of Tyerman and Bennett_.
+
+  “Nantucket itself,” said Mr. Webster, “is a very striking and
+  peculiar portion of the National interest. There is a population of
+  eight or nine thousand persons living here in the sea, adding largely
+  every year to the National wealth by the boldest and most persevering
+  industry.” —_Report of Daniel Webster’s Speech in the U. S. Senate,
+  on the application for the Erection of a Breakwater at Nantucket_.
+  1828.
+
+  “The whale fell directly over him, and probably killed him in a
+  moment.” —“_The Whale and his Captors, or The Whaleman’s Adventures
+  and the Whale’s Biography, gathered on the Homeward Cruise of the
+  Commodore Preble_.” _By Rev. Henry T. Cheever_.
+
+  “If you make the least damn bit of noise,” replied Samuel, “I will
+  send you to hell.” —_Life of Samuel Comstock_ (_the mutineer_), _by
+  his brother, William Comstock. Another Version of the whale-ship
+  Globe narrative_.
+
+  “The voyages of the Dutch and English to the Northern Ocean, in
+  order, if possible, to discover a passage through it to India, though
+  they failed of their main object, laid-open the haunts of the whale.”
+  —_McCulloch’s Commercial Dictionary_.
+
+  “These things are reciprocal; the ball rebounds, only to bound
+  forward again; for now in laying open the haunts of the whale, the
+  whalemen seem to have indirectly hit upon new clews to that same
+  mystic North-West Passage.” —_From_ “_Something_” _unpublished_.
+
+  “It is impossible to meet a whale-ship on the ocean without being
+  struck by her near appearance. The vessel under short sail, with
+  look-outs at the mast-heads, eagerly scanning the wide expanse around
+  them, has a totally different air from those engaged in regular
+  voyage.” —_Currents and Whaling. U.S. Ex. Ex_.
+
+  “Pedestrians in the vicinity of London and elsewhere may recollect
+  having seen large curved bones set upright in the earth, either to
+  form arches over gateways, or entrances to alcoves, and they may
+  perhaps have been told that these were the ribs of whales.” —_Tales
+  of a Whale Voyager to the Arctic Ocean_.
+
+  “It was not till the boats returned from the pursuit of these whales,
+  that the whites saw their ship in bloody possession of the savages
+  enrolled among the crew.” —_Newspaper Account of the Taking and
+  Retaking of the Whale-Ship Hobomack_.
+
+  “It is generally well known that out of the crews of Whaling vessels
+  (American) few ever return in the ships on board of which they
+  departed.” —_Cruise in a Whale Boat_.
+
+  “Suddenly a mighty mass emerged from the water, and shot up
+  perpendicularly into the air. It was the whale.” —_Miriam Coffin or
+  the Whale Fisherman_.
+
+  “The Whale is harpooned to be sure; but bethink you, how you would
+  manage a powerful unbroken colt, with the mere appliance of a rope
+  tied to the root of his tail.” —_A Chapter on Whaling in Ribs and
+  Trucks_.
+
+  “On one occasion I saw two of these monsters (whales) probably male
+  and female, slowly swimming, one after the other, within less than a
+  stone’s throw of the shore” (Terra Del Fuego), “over which the beech
+  tree extended its branches.” —_Darwin’s Voyage of a Naturalist_.
+
+  “‘Stern all!’ exclaimed the mate, as upon turning his head, he saw
+  the distended jaws of a large Sperm Whale close to the head of the
+  boat, threatening it with instant destruction;—‘Stern all, for your
+  lives!’” —_Wharton the Whale Killer_.
+
+  “So be cheery, my lads, let your hearts never fail, While the bold
+  harpooneer is striking the whale!” —_Nantucket Song_.
+
+
+  “Oh, the rare old Whale, mid storm and gale In his ocean home will be
+  A giant in might, where might is right, And King of the boundless
+  sea.” —_Whale Song_.
+
+
+
+
+
+CHAPTER 1. Loomings.
+
 Call me Ishmael. Some years ago—never mind how long precisely—having
 little or no money in my purse, and nothing particular to interest me
 on shore, I thought I would sail about a little and see the watery part
@@ -371,7 +1217,6 @@ in a great hurricane; the half-foundered ship weltering there with its
 three dismantled masts alone visible; and an exasperated whale,
 purposing to spring clean over the craft, is in the enormous act of
 impaling himself upon the three mast-heads.
-
 
 The opposite wall of this entry was hung all over with a heathenish
 array of monstrous clubs and spears. Some were thickly set with
@@ -1547,3 +2392,609 @@ close, and Jonah gasps. Then, in that contracted hole, sunk, too,
 beneath the ship’s water-line, Jonah feels the heralding presentiment
 of that stifling hour, when the whale shall hold him in the smallest of
 his bowels’ wards.
+
+“Screwed at its axis against the side, a swinging lamp slightly
+oscillates in Jonah’s room; and the ship, heeling over towards the
+wharf with the weight of the last bales received, the lamp, flame and
+all, though in slight motion, still maintains a permanent obliquity
+with reference to the room; though, in truth, infallibly straight
+itself, it but made obvious the false, lying levels among which it
+hung. The lamp alarms and frightens Jonah; as lying in his berth his
+tormented eyes roll round the place, and this thus far successful
+fugitive finds no refuge for his restless glance. But that
+contradiction in the lamp more and more appals him. The floor, the
+ceiling, and the side, are all awry. ‘Oh! so my conscience hangs in
+me!’ he groans, ‘straight upwards, so it burns; but the chambers of my
+soul are all in crookedness!’
+
+“Like one who after a night of drunken revelry hies to his bed, still
+reeling, but with conscience yet pricking him, as the plungings of the
+Roman race-horse but so much the more strike his steel tags into him;
+as one who in that miserable plight still turns and turns in giddy
+anguish, praying God for annihilation until the fit be passed; and at
+last amid the whirl of woe he feels, a deep stupor steals over him, as
+over the man who bleeds to death, for conscience is the wound, and
+there’s naught to staunch it; so, after sore wrestlings in his berth,
+Jonah’s prodigy of ponderous misery drags him drowning down to sleep.
+
+“And now the time of tide has come; the ship casts off her cables; and
+from the deserted wharf the uncheered ship for Tarshish, all careening,
+glides to sea. That ship, my friends, was the first of recorded
+smugglers! the contraband was Jonah. But the sea rebels; he will not
+bear the wicked burden. A dreadful storm comes on, the ship is like to
+break. But now when the boatswain calls all hands to lighten her; when
+boxes, bales, and jars are clattering overboard; when the wind is
+shrieking, and the men are yelling, and every plank thunders with
+trampling feet right over Jonah’s head; in all this raging tumult,
+Jonah sleeps his hideous sleep. He sees no black sky and raging sea,
+feels not the reeling timbers, and little hears he or heeds he the far
+rush of the mighty whale, which even now with open mouth is cleaving
+the seas after him. Aye, shipmates, Jonah was gone down into the sides
+of the ship—a berth in the cabin as I have taken it, and was fast
+asleep. But the frightened master comes to him, and shrieks in his dead
+ear, ‘What meanest thou, O, sleeper! arise!’ Startled from his lethargy
+by that direful cry, Jonah staggers to his feet, and stumbling to the
+deck, grasps a shroud, to look out upon the sea. But at that moment he
+is sprung upon by a panther billow leaping over the bulwarks. Wave
+after wave thus leaps into the ship, and finding no speedy vent runs
+roaring fore and aft, till the mariners come nigh to drowning while yet
+afloat. And ever, as the white moon shows her affrighted face from the
+steep gullies in the blackness overhead, aghast Jonah sees the rearing
+bowsprit pointing high upward, but soon beat downward again towards the
+tormented deep.
+
+“Terrors upon terrors run shouting through his soul. In all his
+cringing attitudes, the God-fugitive is now too plainly known. The
+sailors mark him; more and more certain grow their suspicions of him,
+and at last, fully to test the truth, by referring the whole matter to
+high Heaven, they fall to casting lots, to see for whose cause this
+great tempest was upon them. The lot is Jonah’s; that discovered, then
+how furiously they mob him with their questions. ‘What is thine
+occupation? Whence comest thou? Thy country? What people? But mark now,
+my shipmates, the behavior of poor Jonah. The eager mariners but ask
+him who he is, and where from; whereas, they not only receive an answer
+to those questions, but likewise another answer to a question not put
+by them, but the unsolicited answer is forced from Jonah by the hard
+hand of God that is upon him.
+
+“‘I am a Hebrew,’ he cries—and then—‘I fear the Lord the God of Heaven
+who hath made the sea and the dry land!’ Fear him, O Jonah? Aye, well
+mightest thou fear the Lord God _then!_ Straightway, he now goes on to
+make a full confession; whereupon the mariners became more and more
+appalled, but still are pitiful. For when Jonah, not yet supplicating
+God for mercy, since he but too well knew the darkness of his
+deserts,—when wretched Jonah cries out to them to take him and cast him
+forth into the sea, for he knew that for _his_ sake this great tempest
+was upon them; they mercifully turn from him, and seek by other means
+to save the ship. But all in vain; the indignant gale howls louder;
+then, with one hand raised invokingly to God, with the other they not
+unreluctantly lay hold of Jonah.
+
+“And now behold Jonah taken up as an anchor and dropped into the sea;
+when instantly an oily calmness floats out from the east, and the sea
+is still, as Jonah carries down the gale with him, leaving smooth water
+behind. He goes down in the whirling heart of such a masterless
+commotion that he scarce heeds the moment when he drops seething into
+the yawning jaws awaiting him; and the whale shoots-to all his ivory
+teeth, like so many white bolts, upon his prison. Then Jonah prayed
+unto the Lord out of the fish’s belly. But observe his prayer, and
+learn a weighty lesson. For sinful as he is, Jonah does not weep and
+wail for direct deliverance. He feels that his dreadful punishment is
+just. He leaves all his deliverance to God, contenting himself with
+this, that spite of all his pains and pangs, he will still look towards
+His holy temple. And here, shipmates, is true and faithful repentance;
+not clamorous for pardon, but grateful for punishment. And how pleasing
+to God was this conduct in Jonah, is shown in the eventual deliverance
+of him from the sea and the whale. Shipmates, I do not place Jonah
+before you to be copied for his sin but I do place him before you as a
+model for repentance. Sin not; but if you do, take heed to repent of it
+like Jonah.”
+
+While he was speaking these words, the howling of the shrieking,
+slanting storm without seemed to add new power to the preacher, who,
+when describing Jonah’s sea-storm, seemed tossed by a storm himself.
+His deep chest heaved as with a ground-swell; his tossed arms seemed
+the warring elements at work; and the thunders that rolled away from
+off his swarthy brow, and the light leaping from his eye, made all his
+simple hearers look on him with a quick fear that was strange to them.
+
+There now came a lull in his look, as he silently turned over the
+leaves of the Book once more; and, at last, standing motionless, with
+closed eyes, for the moment, seemed communing with God and himself.
+
+But again he leaned over towards the people, and bowing his head lowly,
+with an aspect of the deepest yet manliest humility, he spake these
+words:
+
+“Shipmates, God has laid but one hand upon you; both his hands press
+upon me. I have read ye by what murky light may be mine the lesson that
+Jonah teaches to all sinners; and therefore to ye, and still more to
+me, for I am a greater sinner than ye. And now how gladly would I come
+down from this mast-head and sit on the hatches there where you sit,
+and listen as you listen, while some one of you reads _me_ that other
+and more awful lesson which Jonah teaches to _me_, as a pilot of the
+living God. How being an anointed pilot-prophet, or speaker of true
+things, and bidden by the Lord to sound those unwelcome truths in the
+ears of a wicked Nineveh, Jonah, appalled at the hostility he should
+raise, fled from his mission, and sought to escape his duty and his God
+by taking ship at Joppa. But God is everywhere; Tarshish he never
+reached. As we have seen, God came upon him in the whale, and swallowed
+him down to living gulfs of doom, and with swift slantings tore him
+along ‘into the midst of the seas,’ where the eddying depths sucked him
+ten thousand fathoms down, and ‘the weeds were wrapped about his head,’
+and all the watery world of woe bowled over him. Yet even then beyond
+the reach of any plummet—‘out of the belly of hell’—when the whale
+grounded upon the ocean’s utmost bones, even then, God heard the
+engulphed, repenting prophet when he cried. Then God spake unto the
+fish; and from the shuddering cold and blackness of the sea, the whale
+came breeching up towards the warm and pleasant sun, and all the
+delights of air and earth; and ‘vomited out Jonah upon the dry land;’
+when the word of the Lord came a second time; and Jonah, bruised and
+beaten—his ears, like two sea-shells, still multitudinously murmuring
+of the ocean—Jonah did the Almighty’s bidding. And what was that,
+shipmates? To preach the Truth to the face of Falsehood! That was it!
+
+“This, shipmates, this is that other lesson; and woe to that pilot of
+the living God who slights it. Woe to him whom this world charms from
+Gospel duty! Woe to him who seeks to pour oil upon the waters when God
+has brewed them into a gale! Woe to him who seeks to please rather than
+to appal! Woe to him whose good name is more to him than goodness! Woe
+to him who, in this world, courts not dishonor! Woe to him who would
+not be true, even though to be false were salvation! Yea, woe to him
+who, as the great Pilot Paul has it, while preaching to others is
+himself a castaway!”
+
+He dropped and fell away from himself for a moment; then lifting his
+face to them again, showed a deep joy in his eyes, as he cried out with
+a heavenly enthusiasm,—“But oh! shipmates! on the starboard hand of
+every woe, there is a sure delight; and higher the top of that delight,
+than the bottom of the woe is deep. Is not the main-truck higher than
+the kelson is low? Delight is to him—a far, far upward, and inward
+delight—who against the proud gods and commodores of this earth, ever
+stands forth his own inexorable self. Delight is to him whose strong
+arms yet support him, when the ship of this base treacherous world has
+gone down beneath him. Delight is to him, who gives no quarter in the
+truth, and kills, burns, and destroys all sin though he pluck it out
+from under the robes of Senators and Judges. Delight,—top-gallant
+delight is to him, who acknowledges no law or lord, but the Lord his
+God, and is only a patriot to heaven. Delight is to him, whom all the
+waves of the billows of the seas of the boisterous mob can never shake
+from this sure Keel of the Ages. And eternal delight and deliciousness
+will be his, who coming to lay him down, can say with his final
+breath—O Father!—chiefly known to me by Thy rod—mortal or immortal,
+here I die. I have striven to be Thine, more than to be this world’s,
+or mine own. Yet this is nothing: I leave eternity to Thee; for what is
+man that he should live out the lifetime of his God?”
+
+He said no more, but slowly waving a benediction, covered his face with
+his hands, and so remained kneeling, till all the people had departed,
+and he was left alone in the place.
+
+
+CHAPTER 10. A Bosom Friend.
+
+Returning to the Spouter-Inn from the Chapel, I found Queequeg there
+quite alone; he having left the Chapel before the benediction some
+time. He was sitting on a bench before the fire, with his feet on the
+stove hearth, and in one hand was holding close up to his face that
+little negro idol of his; peering hard into its face, and with a
+jack-knife gently whittling away at its nose, meanwhile humming to
+himself in his heathenish way.
+
+But being now interrupted, he put up the image; and pretty soon, going
+to the table, took up a large book there, and placing it on his lap
+began counting the pages with deliberate regularity; at every fiftieth
+page—as I fancied—stopping a moment, looking vacantly around him, and
+giving utterance to a long-drawn gurgling whistle of astonishment. He
+would then begin again at the next fifty; seeming to commence at number
+one each time, as though he could not count more than fifty, and it was
+only by such a large number of fifties being found together, that his
+astonishment at the multitude of pages was excited.
+
+With much interest I sat watching him. Savage though he was, and
+hideously marred about the face—at least to my taste—his countenance
+yet had a something in it which was by no means disagreeable. You
+cannot hide the soul. Through all his unearthly tattooings, I thought I
+saw the traces of a simple honest heart; and in his large, deep eyes,
+fiery black and bold, there seemed tokens of a spirit that would dare a
+thousand devils. And besides all this, there was a certain lofty
+bearing about the Pagan, which even his uncouthness could not
+altogether maim. He looked like a man who had never cringed and never
+had had a creditor. Whether it was, too, that his head being shaved,
+his forehead was drawn out in freer and brighter relief, and looked
+more expansive than it otherwise would, this I will not venture to
+decide; but certain it was his head was phrenologically an excellent
+one. It may seem ridiculous, but it reminded me of General Washington’s
+head, as seen in the popular busts of him. It had the same long
+regularly graded retreating slope from above the brows, which were
+likewise very projecting, like two long promontories thickly wooded on
+top. Queequeg was George Washington cannibalistically developed.
+
+Whilst I was thus closely scanning him, half-pretending meanwhile to be
+looking out at the storm from the casement, he never heeded my
+presence, never troubled himself with so much as a single glance; but
+appeared wholly occupied with counting the pages of the marvellous
+book. Considering how sociably we had been sleeping together the night
+previous, and especially considering the affectionate arm I had found
+thrown over me upon waking in the morning, I thought this indifference
+of his very strange. But savages are strange beings; at times you do
+not know exactly how to take them. At first they are overawing; their
+calm self-collectedness of simplicity seems a Socratic wisdom. I had
+noticed also that Queequeg never consorted at all, or but very little,
+with the other seamen in the inn. He made no advances whatever;
+appeared to have no desire to enlarge the circle of his acquaintances.
+All this struck me as mighty singular; yet, upon second thoughts, there
+was something almost sublime in it. Here was a man some twenty thousand
+miles from home, by the way of Cape Horn, that is—which was the only
+way he could get there—thrown among people as strange to him as though
+he were in the planet Jupiter; and yet he seemed entirely at his ease;
+preserving the utmost serenity; content with his own companionship;
+always equal to himself. Surely this was a touch of fine philosophy;
+though no doubt he had never heard there was such a thing as that. But,
+perhaps, to be true philosophers, we mortals should not be conscious of
+so living or so striving. So soon as I hear that such or such a man
+gives himself out for a philosopher, I conclude that, like the
+dyspeptic old woman, he must have “broken his digester.”
+
+As I sat there in that now lonely room; the fire burning low, in that
+mild stage when, after its first intensity has warmed the air, it then
+only glows to be looked at; the evening shades and phantoms gathering
+round the casements, and peering in upon us silent, solitary twain; the
+storm booming without in solemn swells; I began to be sensible of
+strange feelings. I felt a melting in me. No more my splintered heart
+and maddened hand were turned against the wolfish world. This soothing
+savage had redeemed it. There he sat, his very indifference speaking a
+nature in which there lurked no civilized hypocrisies and bland
+deceits. Wild he was; a very sight of sights to see; yet I began to
+feel myself mysteriously drawn towards him. And those same things that
+would have repelled most others, they were the very magnets that thus
+drew me. I’ll try a pagan friend, thought I, since Christian kindness
+has proved but hollow courtesy. I drew my bench near him, and made some
+friendly signs and hints, doing my best to talk with him meanwhile. At
+first he little noticed these advances; but presently, upon my
+referring to his last night’s hospitalities, he made out to ask me
+whether we were again to be bedfellows. I told him yes; whereat I
+thought he looked pleased, perhaps a little complimented.
+
+We then turned over the book together, and I endeavored to explain to
+him the purpose of the printing, and the meaning of the few pictures
+that were in it. Thus I soon engaged his interest; and from that we
+went to jabbering the best we could about the various outer sights to
+be seen in this famous town. Soon I proposed a social smoke; and,
+producing his pouch and tomahawk, he quietly offered me a puff. And
+then we sat exchanging puffs from that wild pipe of his, and keeping it
+regularly passing between us.
+
+If there yet lurked any ice of indifference towards me in the Pagan’s
+breast, this pleasant, genial smoke we had, soon thawed it out, and
+left us cronies. He seemed to take to me quite as naturally and
+unbiddenly as I to him; and when our smoke was over, he pressed his
+forehead against mine, clasped me round the waist, and said that
+henceforth we were married; meaning, in his country’s phrase, that we
+were bosom friends; he would gladly die for me, if need should be. In a
+countryman, this sudden flame of friendship would have seemed far too
+premature, a thing to be much distrusted; but in this simple savage
+those old rules would not apply.
+
+After supper, and another social chat and smoke, we went to our room
+together. He made me a present of his embalmed head; took out his
+enormous tobacco wallet, and groping under the tobacco, drew out some
+thirty dollars in silver; then spreading them on the table, and
+mechanically dividing them into two equal portions, pushed one of them
+towards me, and said it was mine. I was going to remonstrate; but he
+silenced me by pouring them into my trowsers’ pockets. I let them stay.
+He then went about his evening prayers, took out his idol, and removed
+the paper fireboard. By certain signs and symptoms, I thought he seemed
+anxious for me to join him; but well knowing what was to follow, I
+deliberated a moment whether, in case he invited me, I would comply or
+otherwise.
+
+I was a good Christian; born and bred in the bosom of the infallible
+Presbyterian Church. How then could I unite with this wild idolator in
+worshipping his piece of wood? But what is worship? thought I. Do you
+suppose now, Ishmael, that the magnanimous God of heaven and
+earth—pagans and all included—can possibly be jealous of an
+insignificant bit of black wood? Impossible! But what is worship?—to do
+the will of God—_that_ is worship. And what is the will of God?—to do
+to my fellow man what I would have my fellow man to do to me—_that_ is
+the will of God. Now, Queequeg is my fellow man. And what do I wish
+that this Queequeg would do to me? Why, unite with me in my particular
+Presbyterian form of worship. Consequently, I must then unite with him
+in his; ergo, I must turn idolator. So I kindled the shavings; helped
+prop up the innocent little idol; offered him burnt biscuit with
+Queequeg; salamed before him twice or thrice; kissed his nose; and that
+done, we undressed and went to bed, at peace with our own consciences
+and all the world. But we did not go to sleep without some little chat.
+
+How it is I know not; but there is no place like a bed for confidential
+disclosures between friends. Man and wife, they say, there open the
+very bottom of their souls to each other; and some old couples often
+lie and chat over old times till nearly morning. Thus, then, in our
+hearts’ honeymoon, lay I and Queequeg—a cosy, loving pair.
+
+
+CHAPTER 11. Nightgown.
+
+We had lain thus in bed, chatting and napping at short intervals, and
+Queequeg now and then affectionately throwing his brown tattooed legs
+over mine, and then drawing them back; so entirely sociable and free
+and easy were we; when, at last, by reason of our confabulations, what
+little nappishness remained in us altogether departed, and we felt like
+getting up again, though day-break was yet some way down the future.
+
+Yes, we became very wakeful; so much so that our recumbent position
+began to grow wearisome, and by little and little we found ourselves
+sitting up; the clothes well tucked around us, leaning against the
+head-board with our four knees drawn up close together, and our two
+noses bending over them, as if our kneepans were warming-pans. We felt
+very nice and snug, the more so since it was so chilly out of doors;
+indeed out of bed-clothes too, seeing that there was no fire in the
+room. The more so, I say, because truly to enjoy bodily warmth, some
+small part of you must be cold, for there is no quality in this world
+that is not what it is merely by contrast. Nothing exists in itself. If
+you flatter yourself that you are all over comfortable, and have been
+so a long time, then you cannot be said to be comfortable any more. But
+if, like Queequeg and me in the bed, the tip of your nose or the crown
+of your head be slightly chilled, why then, indeed, in the general
+consciousness you feel most delightfully and unmistakably warm. For
+this reason a sleeping apartment should never be furnished with a fire,
+which is one of the luxurious discomforts of the rich. For the height
+of this sort of deliciousness is to have nothing but the blanket
+between you and your snugness and the cold of the outer air. Then there
+you lie like the one warm spark in the heart of an arctic crystal.
+
+We had been sitting in this crouching manner for some time, when all at
+once I thought I would open my eyes; for when between sheets, whether
+by day or by night, and whether asleep or awake, I have a way of always
+keeping my eyes shut, in order the more to concentrate the snugness of
+being in bed. Because no man can ever feel his own identity aright
+except his eyes be closed; as if darkness were indeed the proper
+element of our essences, though light be more congenial to our clayey
+part. Upon opening my eyes then, and coming out of my own pleasant and
+self-created darkness into the imposed and coarse outer gloom of the
+unilluminated twelve-o’clock-at-night, I experienced a disagreeable
+revulsion. Nor did I at all object to the hint from Queequeg that
+perhaps it were best to strike a light, seeing that we were so wide
+awake; and besides he felt a strong desire to have a few quiet puffs
+from his Tomahawk. Be it said, that though I had felt such a strong
+repugnance to his smoking in the bed the night before, yet see how
+elastic our stiff prejudices grow when love once comes to bend them.
+For now I liked nothing better than to have Queequeg smoking by me,
+even in bed, because he seemed to be full of such serene household joy
+then. I no more felt unduly concerned for the landlord’s policy of
+insurance. I was only alive to the condensed confidential
+comfortableness of sharing a pipe and a blanket with a real friend.
+With our shaggy jackets drawn about our shoulders, we now passed the
+Tomahawk from one to the other, till slowly there grew over us a blue
+hanging tester of smoke, illuminated by the flame of the new-lit lamp.
+
+Whether it was that this undulating tester rolled the savage away to
+far distant scenes, I know not, but he now spoke of his native island;
+and, eager to hear his history, I begged him to go on and tell it. He
+gladly complied. Though at the time I but ill comprehended not a few of
+his words, yet subsequent disclosures, when I had become more familiar
+with his broken phraseology, now enable me to present the whole story
+such as it may prove in the mere skeleton I give.
+
+
+CHAPTER 12. Biographical.
+
+Queequeg was a native of Rokovoko, an island far away to the West and
+South. It is not down in any map; true places never are.
+
+When a new-hatched savage running wild about his native woodlands in a
+grass clout, followed by the nibbling goats, as if he were a green
+sapling; even then, in Queequeg’s ambitious soul, lurked a strong
+desire to see something more of Christendom than a specimen whaler or
+two. His father was a High Chief, a King; his uncle a High Priest; and
+on the maternal side he boasted aunts who were the wives of
+unconquerable warriors. There was excellent blood in his veins—royal
+stuff; though sadly vitiated, I fear, by the cannibal propensity he
+nourished in his untutored youth.
+
+A Sag Harbor ship visited his father’s bay, and Queequeg sought a
+passage to Christian lands. But the ship, having her full complement of
+seamen, spurned his suit; and not all the King his father’s influence
+could prevail. But Queequeg vowed a vow. Alone in his canoe, he paddled
+off to a distant strait, which he knew the ship must pass through when
+she quitted the island. On one side was a coral reef; on the other a
+low tongue of land, covered with mangrove thickets that grew out into
+the water. Hiding his canoe, still afloat, among these thickets, with
+its prow seaward, he sat down in the stern, paddle low in hand; and
+when the ship was gliding by, like a flash he darted out; gained her
+side; with one backward dash of his foot capsized and sank his canoe;
+climbed up the chains; and throwing himself at full length upon the
+deck, grappled a ring-bolt there, and swore not to let it go, though
+hacked in pieces.
+
+In vain the captain threatened to throw him overboard; suspended a
+cutlass over his naked wrists; Queequeg was the son of a King, and
+Queequeg budged not. Struck by his desperate dauntlessness, and his
+wild desire to visit Christendom, the captain at last relented, and
+told him he might make himself at home. But this fine young savage—this
+sea Prince of Wales, never saw the Captain’s cabin. They put him down
+among the sailors, and made a whaleman of him. But like Czar Peter
+content to toil in the shipyards of foreign cities, Queequeg disdained
+no seeming ignominy, if thereby he might happily gain the power of
+enlightening his untutored countrymen. For at bottom—so he told me—he
+was actuated by a profound desire to learn among the Christians, the
+arts whereby to make his people still happier than they were; and more
+than that, still better than they were. But, alas! the practices of
+whalemen soon convinced him that even Christians could be both
+miserable and wicked; infinitely more so, than all his father’s
+heathens. Arrived at last in old Sag Harbor; and seeing what the
+sailors did there; and then going on to Nantucket, and seeing how they
+spent their wages in _that_ place also, poor Queequeg gave it up for
+lost. Thought he, it’s a wicked world in all meridians; I’ll die a
+pagan.
+
+And thus an old idolator at heart, he yet lived among these Christians,
+wore their clothes, and tried to talk their gibberish. Hence the queer
+ways about him, though now some time from home.
+
+By hints, I asked him whether he did not propose going back, and having
+a coronation; since he might now consider his father dead and gone, he
+being very old and feeble at the last accounts. He answered no, not
+yet; and added that he was fearful Christianity, or rather Christians,
+had unfitted him for ascending the pure and undefiled throne of thirty
+pagan Kings before him. But by and by, he said, he would return,—as
+soon as he felt himself baptized again. For the nonce, however, he
+proposed to sail about, and sow his wild oats in all four oceans. They
+had made a harpooneer of him, and that barbed iron was in lieu of a
+sceptre now.
+
+I asked him what might be his immediate purpose, touching his future
+movements. He answered, to go to sea again, in his old vocation. Upon
+this, I told him that whaling was my own design, and informed him of my
+intention to sail out of Nantucket, as being the most promising port
+for an adventurous whaleman to embark from. He at once resolved to
+accompany me to that island, ship aboard the same vessel, get into the
+same watch, the same boat, the same mess with me, in short to share my
+every hap; with both my hands in his, boldly dip into the Potluck of
+both worlds. To all this I joyously assented; for besides the affection
+I now felt for Queequeg, he was an experienced harpooneer, and as such,
+could not fail to be of great usefulness to one, who, like me, was
+wholly ignorant of the mysteries of whaling, though well acquainted
+with the sea, as known to merchant seamen.
+
+His story being ended with his pipe’s last dying puff, Queequeg
+embraced me, pressed his forehead against mine, and blowing out the
+light, we rolled over from each other, this way and that, and very soon
+were sleeping.
+
+
+CHAPTER 13. Wheelbarrow.
+
+Next morning, Monday, after disposing of the embalmed head to a barber,
+for a block, I settled my own and comrade’s bill; using, however, my
+comrade’s money. The grinning landlord, as well as the boarders, seemed
+amazingly tickled at the sudden friendship which had sprung up between
+me and Queequeg—especially as Peter Coffin’s cock and bull stories
+about him had previously so much alarmed me concerning the very person
+whom I now companied with.
+
+We borrowed a wheelbarrow, and embarking our things, including my own
+poor carpet-bag, and Queequeg’s canvas sack and hammock, away we went
+down to “the Moss,” the little Nantucket packet schooner moored at the
+wharf. As we were going along the people stared; not at Queequeg so
+much—for they were used to seeing cannibals like him in their
+streets,—but at seeing him and me upon such confidential terms. But we
+heeded them not, going along wheeling the barrow by turns, and Queequeg
+now and then stopping to adjust the sheath on his harpoon barbs. I
+asked him why he carried such a troublesome thing with him ashore, and
+whether all whaling ships did not find their own harpoons. To this, in
+substance, he replied, that though what I hinted was true enough, yet
+he had a particular affection for his own harpoon, because it was of
+assured stuff, well tried in many a mortal combat, and deeply intimate
+with the hearts of whales. In short, like many inland reapers and
+mowers, who go into the farmers’ meadows armed with their own
+scythes—though in no wise obliged to furnish them—even so, Queequeg,
+for his own private reasons, preferred his own harpoon.
+
+Shifting the barrow from my hand to his, he told me a funny story about
+the first wheelbarrow he had ever seen. It was in Sag Harbor. The
+owners of his ship, it seems, had lent him one, in which to carry his
+heavy chest to his boarding house. Not to seem ignorant about the
+thing—though in truth he was entirely so, concerning the precise way in
+which to manage the barrow—Queequeg puts his chest upon it; lashes it
+fast; and then shoulders the barrow and marches up the wharf. “Why,”
+said I, “Queequeg, you might have known better than that, one would
+think. Didn’t the people laugh?”
+
+Upon this, he told me another story. The people of his island of
+Rokovoko, it seems, at their wedding feasts express the fragrant water
+of young cocoanuts into a large stained calabash like a punchbowl; and
+this punchbowl always forms the great central ornament on the braided
+mat where the feast is held. Now a certain grand merchant ship once
+touched at Rokovoko, and its commander—from all accounts, a very
+stately punctilious gentleman, at least for a sea captain—this
+commander was invited to the wedding feast of Queequeg’s sister, a
+pretty young princess just turned of ten. Well; when all the wedding
+guests were assembled at the bride’s bamboo cottage, this Captain
+marches in, and being assigned the post of honor, placed himself over
+against the punchbowl, and between the High Priest and his majesty the
+King, Queequeg’s father. Grace being said,—for those people have their
+grace as well as we—though Queequeg told me that unlike us, who at such
+times look downwards to our platters, they, on the contrary, copying
+the ducks, glance upwards to the great Giver of all feasts—Grace, I
+say, being said, the High Priest opens the banquet by the immemorial
+ceremony of the island; that is, dipping his consecrated and
+consecrating fingers into the bowl before the blessed beverage
+circulates. Seeing himself placed next the Priest, and noting the
+ceremony, and thinking himself—being Captain of a ship—as having plain
+precedence over a mere island King, especially in the King’s own
+house—the Captain coolly proceeds to wash his hands in the
+punchbowl;—taking it I suppose for a huge finger-glass. “Now,” said
+Queequeg, “what you tink now?—Didn’t our people laugh?”
+
+At last, passage paid, and luggage safe, we stood on board the
+schooner. Hoisting sail, it glided down the Acushnet river. On one
+side, New Bedford rose in terraces of streets, their ice-covered trees
+all glittering in the clear, cold air. Huge hills and mountains of
+casks on casks were piled upon her wharves, and side by side the
+world-wandering whale ships lay silent and safely moored at last; while
+from others came a sound of carpenters and coopers, with blended noises
+of fires and forges to melt the pitch, all betokening that new cruises
+were on the start; that one most perilous and long voyage ended, only
+begins a second; and a second ended, only begins a third, and so on,
+for ever and for aye. Such is the endlessness, yea, the intolerableness
+of all earthly effort.
+
+Gaining the more open water, the bracing breeze waxed fresh; the little
+Moss tossed the quick foam from her bows, as a young colt his
+snortings. How I snuffed that Tartar air!—how I spurned that turnpike
+earth!—that common highway all over dented with the marks of slavish
+heels and hoofs; and turned me to admire the magnanimity of the sea
+which will permit no records.
+
+At the same foam-fountain, Queequeg seemed to drink and reel with me.
+His dusky nostrils swelled apart; he showed his filed and pointed
+teeth. On, on we flew; and our offing gained, the Moss did homage to
+the blast; ducked and dived her bows as a slave before the Sultan.
+Sideways leaning, we sideways darted; every ropeyarn tingling like a
+wire; the two tall masts buckling like Indian canes in land tornadoes.
+So full of this reeling scene were we, as we stood by the plunging
+bowsprit, that for some time we did not notice the jeering glances of
+the passengers, a lubber-like assembly, who marvelled that two fellow
+beings should be so companionable; as though a white man were anything
+more dignified than a whitewashed negro. But there were some boobies
+and bumpkins there, who, by their intense greenness, must have come
+from the heart and centre of all verdure. Queequeg caught one of these
+young saplings mimicking him behind his back. I thought the bumpkin’s
+hour of doom was come. Dropping his harpoon, the brawny savage caught
+him in his arms, and by an almost miraculous dexterity and strength,
+sent him high up bodily into the air; then slightly tapping his stern
+in mid-somerset, the fellow landed with bursting lungs upon his feet,
+while Queequeg, turning his back upon him, lighted his tomahawk pipe
+and passed it to me for a puff.
+
+“Capting! Capting!” yelled the bumpkin, running towards that officer;
+“Capting, Capting, here’s the devil.”
+
+“Hallo, _you_ sir,” cried the Captain, a gaunt rib of the sea, stalking
+up to Queequeg, “what in thunder do you mean by that? Don’t you know
+you might have killed that chap?”
+
+“What him say?” said Queequeg, as he mildly turned to me.
+
+“He say,” said I, “that you came near kill-e that man there,” pointing
+to the still shivering greenhorn.
+
+“Kill-e,” cried Queequeg, twisting his tattooed face into an unearthly
+expression of disdain, “ah! him bevy small-e fish-e; Queequeg no kill-e
+so small-e fish-e; Queequeg kill-e big whale!”
+
+“Look you,” roared the Captain, “I’ll kill-e _you_, you cannibal, if
+you try any more of your tricks aboard here; so mind your eye.”
+
+But it so happened just then, that it was high time for the Captain to
+mind his own eye. The prodigious strain upon the main-sail had parted
+the weather-sheet, and the tremendous boom was now flying from side to
+side, completely sweeping the entire after part of the deck. The poor
+fellow whom Queequeg had handled so roughly, was swept overboard; all
+hands were in a panic; and to attempt snatching at the boom to stay it,
+seemed madness. It flew from right to left, and back again, almost in
+one ticking of a watch, and every instant seemed on the point of
+snapping into splinters. Nothing was done, and nothing seemed capable
+of being done; those on deck rushed towards the bows, and stood eyeing
+the boom as if it were the lower jaw of an exasperated whale. In the

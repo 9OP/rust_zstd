@@ -25,8 +25,13 @@ const RLE_BLOCK_FLAG: u8 = 1;
 const COMPRESSED_BLOCK_FLAG: u8 = 2;
 const RESERVED_BLOCK_FLAG: u8 = 3;
 
+const KB_128: usize = 1024 * 128;
+
 impl<'a> Block<'a> {
-    pub fn parse(input: &mut ForwardByteParser<'a>) -> Result<(Block<'a>, bool)> {
+    pub fn parse(
+        input: &mut ForwardByteParser<'a>,
+        window_size: usize,
+    ) -> Result<(Block<'a>, bool)> {
         let header = input.slice(3)?;
 
         // Parse header with bit-mask and bit-shifts:
@@ -55,6 +60,11 @@ impl<'a> Block<'a> {
             }
 
             COMPRESSED_BLOCK_FLAG => {
+                // The size of Block_Content is limited by the smallest of:
+                // window_size or 128 KB
+                let max_block_size = std::cmp::min(KB_128, window_size);
+                let block_size = std::cmp::min(block_size, max_block_size);
+
                 let compressed_data = input.slice(block_size)?;
                 let mut parser = ForwardByteParser::new(compressed_data);
 
@@ -88,8 +98,11 @@ impl<'a> Block<'a> {
                 literals,
                 sequences,
             } => {
+                // println!("literals");
                 let literals = literals.decode(context)?;
+                // println!("sequences");
                 let sequences = sequences.decode(context)?;
+                // println!("sequences end");
                 context.execute_sequences(sequences, literals.as_slice())?;
             }
         };
@@ -117,7 +130,7 @@ mod tests {
                 0x40, // content
                 0x50, // +extra byte
             ]);
-            let (block, last) = Block::parse(&mut parser).unwrap();
+            let (block, last) = Block::parse(&mut parser, 1024).unwrap();
             assert!(last);
             assert!(matches!(block, Block::Raw(&[0x10, 0x20, 0x30, 0x40])));
             assert_eq!(parser.len(), 1);
@@ -130,7 +143,7 @@ mod tests {
                 0x42, // content
                 0x50, // +extra byte
             ]);
-            let (block, last) = Block::parse(&mut parser).unwrap();
+            let (block, last) = Block::parse(&mut parser, 1024).unwrap();
             assert!(!last);
             assert!(matches!(
                 block,
@@ -150,7 +163,7 @@ mod tests {
                 0x0, // reserved
             ]);
             assert!(matches!(
-                Block::parse(&mut parser),
+                Block::parse(&mut parser, 1024),
                 Err(Error::Block(ReservedBlockType))
             ));
         }
@@ -159,7 +172,7 @@ mod tests {
         fn test_parse_not_enough_byte() {
             let mut parser = ForwardByteParser::new(&[0x0, 0x0]);
             assert!(matches!(
-                Block::parse(&mut parser),
+                Block::parse(&mut parser, 1024),
                 Err(Error::Parsing(ParsingError::NotEnoughBytes {
                     requested: 3,
                     available: 2
@@ -177,7 +190,7 @@ mod tests {
                 0x0, // RLE not last
             ]);
             assert!(matches!(
-                Block::parse(&mut parser),
+                Block::parse(&mut parser, 1024),
                 Err(Error::Parsing(ParsingError::NotEnoughBytes {
                     requested: 1,
                     available: 0
@@ -198,7 +211,7 @@ mod tests {
                 0x30, // content
             ]);
             assert!(matches!(
-                Block::parse(&mut parser),
+                Block::parse(&mut parser, 1024),
                 Err(Error::Parsing(ParsingError::NotEnoughBytes {
                     requested: 4,
                     available: 3
@@ -243,7 +256,7 @@ mod tests {
                 4, 109, 63, 5, 217, 139,
             ];
             let mut parser = ForwardByteParser::new(&bitstream);
-            let (block, _) = Block::parse(&mut parser).unwrap();
+            let (block, _) = Block::parse(&mut parser, 1024).unwrap();
             block.decode(&mut ctx).unwrap();
             let decoded = String::from_utf8(ctx.decoded).unwrap();
 
