@@ -32,7 +32,7 @@ impl<'a> ForwardBitParser<'a> {
     /// ```
     pub fn len(&self) -> usize {
         let include_first = self.position == 0;
-        self.bitstream.len() - 1 + include_first as usize
+        self.bitstream.len() + include_first as usize - 1
     }
 
     /// Check if the bitstream is exhausted
