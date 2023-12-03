@@ -13,14 +13,10 @@ Run all tests:
 Generate coverage report:
 - `cargo tarpaulin --tests --workspace --count --line --force-clean -p zstd_lib --out html`
 
+**ZstdLib coverage ~77%**
+
 Decompress a file:
 - `cargo run tests/fixtures/txt/mobydick.zst `
 
 Fuzzing:
 - `cargo fuzz run fuzz_decode -- -timeout=10`
-
-ToDo:
-- add code coverage check
-- fuzz test
- 
-
