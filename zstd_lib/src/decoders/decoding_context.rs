@@ -29,51 +29,92 @@ pub struct DecodingContext {
 }
 
 struct RepeatOffset {
-    offset_1: usize,
-    offset_2: usize,
-    offset_3: usize,
+    offset_1: u64,
+    offset_2: u64,
+    offset_3: u64,
 }
 
 impl RepeatOffset {
     /// Decode an offset and properly maintain the three repeat offsets
-    pub fn decode_offset(&mut self, offset: usize, literals_length: usize) -> usize {
-        match offset {
-            1 => {
-                if literals_length == 0 {
-                    std::mem::swap(&mut self.offset_1, &mut self.offset_2);
-                }
+    fn compute_offset(&mut self, offset: usize, literals_length: usize) -> usize {
+        // from reference
+        let mut result_offset = 0;
+
+        if offset <= 3 {
+            let mut idx = offset - 1;
+
+            if literals_length == 0 {
+                idx += 1;
             }
-            2 => {
-                if literals_length == 0 {
-                    let offset_1 = self.offset_1;
-                    let offset_2 = self.offset_2;
-                    self.offset_1 = self.offset_3;
-                    self.offset_2 = offset_1;
-                    self.offset_3 = offset_2;
+
+            if idx == 0 {
+                result_offset = self.offset_1;
+            } else {
+                result_offset = if idx < 3 {
+                    match idx {
+                        0 => self.offset_1,
+                        1 => self.offset_2,
+                        2 => self.offset_3,
+                        _ => panic!("unexpected"),
+                    }
                 } else {
-                    std::mem::swap(&mut self.offset_1, &mut self.offset_2);
-                }
-            }
-            3 => {
-                if literals_length == 0 {
+                    self.offset_1 - 1
+                };
+
+                if idx > 1 {
                     self.offset_3 = self.offset_2;
-                    self.offset_2 = self.offset_1;
-                    self.offset_1 -= 1;
-                } else {
-                    let offset_1 = self.offset_1;
-                    let offset_2 = self.offset_2;
-                    self.offset_1 = self.offset_3;
-                    self.offset_2 = offset_1;
-                    self.offset_3 = offset_2;
                 }
-            }
-            _ => {
-                self.offset_3 = self.offset_2;
+
                 self.offset_2 = self.offset_1;
-                self.offset_1 = offset - 3;
+                self.offset_1 = result_offset;
             }
+        } else {
+            result_offset = (offset as u64) - 3;
+            self.offset_3 = self.offset_2;
+            self.offset_2 = self.offset_1;
+            self.offset_1 = result_offset as u64;
         }
-        self.offset_1
+
+        result_offset as usize
+
+        // Old
+        // match offset {
+        //     1 => {
+        //         if literals_length == 0 {
+        //             std::mem::swap(&mut self.offset_1, &mut self.offset_2);
+        //         }
+        //     }
+        //     2 => {
+        //         if literals_length == 0 {
+        //             let offset_1 = self.offset_1;
+        //             let offset_2 = self.offset_2;
+        //             self.offset_1 = self.offset_3;
+        //             self.offset_2 = offset_1;
+        //             self.offset_3 = offset_2;
+        //         } else {
+        //             std::mem::swap(&mut self.offset_1, &mut self.offset_2);
+        //         }
+        //     }
+        //     3 => {
+        //         if literals_length == 0 {
+        //             self.offset_3 = self.offset_2;
+        //             self.offset_2 = self.offset_1;
+        //             self.offset_1 -= 1;
+        //         } else {
+        //             let offset_1 = self.offset_1;
+        //             let offset_2 = self.offset_2;
+        //             self.offset_1 = self.offset_3;
+        //             self.offset_2 = offset_1;
+        //             self.offset_3 = offset_2;
+        //         }
+        //     }
+        //     _ => {
+        //         self.offset_3 = self.offset_2;
+        //         self.offset_2 = self.offset_1;
+        //         self.offset_1 = offset - 3;
+        //     }
+        // }
+        // self.offset_1
     }
 }
 
@@ -102,15 +143,42 @@ impl DecodingContext {
     }
 
     /// Decode an offset and properly maintain the three repeat offsets
-    pub fn decode_offset(&mut self, offset: usize, literals_length: usize) -> Result<usize> {
-        let offset = self.repeat_offsets.decode_offset(offset, literals_length);
+    fn compute_offset(&mut self, offset: usize, literals_length: usize) -> Result<usize> {
+        let offset = self.repeat_offsets.compute_offset(offset, literals_length);
+        let total_output = self.decoded.len();
 
-        if offset > self.window_size || offset > self.decoded.len() {
-            println!(
-                "offset: {offset} {} {}",
-                self.window_size,
-                self.decoded.len()
-            );
+        // if offset > self.window_size || offset > self.decoded.len() {
+        // println!("decoded: {:?}", String::from_utf8(self.decoded.clone()));
+        // println!(
+        // "offset: {offset} {} {}",
+        // self.window_size,
+        // self.decoded.len()
+        // );
+        // return Err(Error::Context(OffsetError));
+        // }
+
+        // println!(
+        //     "{offset} {total_output} {} {} {} {}",
+        //     self.window_size,
+        //     self.repeat_offsets.offset_1,
+        //     self.repeat_offsets.offset_2,
+        //     self.repeat_offsets.offset_3
+        // );
+
+        if total_output < self.window_size {
+            // panic!("stop here");
+            // if offset > total_output + dict_content_len {
+            // panic!("offset goes beyound dict");
+            // }
+
+            // if offset > total_output {
+            //     let dict_copy = std::cmp::min(offset - total_output, match_length);
+            //     // let dict_offset = dict_content - (offset - total_output);
+            //     //         memcpy(write_ptr, ctx->dict_content + dict_offset, dict_copy);
+            //     //         write_ptr += dict_copy;
+            //     //         match_length -= dict_copy;
+            // }
+        } else if offset > self.window_size {
             return Err(Error::Context(OffsetError));
         }
 
@@ -141,7 +209,7 @@ impl DecodingContext {
             self.decoded.extend_from_slice(&literals[start..end]);
 
             // Offset + match copy
-            let offset = self.decode_offset(seq.offset, seq.literal_length)?;
+            let offset = self.compute_offset(seq.offset, seq.literal_length)?;
             let mut index = self.decoded.len() - offset;
 
             for _ in 0..seq.match_length {

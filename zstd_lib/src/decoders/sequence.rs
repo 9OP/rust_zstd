@@ -39,7 +39,7 @@ impl BitDecoder<(u16, u16, u16), Error> for SequenceDecoder<'_> {
     }
 
     fn update_bits(&mut self, bitstream: &mut BackwardBitParser) -> Result<bool, Error> {
-        // update order: literals > offsets > match
+        // update order: literals > match > offset
         let mut zeroes = self.literals_lengths_decoder.update_bits(bitstream)?;
         zeroes |= self.match_lengths_decoder.update_bits(bitstream)?;
         zeroes |= self.offsets_decoder.update_bits(bitstream)?;
@@ -47,6 +47,8 @@ impl BitDecoder<(u16, u16, u16), Error> for SequenceDecoder<'_> {
     }
 
     fn reset(&mut self) {
-        unimplemented!("reset not supported for SequenceDecoder")
+        self.literals_lengths_decoder.reset();
+        self.match_lengths_decoder.reset();
+        self.offsets_decoder.reset();
     }
 }

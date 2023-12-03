@@ -98,11 +98,8 @@ impl<'a> Block<'a> {
                 literals,
                 sequences,
             } => {
-                // println!("literals");
                 let literals = literals.decode(context)?;
-                // println!("sequences");
                 let sequences = sequences.decode(context)?;
-                // println!("sequences end");
                 context.execute_sequences(sequences, literals.as_slice())?;
             }
         };

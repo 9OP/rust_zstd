@@ -14,7 +14,7 @@ pub enum FseError {
 }
 use FseError::*;
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct FseTable {
     states: Vec<FseState>,
 }
@@ -277,14 +277,30 @@ impl BitDecoder<Symbol, Error> for FseDecoder {
     }
 
     fn reset(&mut self) {
+        self.initialized = false;
         self.symbol = None;
         self.num_bits = 0;
         self.base_line = 0;
     }
 }
 
-#[cfg(test)]
+// #[cfg(test)]
 impl std::fmt::Display for FseTable {
+    fn fmt(&self, fmt: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        writeln!(fmt, "State,Sym,BL,NB").ok();
+        for (i, state) in self.states.iter().enumerate() {
+            writeln!(
+                fmt,
+                "0x{:02x},s{},0x{:02x},{}",
+                i, state.symbol, state.base_line, state.num_bits
+            )
+            .ok();
+        }
+        write!(fmt, "")
+    }
+}
+
+impl std::fmt::Debug for FseTable {
     fn fmt(&self, fmt: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         writeln!(fmt, "State,Sym,BL,NB").ok();
         for (i, state) in self.states.iter().enumerate() {

@@ -37,9 +37,10 @@ pub struct SkippableFrame<'a> {
 }
 
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct FrameHeader {
+    window_size: usize,
     window_descriptor: u8,
-    // dictionary_id: usize, // not implemented yet
     frame_content_size: usize,
     content_checksum_flag: bool,
 }
@@ -68,8 +69,7 @@ impl<'a> Frame<'a> {
         match self {
             Frame::SkippableFrame(_) => Ok(Vec::new()),
             Frame::ZstandardFrame(mut frame) => {
-                let window_size = frame.frame_header.window_size();
-                let mut context = DecodingContext::new(window_size)?;
+                let mut context = DecodingContext::new(frame.frame_header.window_size)?;
 
                 // hint: decode consume self, but we need to replace blocks, so that it does not borrow self
                 // too soon and let us call frame.verify_checksum.
@@ -92,11 +92,10 @@ impl<'a> Frame<'a> {
 impl<'a> ZstandardFrame<'a> {
     pub fn parse(input: &mut ForwardByteParser<'a>) -> Result<Self> {
         let frame_header = FrameHeader::parse(input)?;
-        let window_size = frame_header.window_size();
         let mut blocks: Vec<Block> = Vec::new();
 
         loop {
-            let (block, is_last) = Block::parse(input, window_size)?;
+            let (block, is_last) = Block::parse(input, frame_header.window_size)?;
             blocks.push(block);
             if is_last {
                 break;
@@ -163,24 +162,23 @@ impl FrameHeader {
             _ => panic!("unexpected frame_content_size_flag {frame_content_size_flag}"),
         };
 
+        let window_size = if !single_segment_flag {
+            let exponent: usize = ((window_descriptor & 0b1111_1000) >> 3).into();
+            let mantissa: usize = (window_descriptor & 0b0000_0111).into();
+
+            let window_base = 1_usize << (10 + exponent);
+            let window_add = (window_base / 8) * mantissa;
+            window_base + window_add
+        } else {
+            frame_content_size
+        };
+
         Ok(FrameHeader {
+            window_size,
             window_descriptor,
-            // dictionary_id,
             frame_content_size,
             content_checksum_flag,
         })
-    }
-
-    pub fn window_size(&self) -> usize {
-        if self.window_descriptor == 0 {
-            return self.frame_content_size;
-        }
-        let exponent: usize = ((self.window_descriptor & 0b1111_1000) >> 3).into();
-        let mantissa: usize = (self.window_descriptor & 0b0000_0111).into();
-
-        let window_base = 1_usize << (10 + exponent);
-        let window_add = (window_base / 8) * mantissa;
-        window_base + window_add
     }
 }
 
@@ -322,6 +320,7 @@ mod tests {
             fn test_decode_standard() {
                 let frame = Frame::ZstandardFrame(ZstandardFrame {
                     frame_header: FrameHeader {
+                        window_size: 0,
                         window_descriptor: 0,
                         frame_content_size: 0,
                         content_checksum_flag: false,

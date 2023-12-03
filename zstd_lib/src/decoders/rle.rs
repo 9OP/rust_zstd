@@ -28,7 +28,5 @@ impl BitDecoder<u16, Error> for RLEDecoder {
         Ok(false)
     }
 
-    fn reset(&mut self) {
-        unimplemented!("reset not supported for RLEDecoder")
-    }
+    fn reset(&mut self) {}
 }

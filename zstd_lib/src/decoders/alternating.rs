@@ -22,15 +22,15 @@ impl AlternatingDecoder {
 
     fn mut_decoder(&mut self) -> &mut FseDecoder {
         match self.last_used {
-            true => &mut self.decoder_2,
             false => &mut self.decoder_1,
+            true => &mut self.decoder_2,
         }
     }
 
     fn decoder(&self) -> &FseDecoder {
         match self.last_used {
-            true => &self.decoder_2,
             false => &self.decoder_1,
+            true => &self.decoder_2,
         }
     }
 }

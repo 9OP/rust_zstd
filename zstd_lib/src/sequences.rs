@@ -42,6 +42,7 @@ enum SymbolCompressionMode {
     Repeat,
 }
 
+#[derive(Debug)]
 enum SymbolType {
     LiteralsLengths,
     MatchLength,
@@ -111,6 +112,8 @@ impl SymbolCompressionMode {
         symbol_type: SymbolType,
         parser: &mut BackwardBitParser,
     ) -> Result<Option<Box<SymbolDecoder>>> {
+        println!("compression mode {:#?} - {:?}", symbol_type, self);
+
         let decoder = match &self {
             SymbolCompressionMode::Predefined => {
                 let def = match symbol_type {
@@ -185,17 +188,17 @@ impl<'a> Sequences<'a> {
     }
 
     /// Parse the symbol decoders and update the context
-    fn parse_symbol_decoders(
-        &self,
+    fn parse_sequence_decoder(
+        &'a self,
         parser: &mut BackwardBitParser,
-        context: &mut DecodingContext,
-    ) -> Result<()> {
+        context: &'a mut DecodingContext,
+    ) -> Result<SequenceDecoder<'_>> {
         // initialize order: literals > offsets > match
         let ll_decoder = self
             .literal_lengths_mode
             .parse_symbol_decoder(SymbolType::LiteralsLengths, parser)?;
 
-        let om_decoder = self
+        let of_decoder = self
             .offsets_mode
             .parse_symbol_decoder(SymbolType::Offset, parser)?;
 
@@ -203,47 +206,42 @@ impl<'a> Sequences<'a> {
             .match_lengths_mode
             .parse_symbol_decoder(SymbolType::MatchLength, parser)?;
 
+        // TODO: move the code below in a function in decoding_context
+        // Update the context decoders or reset them
         if ll_decoder.is_some() {
             context.literals_lengths_decoder = ll_decoder;
+        } else {
+            context
+                .literals_lengths_decoder
+                .as_mut()
+                .ok_or(MissingSequenceDecoder)?
+                .reset();
         }
-        if om_decoder.is_some() {
-            context.offsets_decoder = om_decoder;
+
+        if of_decoder.is_some() {
+            context.offsets_decoder = of_decoder;
+        } else {
+            context
+                .offsets_decoder
+                .as_mut()
+                .ok_or(MissingSequenceDecoder)?
+                .reset();
         }
+
         if ml_decoder.is_some() {
             context.match_lengths_decoder = ml_decoder;
+        } else {
+            context
+                .match_lengths_decoder
+                .as_mut()
+                .ok_or(MissingSequenceDecoder)?
+                .reset();
         }
 
-        Ok(())
-    }
-
-    /// Extract the symbol decoders from the context and return a SequenceDecoder instance.
-    /// Return `MissingSequenceDecoder` when a symbol decoder is `None`.
-    fn get_sequence_decoder(
-        &'a self,
-        parser: &mut BackwardBitParser,
-        context: &'a mut DecodingContext,
-    ) -> Result<SequenceDecoder<'_>> {
-        self.parse_symbol_decoders(parser, context)?;
-
-        let literals_lengths_decoder = context
-            .literals_lengths_decoder
-            .as_mut()
-            .ok_or(MissingSequenceDecoder)?;
-
-        let offsets_decoder = context
-            .offsets_decoder
-            .as_mut()
-            .ok_or(MissingSequenceDecoder)?;
-
-        let match_lengths_decoder = context
-            .match_lengths_decoder
-            .as_mut()
-            .ok_or(MissingSequenceDecoder)?;
-
         Ok(SequenceDecoder::new(
-            literals_lengths_decoder,
-            offsets_decoder,
-            match_lengths_decoder,
+            context.literals_lengths_decoder.as_mut().unwrap(),
+            context.offsets_decoder.as_mut().unwrap(),
+            context.match_lengths_decoder.as_mut().unwrap(),
         ))
     }
 
@@ -253,29 +251,22 @@ impl<'a> Sequences<'a> {
         let mut decoded_sequences = Vec::<SequenceCommand>::new();
         let mut parser = BackwardBitParser::new(self.bitstream)?;
 
-        let mut sequence_decoder = self.get_sequence_decoder(&mut parser, context)?;
+        let mut sequence_decoder = self.parse_sequence_decoder(&mut parser, context)?;
 
         for i in 0..self.number_of_sequences {
             // decode order: offset > match > literals
             let (literals_symbol, offset_symbol, match_symbol) = sequence_decoder.symbol();
+            println!("{literals_symbol} {offset_symbol} {match_symbol} {i}");
 
             if offset_symbol > 31 {
-                // >31: comes from reference implementation
+                // >31: from reference implementation
                 return Err(Error::Sequences(SymbolCodeUnknown));
             }
 
             // offset
-            // println!(
-            //     "start offset {offset_symbol} {} {literals_symbol} {match_symbol}",
-            //     parser.available_bits()
-            // );
-            // TODO: complete with zeroes
-            if offset_symbol as usize > parser.available_bits() {
-                return Ok(decoded_sequences);
-            }
-            let offset_code = (1_u64 << offset_symbol) + parser.take(offset_symbol.into())?;
-            // println!("end offset");
             // let offset_code = offset_code_lookup(offset_symbol, &mut parser);
+            let offset_code = (1_u64 << offset_symbol) + parser.take(offset_symbol.into())?;
+            // println!("{offset_code} {offset_symbol}");
 
             // match
             let (value, num_bits) = match_lengths_code_lookup(match_symbol)?;
@@ -303,10 +294,9 @@ impl<'a> Sequences<'a> {
 }
 
 fn offset_code_lookup(symbol: u16, parser: &mut BackwardBitParser) -> usize {
-    //
     let code = if parser.available_bits() < symbol as usize {
         let diff = symbol as usize - parser.available_bits();
-        (1_u64 << symbol) + parser.take(parser.available_bits()).unwrap()
+        (1_u64 << symbol) + parser.take(parser.available_bits()).unwrap() << diff
     } else {
         (1_u64 << symbol) + parser.take(symbol.into()).unwrap()
     };
