@@ -12,6 +12,12 @@ pub enum HuffmanError {
 
     #[error("Missing symbol for huffman code")]
     MissingSymbol,
+
+    #[error("Huffman weights are corrupted")]
+    WeightCorruption,
+
+    #[error("Too many Huffman weights")]
+    TooManyWeights,
 }
 use HuffmanError::*;
 
@@ -21,7 +27,6 @@ pub enum HuffmanDecoder {
     Symbol(u8),
     Tree(Box<HuffmanDecoder>, Box<HuffmanDecoder>),
 }
-use HuffmanDecoder::*;
 
 const MAX_NUM_BITS: u32 = 11;
 
@@ -44,10 +49,11 @@ impl<'a> HuffmanDecoder {
         for (symbol, width) in symbols {
             tree.insert(symbol, width);
         }
+
         tree
     }
 
-    // Return the last weight and the maximum width
+    /// Return the last weight and the maximum width
     fn compute_last_weight(weights_sum: u32) -> Result<(u8, u8)> {
         // max_width is the log2 of the sum 2^(w−1) for all weights.
         // we dont know the last_weight yet, but we now that the sum
@@ -84,7 +90,7 @@ impl<'a> HuffmanDecoder {
         Ok((last_weight as u8, max_width as u8))
     }
 
-    pub fn from_weights(weights: Vec<u8>) -> Result<Self> {
+    fn from_weights(weights: Vec<u8>) -> Result<Self> {
         let mut weights = weights.clone();
 
         let mut weights_sum: u32 = 0;
@@ -102,9 +108,16 @@ impl<'a> HuffmanDecoder {
             return Err(Error::Huffman(ComputeMissingWeight));
         }
 
-        // TODO: ensure the properties:
-        // - If no literal has a Weight of 1, then the data is considered corrupted.
-        // - If there are not at least two literals with non-zero Weight, then the data is considered corrupted.
+        // invariant: if no literal has a Weight of 1, then the data is considered corrupted
+        if !weights.iter().any(|&byte| byte == 1) {
+            return Err(Error::Huffman(WeightCorruption));
+        }
+
+        // invariant: if there are not at least two literals with non-zero Weight, then the data is considered corrupted.
+        let non_zero_count = weights.iter().filter(|&&byte| byte != 0).count();
+        if non_zero_count < 2 {
+            return Err(Error::Huffman(WeightCorruption));
+        }
 
         let (missing_weight, max_width) = Self::compute_last_weight(weights_sum)?;
         weights.push(missing_weight);
@@ -117,25 +130,27 @@ impl<'a> HuffmanDecoder {
         Ok(Self::from_number_of_bits(widths))
     }
 
-    pub fn insert(&mut self, symbol: u8, width: u8) -> bool {
+    fn insert(&mut self, symbol: u8, width: u8) -> bool {
         if width == 0 {
-            if let Absent = self {
-                *self = Symbol(symbol);
+            if let HuffmanDecoder::Absent = self {
+                *self = HuffmanDecoder::Symbol(symbol);
                 return true;
             }
             return false;
         }
 
         match self {
-            Symbol(_) => panic!("invalid Huffman tree decoder"),
-            Tree(lhs, rhs) => {
+            HuffmanDecoder::Symbol(_) => panic!("unexpected: invalid Huffman tree decoder"),
+            HuffmanDecoder::Tree(lhs, rhs) => {
                 if lhs.insert(symbol, width - 1) {
                     return true;
                 }
                 rhs.insert(symbol, width - 1)
             }
-            Absent => {
-                *self = Tree(Box::new(Absent), Box::new(Absent));
+            HuffmanDecoder::Absent => {
+                let lhs = Box::new(HuffmanDecoder::Absent);
+                let rhs = Box::new(HuffmanDecoder::Absent);
+                *self = HuffmanDecoder::Tree(lhs, rhs);
                 self.insert(symbol, width)
             }
         }
@@ -143,12 +158,12 @@ impl<'a> HuffmanDecoder {
 
     pub fn decode(&self, parser: &mut BackwardBitParser) -> Result<u8> {
         match self {
-            Absent => Err(Error::Huffman(MissingSymbol)),
-            Symbol(s) => Ok(*s),
-            Tree(lhs, rhs) => match parser.take(1)? {
+            HuffmanDecoder::Absent => Err(Error::Huffman(MissingSymbol)),
+            HuffmanDecoder::Symbol(s) => Ok(*s),
+            HuffmanDecoder::Tree(lhs, rhs) => match parser.take(1)? {
                 0 => lhs.decode(parser),
                 1 => rhs.decode(parser),
-                _ => panic!("unexpected bit value"),
+                b => panic!("unexpected: invalid bit value: {b}"),
             },
         }
     }
@@ -167,8 +182,10 @@ impl<'a> HuffmanDecoder {
         } else {
             Self::parse_direct(input, header as usize - 127)?
         };
-        // TODO: return error when weight.len > 255
-        assert!(weights.len() <= 255, "return error TooManyWeights");
+
+        if weights.len() > 255 {
+            return Err(Error::Huffman(TooManyWeights));
+        }
 
         Self::from_weights(weights)
     }
@@ -178,10 +195,7 @@ impl<'a> HuffmanDecoder {
     /// last four bits are lost. `number_of_weights/2` bytes (rounded
     /// up) will be consumed from the `input` stream.
     fn parse_direct(input: &mut ForwardByteParser, number_of_weights: usize) -> Result<Vec<u8>> {
-        assert!(
-            number_of_weights <= 128,
-            "expected number_of_weights <= 128"
-        );
+        assert!(number_of_weights <= 128, "expected n_weights <= 128");
 
         let mut weights = Vec::<u8>::new();
         let mut number_of_weights = number_of_weights;
@@ -208,36 +222,24 @@ impl<'a> HuffmanDecoder {
     /// consumed from the `input` stream.
     fn parse_fse(input: &mut ForwardByteParser, compressed_size: u8) -> Result<Vec<u8>> {
         let mut weights = Vec::<u8>::new();
+
         let bitstream = input.slice(compressed_size as usize)?;
         let mut forward_bit_parser = ForwardBitParser::new(bitstream);
         let fse_table = FseTable::parse(&mut forward_bit_parser)?;
         let mut decoder = AlternatingDecoder::new(&fse_table);
 
-        // TODO: create error
-        assert!(compressed_size as usize > forward_bit_parser.len());
-        let index = compressed_size as usize - forward_bit_parser.len();
-        let huffman_coeffs = &bitstream[index..];
-        let mut backward_bit_parser = BackwardBitParser::new(huffman_coeffs)?;
+        let mut backward_bit_parser = BackwardBitParser::try_from(forward_bit_parser)?;
+
         decoder.initialize(&mut backward_bit_parser)?;
 
         loop {
-            // TODO: remove unwrap
-            // Consume alternating decoder
             weights.push(decoder.symbol().try_into().unwrap());
+
             if decoder.update_bits(&mut backward_bit_parser)? {
-                // Consume the alternate decoder a last time
                 weights.push(decoder.symbol().try_into().unwrap());
                 break;
             }
         }
-
-        // TODO: return error when weights.lent()>255
-        assert!(weights.len() < 255);
-        // if weights.len() > 255 {
-        //     return Err(err::TooManyWeights {
-        //         got: self.weights.len(),
-        //     });
-        // }
 
         Ok(weights)
     }
@@ -259,9 +261,9 @@ impl<'a> Iterator for HuffmanDecoderIterator<'a> {
     fn next(&mut self) -> Option<Self::Item> {
         let (decoder, prefix) = self.nodes.pop()?;
         match decoder {
-            Absent => None,
-            Symbol(s) => Some((prefix, *s)),
-            Tree(lhs, rhs) => {
+            HuffmanDecoder::Absent => None,
+            HuffmanDecoder::Symbol(s) => Some((prefix, *s)),
+            HuffmanDecoder::Tree(lhs, rhs) => {
                 self.nodes.push((lhs, prefix.clone() + "0"));
                 self.nodes.push((rhs, prefix.clone() + "1"));
                 self.next()

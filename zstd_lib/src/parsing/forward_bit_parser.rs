@@ -1,4 +1,4 @@
-use super::{Error, ForwardByteParser, Result};
+use super::{BackwardBitParser, Error, ForwardByteParser, Result};
 
 pub struct ForwardBitParser<'a> {
     bitstream: &'a [u8],
@@ -157,7 +157,18 @@ impl<'a> ForwardBitParser<'a> {
 impl<'a> From<ForwardBitParser<'a>> for ForwardByteParser<'a> {
     fn from(parser: ForwardBitParser<'a>) -> Self {
         // note: do not include partially consummed first byte
-        ForwardByteParser::new(&parser.bitstream[(parser.bitstream.len() - parser.len())..])
+        let bitstream = &parser.bitstream[(parser.bitstream.len() - parser.len())..];
+        ForwardByteParser::new(bitstream)
+    }
+}
+
+impl<'a> TryFrom<ForwardBitParser<'a>> for BackwardBitParser<'a> {
+    type Error = Error;
+
+    fn try_from(parser: ForwardBitParser<'a>) -> Result<Self> {
+        // note: do not include partially consummed first byte
+        let bitstream = &parser.bitstream[(parser.bitstream.len() - parser.len())..];
+        BackwardBitParser::new(bitstream)
     }
 }
 
