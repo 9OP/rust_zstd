@@ -1,5 +1,4 @@
-use super::{BitDecoder, Error};
-use crate::parsing::BackwardBitParser;
+use super::{BackwardBitParser, BitDecoder, Error};
 
 pub type SymbolDecoder = dyn BitDecoder<u16, Error>;
 pub struct SequenceDecoder<'d> {

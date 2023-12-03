@@ -227,7 +227,7 @@ impl<'a> Sequences<'a> {
         let ml_decoder: Option<Box<dyn BitDecoder<u16, crate::decoders::DecoderError>>> =
             self.parse_symbol_decoder(parser, SymbolType::MatchLength)?;
 
-        context.update_decoders(ll_decoder, of_decoder, ml_decoder)?;
+        context.update_decoders(parser, ll_decoder, of_decoder, ml_decoder)?;
 
         Ok(context.get_sequence_decoder()?)
     }

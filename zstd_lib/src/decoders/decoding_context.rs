@@ -1,4 +1,7 @@
-use super::{Error, HuffmanDecoder, Result, SequenceCommand, SequenceDecoder, SymbolDecoder};
+use super::{
+    BackwardBitParser, Error, HuffmanDecoder, Result, SequenceCommand, SequenceDecoder,
+    SymbolDecoder,
+};
 
 #[derive(Debug, thiserror::Error)]
 pub enum ContextError {
@@ -121,6 +124,7 @@ impl DecodingContext {
 
     pub fn update_decoders(
         &mut self,
+        parser: &mut BackwardBitParser,
         ll: Option<Box<SymbolDecoder>>,
         of: Option<Box<SymbolDecoder>>,
         ml: Option<Box<SymbolDecoder>>,
@@ -128,28 +132,34 @@ impl DecodingContext {
         if ll.is_some() {
             self.literals_lengths_decoder = ll;
         } else {
-            self.literals_lengths_decoder
+            let decoder = self
+                .literals_lengths_decoder
                 .as_mut()
-                .ok_or(Error::Context(MissingSymbolDecoder))?
-                .reset();
+                .ok_or(Error::Context(MissingSymbolDecoder))?;
+            decoder.reset();
+            decoder.initialize(parser)?;
         }
 
         if of.is_some() {
             self.offsets_decoder = of;
         } else {
-            self.offsets_decoder
+            let decoder = self
+                .offsets_decoder
                 .as_mut()
-                .ok_or(Error::Context(MissingSymbolDecoder))?
-                .reset();
+                .ok_or(Error::Context(MissingSymbolDecoder))?;
+            decoder.reset();
+            decoder.initialize(parser)?
         }
 
         if ml.is_some() {
             self.match_lengths_decoder = ml;
         } else {
-            self.match_lengths_decoder
+            let decoder = self
+                .match_lengths_decoder
                 .as_mut()
-                .ok_or(Error::Context(MissingSymbolDecoder))?
-                .reset();
+                .ok_or(Error::Context(MissingSymbolDecoder))?;
+            decoder.reset();
+            decoder.initialize(parser)?
         }
 
         Ok(())

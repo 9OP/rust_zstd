@@ -1,5 +1,4 @@
-use super::{BitDecoder, Error, FseDecoder, FseTable};
-use crate::parsing::BackwardBitParser;
+use super::{BackwardBitParser, BitDecoder, Error, FseDecoder, FseTable};
 
 pub struct AlternatingDecoder {
     decoder_1: FseDecoder,

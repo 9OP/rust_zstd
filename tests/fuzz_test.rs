@@ -29,3 +29,14 @@ fn test_fuzz_2() {
     ];
     let _ = zstd_lib::decode(input.to_vec(), false);
 }
+
+#[test]
+fn test_fuzz_3() {
+    // git log: 767b5780f580d86b973051252b35e56890e08eed
+    // panicked at zstd_lib/src/decoders/fse.rs:247:9: not initialized
+    let input = [
+        40, 181, 47, 253, 32, 12, 36, 1, 0, 0, 0, 0, 32, 40, 181, 47, 253, 32, 1, 36, 4, 253, 47,
+        181, 40, 181, 47, 12, 12, 12, 12, 12, 24, 40, 130, 1,
+    ];
+    let _ = zstd_lib::decode(input.to_vec(), false);
+}

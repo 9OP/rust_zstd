@@ -2,9 +2,9 @@
 
 Pure rust implementation of zstd decompression algorithm: https://www.rfc-editor.org/rfc/rfc8878
 
-#### Commands:
+### Commands:
 
-Display module tree:
+(Display module tree:)
 - `cargo modules generate tree --lib --types --package zstd_lib`
 
 Run all tests:
@@ -15,6 +15,9 @@ Generate coverage report:
 
 Decompress a file:
 - `cargo run tests/fixtures/txt/mobydick.zst `
+
+Fuzzing:
+- `cargo fuzz run fuzz_decode`
 
 ToDo:
 - add code coverage check

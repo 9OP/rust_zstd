@@ -1,5 +1,8 @@
-use super::{AlternatingDecoder, BitDecoder, Error, FseTable, Result};
-use crate::parsing::{BackwardBitParser, ForwardBitParser, ForwardByteParser};
+use super::{
+    AlternatingDecoder, BackwardBitParser, BitDecoder, Error, ForwardBitParser, ForwardByteParser,
+    FseTable, Result,
+};
+
 use std::fmt;
 
 #[derive(Debug, thiserror::Error)]

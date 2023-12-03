@@ -1,5 +1,4 @@
-use super::{BitDecoder, Error};
-use crate::parsing::BackwardBitParser;
+use super::{BackwardBitParser, BitDecoder, Error};
 
 pub struct RLEDecoder {
     symbol: u16,

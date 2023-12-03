@@ -6,7 +6,7 @@ mod huffman;
 mod rle;
 mod sequence;
 
-pub use crate::parsing::ParsingError;
+pub use crate::parsing::{BackwardBitParser, ForwardBitParser, ForwardByteParser, ParsingError};
 pub use crate::sequences::SequenceCommand;
 pub use alternating::*;
 pub use bit_decoder::*;

@@ -1,5 +1,4 @@
-use super::{BitDecoder, Error, Result};
-use crate::parsing::{BackwardBitParser, ForwardBitParser};
+use super::{BackwardBitParser, BitDecoder, Error, ForwardBitParser, Result};
 
 #[derive(Debug, thiserror::Error)]
 pub enum FseError {
