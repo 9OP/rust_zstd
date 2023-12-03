@@ -235,17 +235,15 @@ impl<'a> LiteralsSection<'a> {
                 let jump_table = match streams {
                     1 => None,
                     4 => {
-                        total_streams_size -= 6;
-
                         let stream1_size = input.le(2)?;
                         let stream2_size = input.le(2)?;
                         let stream3_size = input.le(2)?;
-                        let stream4_size =
-                            total_streams_size - stream1_size - stream2_size - stream3_size;
 
-                        if stream4_size < 1 {
+                        if total_streams_size < stream1_size + stream2_size + stream3_size + 6 + 1 {
                             return Err(Error::Literals(CorruptedDataError));
                         }
+
+                        total_streams_size -= 6;
 
                         Some([stream1_size, stream2_size, stream3_size])
                     }

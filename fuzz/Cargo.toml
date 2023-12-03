@@ -1,0 +1,28 @@
+[package]
+edition = "2021"
+name = "net7212-fuzz"
+publish = false
+version = "0.0.0"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+zstd_lib = {path = "../zstd_lib"}
+
+[dependencies.net7212]
+path = ".."
+
+# Prevent this from interfering with workspaces
+[workspace]
+members = ["."]
+
+[profile.release]
+debug = 1
+
+[[bin]]
+doc = false
+name = "fuzz_decode"
+path = "fuzz_targets/fuzz_decode.rs"
+test = false
