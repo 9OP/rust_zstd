@@ -11,6 +11,9 @@ pub enum LiteralsError {
 
     #[error("Data corrupted")]
     CorruptedDataError,
+
+    #[error("Compressed size is invalid")]
+    InvalidCompressedSize,
 }
 use LiteralsError::*;
 
@@ -230,6 +233,9 @@ impl<'a> LiteralsSection<'a> {
                 // Actual total_streams_size depend on the number of streams.
                 // If there are 4 streams, 6bytes are removed from the total size to store
                 // the respective streams size.
+                if compressed_size < huffman_description_size {
+                    return Err(Error::Literals(InvalidCompressedSize));
+                }
                 let mut total_streams_size: usize = compressed_size - huffman_description_size;
 
                 let jump_table = match streams {

@@ -53,3 +53,15 @@ fn test_fuzz_4() {
     ];
     let _ = zstd_lib::decode(input.to_vec(), false);
 }
+
+#[test]
+fn test_fuzz_5() {
+    // git log: dacd8e1a9f43112700933b2aa8e3decb5ea47472
+    // panicked at zstd_lib/src/literals.rs:233:53: attempt to subtract with overflow
+    let input = [
+        40, 181, 47, 253, 32, 41, 181, 0, 162, 162, 162, 0, 162, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0,
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 162, 162, 1, 0, 0, 0, 0, 0, 2, 162, 162, 162, 162, 162, 162,
+        162, 162,
+    ];
+    let _ = zstd_lib::decode(input.to_vec(), false);
+}
