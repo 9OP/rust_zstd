@@ -142,18 +142,15 @@ impl SymbolCompressor {
                 };
 
                 let fse_table = FseTable::from_distribution(accuracy_log, distribution)?;
-                println!("Predefined {:?}, {}", self.symbol_type, fse_table);
                 let mut fse_decoder = FseDecoder::new(fse_table);
                 fse_decoder.initialize(parser)?;
                 Box::new(fse_decoder) as Box<SymbolDecoder>
             }
             Rle(byte) => {
                 let rle_decoder = RLEDecoder::new(*byte as u16);
-                // println!("RLE, {:?}, {:?}", self.symbol_type, rle_decoder);
                 Box::new(rle_decoder) as Box<SymbolDecoder>
             }
             FseCompressed(fse_table) => {
-                println!("Compressed {:?}, {}", self.symbol_type, fse_table);
                 let mut fse_decoder = FseDecoder::new(fse_table.clone());
                 fse_decoder.initialize(parser)?;
                 Box::new(fse_decoder) as Box<SymbolDecoder>
@@ -174,16 +171,9 @@ impl SymbolCompressor {
                         .ok_or(MissingDecoder(Offset))?,
                 };
 
-                println!(
-                    "{:?}, {:?}, RepeatDecoder",
-                    self.compression_mode, self.symbol_type,
-                );
-
                 repeat_decoder.reset();
                 repeat_decoder.initialize(parser)?;
-
-                repeat_decoder.debug();
-
+                // repeat_decoder.debug();
                 repeat_decoder
             }
         };
@@ -289,7 +279,7 @@ impl<'a> Sequences<'a> {
     ) -> Result<SequenceCommand> {
         // decode order: offset > match > literals
         let (literals_symbol, offset_symbol, match_symbol) = decoder.symbol();
-        println!("{literals_symbol} {offset_symbol} {match_symbol} {_i}");
+        // println!("{literals_symbol} {offset_symbol} {match_symbol} {_i}");
 
         if offset_symbol > 31 {
             // >31: from reference implementation
@@ -323,11 +313,6 @@ impl<'a> Sequences<'a> {
     /// Return vector of (literals length, offset value, match length) and update the
     /// decoding context with the tables if appropriate.
     pub fn decode(self, context: &mut DecodingContext) -> Result<Vec<SequenceCommand>> {
-        println!(
-            "decode sequence: len {} {:?}",
-            self.bitstream.len(),
-            &self.bitstream[0..15]
-        );
         if self.number_of_sequences == 0 {
             return Ok(vec![]);
         }
@@ -341,8 +326,6 @@ impl<'a> Sequences<'a> {
             let command = Self::decode_sequence(&mut sequence_decoder, &mut parser, is_last, i)?;
             decoded_sequences.push(command);
         }
-
-        println!("return");
 
         Ok(decoded_sequences)
     }

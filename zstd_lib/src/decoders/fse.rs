@@ -228,16 +228,16 @@ impl FseDecoder {
 
 // Refactor it, use initialized boolean var
 impl BitDecoder<Symbol, Error> for FseDecoder {
-    fn debug(&self) {
-        println!(
-            "{:?} {:?} {:?} al:{} {}",
-            self.base_line,
-            self.symbol,
-            self.num_bits,
-            self.table.accuracy_log(),
-            self.table
-        );
-    }
+    // fn debug(&self) {
+    //     println!(
+    //         "{:?} {:?} {:?} al:{} {}",
+    //         self.base_line,
+    //         self.symbol,
+    //         self.num_bits,
+    //         self.table.accuracy_log(),
+    //         self.table
+    //     );
+    // }
 
     fn initialize(&mut self, bitstream: &mut BackwardBitParser) -> Result<(), Error> {
         assert!(!self.initialized, "already initialized");

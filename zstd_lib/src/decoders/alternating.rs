@@ -35,10 +35,10 @@ impl AlternatingDecoder {
 }
 
 impl BitDecoder<u16, Error> for AlternatingDecoder {
-    // #[cfg(dev)]
-    fn debug(&self) {
-        println!("{:?} {:?}", self.decoder_1, self.decoder_2)
-    }
+    // // #[cfg(dev)]
+    // fn debug(&self) {
+    //     println!("{:?} {:?}", self.decoder_1, self.decoder_2)
+    // }
 
     fn initialize(&mut self, bitstream: &mut BackwardBitParser) -> Result<(), Error> {
         self.decoder_1.initialize(bitstream)?;

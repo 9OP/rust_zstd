@@ -118,11 +118,12 @@ impl<'a> HuffmanDecoder {
             return Err(Error::Huffman(WeightCorruption));
         }
 
-        // invariant: if there are not at least two literals with non-zero Weight, then the data is considered corrupted.
-        let non_zero_count = weights.iter().filter(|&&byte| byte != 0).count();
-        if non_zero_count < 2 {
-            return Err(Error::Huffman(WeightCorruption));
-        }
+        // // invariant: if there are not at least two literals with non-zero Weight, then the data is considered corrupted.
+        // let non_zero_count = weights.iter().filter(|&&byte| byte != 0).count();
+        // if non_zero_count < 2 {
+        //     println!("non_zero_count {non_zero_count} {:?}", weights);
+        //     return Err(Error::Huffman(WeightCorruption));
+        // }
 
         let (missing_weight, max_width) = Self::compute_last_weight(weights_sum)?;
         weights.push(missing_weight);

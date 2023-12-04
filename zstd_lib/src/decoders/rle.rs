@@ -31,5 +31,5 @@ impl BitDecoder<u16, Error> for RLEDecoder {
 
     fn reset(&mut self) {}
 
-    fn debug(&self) {}
+    // fn debug(&self) {}
 }
