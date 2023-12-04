@@ -243,11 +243,16 @@ impl<'a> HuffmanDecoder {
         let mut backward_bit_parser = BackwardBitParser::try_from(forward_bit_parser)?;
         decoder.initialize(&mut backward_bit_parser)?;
 
+        fn get_huffman_weight(decoder: &mut AlternatingDecoder) -> Result<u8> {
+            let symbol = decoder.symbol();
+            <u8>::try_from(symbol).map_err(|_| Error::Huffman(WeightCorruption))
+        }
+
         loop {
-            weights.push(decoder.symbol().try_into().unwrap());
+            weights.push(get_huffman_weight(&mut decoder)?);
 
             if decoder.update_bits(&mut backward_bit_parser)? {
-                weights.push(decoder.symbol().try_into().unwrap());
+                weights.push(get_huffman_weight(&mut decoder)?);
                 break;
             }
         }

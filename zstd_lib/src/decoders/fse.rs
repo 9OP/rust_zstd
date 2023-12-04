@@ -80,7 +80,8 @@ impl FseTable {
 
         // closure iterator that generates next state index
         let mut state_index = std::iter::successors(Some(0_usize), |s| {
-            let new_state = (s + (table_length >> 1) + (table_length >> 3) + 3) % table_length;
+            let new_state =
+                (s + (table_length >> 1) + (table_length >> 3) + 3) & (table_length - 1);
             if new_state == 0 {
                 return None;
             }
@@ -283,7 +284,7 @@ impl BitDecoder<Symbol, Error> for FseDecoder {
     }
 }
 
-#[cfg(test)]
+// #[cfg(test)]
 impl std::fmt::Display for FseTable {
     fn fmt(&self, fmt: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         writeln!(fmt, "State,Sym,BL,NB").ok();
