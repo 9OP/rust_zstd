@@ -12,6 +12,9 @@ pub enum FseError {
 
     #[error("FSE distribution is corrupted")]
     DistributionCorrupted,
+
+    #[error("FSE loop hole state")]
+    LoopHoleState,
 }
 use FseError::*;
 
@@ -94,6 +97,8 @@ impl FseTable {
         })
         .filter(|&index| !set_index.contains(&index));
 
+        // println!("dist {:?}", distribution);
+
         // Symbols with positive probabilities
         let positives: Result<Vec<(Symbol, Probability, Vec<usize>)>> = distribution
             .into_iter()
@@ -133,6 +138,12 @@ impl FseTable {
                 state.base_line = base_line;
                 base_line += 1 << state.num_bits;
             }
+        }
+
+        // see fuzz_test_9: Huffman FSE compressed loops endlessly.
+        //  - if all states have NB 0, it never consume bits.
+        if states.iter().all(|s| s.num_bits == 0) {
+            return Err(Error::Fse(LoopHoleState));
         }
 
         Ok(Self { states })
@@ -275,6 +286,7 @@ impl BitDecoder<Symbol, Error> for FseDecoder {
         };
 
         let state = self.table.get(index as usize)?;
+
         self.symbol = Some(state.symbol);
         self.num_bits = state.num_bits;
         self.base_line = state.base_line;
