@@ -24,29 +24,12 @@ mod text {
         let decoded = decode_file("./tests/txt/mobydick.zst").unwrap();
         assert_eq!(expected, decoded);
     }
-
-    #[test]
-    fn test_les_miserables() {
-        let expected = read_file("./tests/txt/les_miserables.txt");
-        let decoded = decode_file("./tests/txt/les_miserables.zst").unwrap();
-        assert_eq!(expected, decoded);
-    }
-
-    #[test]
-    fn test_hamlet() {
-        let expected = read_file("./tests/txt/hamlet.txt");
-        let decoded = decode_file("./tests/txt/hamlet.zst").unwrap();
-        assert_eq!(expected, decoded);
-    }
-
-    #[test]
-    fn test_the_war_of_the_worlds() {
-        let expected = read_file("./tests/txt/the_war_of_the_worlds.txt");
-        let decoded = decode_file("./tests/txt/the_war_of_the_worlds.zst").unwrap();
-        assert_eq!(expected, decoded);
-    }
 }
 
+/*
+    Golden decompression from:
+    https://github.com/facebook/zstd/tree/dev/tests/golden-decompression
+*/
 #[cfg(test)]
 mod golden {
     use super::*;

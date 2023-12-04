@@ -8,17 +8,22 @@ Pure rust implementation of zstd decompression algorithm: https://www.rfc-editor
 - `cargo modules generate tree --lib --types --package zstd_lib`
 
 Run all tests:
-- `cargo test --workspace --lib -- --nocapture `
+- `cargo test --workspace -- --nocapture `
+
+**Note:** The `corpus` (generated via decodedcorpus) is a bit large (~ 1000 files). Feel free to remove some of them 
+to accelerate the testing
 
 Generate coverage report:
 - `cargo tarpaulin --tests --workspace --count --line --force-clean -p zstd_lib --out html`
 
-**ZstdLib coverage ~77%**
+**ZstdLib coverage ~81% yay!**
 
 Decompress a file:
 - `cargo run tests/fixtures/txt/mobydick.zst `
 
 Fuzzing:
 - `cargo fuzz run fuzz_decode -- -timeout=10`
+
+**Note:** Fuzzing was ran for more than 30minutes without finding any pathological input
 
 TODO: decode frames in parallel
