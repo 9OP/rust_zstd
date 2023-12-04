@@ -6,6 +6,7 @@ repos:
         entry: run_unit_tests.sh
         files: '\.rs$'
         language: "script"
+        verbose: true
 
       - id: fmt
         name: fmt

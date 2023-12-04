@@ -26,4 +26,5 @@ Fuzzing:
 
 **Note:** Fuzzing was ran for more than 30minutes without finding any pathological input
 
-TODO: decode frames in parallel
+Install pre-commit:
+- `pre-commit install`

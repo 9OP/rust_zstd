@@ -97,8 +97,6 @@ impl FseTable {
         })
         .filter(|&index| !set_index.contains(&index));
 
-        // println!("dist {:?}", distribution);
-
         // Symbols with positive probabilities
         let positives: Result<Vec<(Symbol, Probability, Vec<usize>)>> = distribution
             .into_iter()
@@ -142,7 +140,13 @@ impl FseTable {
 
         // see fuzz_test_9: Huffman FSE compressed loops endlessly.
         //  - if all states have NB 0, it never consume bits.
-        if states.iter().all(|s| s.num_bits == 0) {
+        //  - if a state has NB = 0 and baseline == index it never consume and never progress
+        if states.iter().all(|s| s.num_bits == 0)
+            || states
+                .iter()
+                .enumerate()
+                .any(|(i, s)| i == s.base_line && s.num_bits == 0)
+        {
             return Err(Error::Fse(LoopHoleState));
         }
 

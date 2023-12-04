@@ -73,8 +73,7 @@ pub fn decode(bytes: Vec<u8>, info: bool) -> Result<Vec<u8>> {
     thread::scope(|s| -> Result<(), ZstdLibError> {
         let handles: Vec<_> = frames
             .into_iter()
-            .enumerate()
-            .map(|frame| s.spawn(move || frame.1.decode()))
+            .map(|frame| s.spawn(move || frame.decode()))
             .collect();
 
         for handle in handles {
