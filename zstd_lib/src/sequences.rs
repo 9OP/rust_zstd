@@ -2,6 +2,7 @@ use super::{
     BackwardBitParser, BitDecoder, DecodingContext, Error, ForwardBitParser, ForwardByteParser,
     FseDecoder, FseTable, RLEDecoder, Result, SequenceDecoder, SymbolDecoder,
 };
+use std::sync::{Arc, Mutex};
 
 #[derive(Debug, thiserror::Error)]
 pub enum SequencesError {
@@ -310,14 +311,18 @@ impl<'a> Sequences<'a> {
 
     /// Return vector of (literals length, offset value, match length) and update the
     /// decoding context with the tables if appropriate.
-    pub fn decode(self, context: &mut DecodingContext) -> Result<Vec<SequenceCommand>> {
+    pub fn decode(
+        self,
+        shared_context: Arc<Mutex<&mut DecodingContext>>,
+    ) -> Result<Vec<SequenceCommand>> {
         if self.number_of_sequences == 0 {
             return Ok(vec![]);
         }
 
+        let mut ctx = shared_context.lock().unwrap();
         let mut decoded_sequences = Vec::<SequenceCommand>::new();
         let mut parser = BackwardBitParser::new(self.bitstream)?;
-        let mut sequence_decoder = self.parse_sequence_decoder(&mut parser, context)?;
+        let mut sequence_decoder = self.parse_sequence_decoder(&mut parser, *ctx)?;
 
         for i in 0..self.number_of_sequences {
             let is_last = i == self.number_of_sequences - 1;

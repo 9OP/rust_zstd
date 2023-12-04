@@ -1,13 +1,13 @@
 use super::{BackwardBitParser, DecodingContext, Error, ForwardByteParser, HuffmanDecoder, Result};
-use std::{sync::Arc, thread};
+use std::{
+    sync::{Arc, Mutex},
+    thread,
+};
 
 #[derive(Debug, thiserror::Error)]
 pub enum LiteralsError {
     #[error("Missing huffman decoder")]
     MissingHuffmanDecoder,
-
-    #[error("Parallel decoding panicked")]
-    ParallelDecodingError,
 
     #[error("Data corrupted")]
     CorruptedDataError,
@@ -55,7 +55,7 @@ impl<'a> LiteralsSection<'a> {
     /// Decompress the literals section. Update the Huffman decoder in
     /// `context` if appropriate (compressed literals block with a
     /// Huffman table inside).
-    pub fn decode(self, context: &mut DecodingContext) -> Result<Vec<u8>> {
+    pub fn decode(self, shared_context: Arc<Mutex<&mut DecodingContext>>) -> Result<Vec<u8>> {
         match self {
             LiteralsSection::Raw(block) => {
                 let decoded = Vec::from(block.0);
@@ -71,11 +71,13 @@ impl<'a> LiteralsSection<'a> {
                 let mut decoded = vec![];
 
                 if let Some(huffman) = block.huffman {
-                    context.huffman = Some(huffman);
+                    let mut ctx = shared_context.lock().unwrap();
+                    ctx.huffman = Some(huffman);
                 }
 
                 // We need to clone the decoder to send it to move it to threads
-                let huffman = context.huffman.clone().ok_or(MissingHuffmanDecoder)?;
+                let ctx = shared_context.lock().unwrap();
+                let huffman = ctx.huffman.clone().ok_or(MissingHuffmanDecoder)?;
 
                 match block.jump_table {
                     None => {
@@ -122,10 +124,10 @@ impl<'a> LiteralsSection<'a> {
                         let h3 = process(Arc::clone(&decoder), Arc::clone(&data), r3);
                         let h4 = process(Arc::clone(&decoder), Arc::clone(&data), r4);
 
-                        let stream1 = h1.join().map_err(|_| ParallelDecodingError)??;
-                        let stream2 = h2.join().map_err(|_| ParallelDecodingError)??;
-                        let stream3 = h3.join().map_err(|_| ParallelDecodingError)??;
-                        let stream4 = h4.join().map_err(|_| ParallelDecodingError)??;
+                        let stream1 = h1.join().map_err(|_| Error::ParallelDecodingError)??;
+                        let stream2 = h2.join().map_err(|_| Error::ParallelDecodingError)??;
+                        let stream3 = h3.join().map_err(|_| Error::ParallelDecodingError)??;
+                        let stream4 = h4.join().map_err(|_| Error::ParallelDecodingError)??;
 
                         if stream1.len() != regenerated_stream_size
                             || stream2.len() != regenerated_stream_size

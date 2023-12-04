@@ -1,13 +1,10 @@
 #!/bin/sh
 
 PASS=true
-for DIR in $(echo "$@" | xargs -n1 dirname | sort -u); do
-    cargo test --workspace -- --nocapture
-    if [ "$?" -ne 0 ]; then
-        PASS=false
-    fi
-done
-
+cargo test --workspace -- --nocapture
+if [ "$?" -ne 0 ]; then
+    PASS=false
+fi
 if [ "$PASS" = "false" ]; then
     exit 1
 fi

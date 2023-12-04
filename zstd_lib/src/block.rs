@@ -1,5 +1,10 @@
 use super::{DecodingContext, Error, ForwardByteParser, LiteralsSection, Result, Sequences};
 
+use std::{
+    sync::{Arc, Mutex},
+    thread,
+};
+
 #[derive(Debug, thiserror::Error)]
 pub enum BlockError {
     #[error("Reserved block type")]
@@ -99,11 +104,22 @@ impl<'a> Block<'a> {
                 literals,
                 sequences,
             } => {
-                // TODO: decode in parrallel
-                let literals = literals.decode(context)?;
-                let sequences = sequences.decode(context)?;
+                thread::scope(|s| -> Result<()> {
+                    let context = Arc::new(Mutex::new(context));
 
-                context.execute_sequences(sequences, literals.as_slice())?;
+                    let lit_ctx = Arc::clone(&context);
+                    let seq_ctx = Arc::clone(&context);
+
+                    let lit_h = s.spawn(move || literals.decode(lit_ctx));
+                    let seq_h = s.spawn(move || sequences.decode(seq_ctx));
+
+                    let literals = lit_h.join().map_err(|_| Error::ParallelDecodingError)??;
+                    let sequences = seq_h.join().map_err(|_| Error::ParallelDecodingError)??;
+
+                    let mut ctx = context.lock().unwrap();
+                    ctx.execute_sequences(sequences, literals.as_slice())?;
+                    Ok(())
+                })?;
             }
         };
 
