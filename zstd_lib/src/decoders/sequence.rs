@@ -22,6 +22,8 @@ impl<'a> SequenceDecoder<'a> {
 }
 
 impl BitDecoder<(u16, u16, u16), Error> for SequenceDecoder<'_> {
+    fn debug(&self) {}
+
     fn initialize(&mut self, _: &mut BackwardBitParser) -> Result<(), Error> {
         unimplemented!("initialize not supported for SequenceDecoder")
     }
@@ -32,8 +34,8 @@ impl BitDecoder<(u16, u16, u16), Error> for SequenceDecoder<'_> {
 
     fn symbol(&mut self) -> (u16, u16, u16) {
         let literals_code = self.literals_lengths_decoder.symbol();
-        let offset_code = self.offsets_decoder.symbol();
         let match_code = self.match_lengths_decoder.symbol();
+        let offset_code = self.offsets_decoder.symbol();
         (literals_code, offset_code, match_code)
     }
 
@@ -46,8 +48,6 @@ impl BitDecoder<(u16, u16, u16), Error> for SequenceDecoder<'_> {
     }
 
     fn reset(&mut self) {
-        self.literals_lengths_decoder.reset();
-        self.match_lengths_decoder.reset();
-        self.offsets_decoder.reset();
+        unimplemented!("reset not supported for SequenceDecoder");
     }
 }

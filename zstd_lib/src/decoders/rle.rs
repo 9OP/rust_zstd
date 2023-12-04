@@ -25,8 +25,11 @@ impl BitDecoder<u16, Error> for RLEDecoder {
     }
 
     fn update_bits(&mut self, _: &mut BackwardBitParser) -> Result<bool, Error> {
+        // Ok(bitstream.available_bits() == 0) ????
         Ok(false)
     }
 
     fn reset(&mut self) {}
+
+    fn debug(&self) {}
 }

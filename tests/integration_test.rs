@@ -78,18 +78,30 @@ mod golden {
 mod decode_corpus {
     use super::*;
 
-    // #[test]
-    // fn test_corpus() {
-    //     let path = "./tests/decode_corpus";
-    //     for entry in fs::read_dir(path).unwrap() {
-    //         let entry = entry.unwrap();
-    //         let file_path = entry.path();
+    #[test]
+    fn test_corpus() {
+        let path = "./tests/decode_corpus";
+        let mut errors = vec![];
 
-    //         if file_path.is_file() {
-    //             let p = file_path.into_os_string().into_string().unwrap();
-    //             println!("{p}");
-    //             let _ = decode_file(p.as_str()).unwrap();
-    //         }
-    //     }
-    // }
+        for entry in fs::read_dir(path).unwrap() {
+            let entry = entry.unwrap();
+            let file_path = entry.path();
+
+            if file_path.is_file() {
+                let p = file_path.into_os_string().into_string().unwrap();
+
+                match decode_file(p.as_str()) {
+                    Ok(_) => (),
+                    Err(err) => errors.push((p, err)),
+                }
+            }
+        }
+
+        for (p, err) in &errors {
+            println!("{p}: {err}");
+        }
+        if errors.len() > 0 {
+            panic!("failed: {} corpus", errors.len());
+        }
+    }
 }

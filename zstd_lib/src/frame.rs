@@ -78,9 +78,9 @@ impl<'a> Frame<'a> {
                 // too soon and let us call frame.verify_checksum.
                 // `take` let us replace frame.blocks with an empty vec.
                 let blocks = std::mem::take(&mut frame.blocks);
-                blocks
-                    .into_iter()
-                    .try_for_each(|block| block.decode(&mut context))?;
+                for block in blocks {
+                    block.decode(&mut context)?;
+                }
 
                 if !frame.verify_checksum(&context.decoded)? {
                     return Err(Error::Frame(ChecksumMismatch));

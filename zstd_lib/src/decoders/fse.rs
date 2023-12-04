@@ -40,7 +40,7 @@ impl FseTable {
             self.states.len().is_power_of_two(),
             "unexpected FSE states count not power of 2"
         );
-        usize::BITS - self.states.len().leading_zeros() - 1
+        self.states.len().trailing_zeros()
     }
 
     fn get(&self, index: usize) -> Result<&FseState> {
@@ -205,6 +205,7 @@ fn parse_fse_table(parser: &mut ForwardBitParser) -> Result<(u8, Vec<Probability
     Ok((accuracy_log, probabilities))
 }
 
+#[derive(Debug)]
 pub struct FseDecoder {
     initialized: bool,
     table: FseTable,
@@ -227,6 +228,17 @@ impl FseDecoder {
 
 // Refactor it, use initialized boolean var
 impl BitDecoder<Symbol, Error> for FseDecoder {
+    fn debug(&self) {
+        println!(
+            "{:?} {:?} {:?} al:{} {}",
+            self.base_line,
+            self.symbol,
+            self.num_bits,
+            self.table.accuracy_log(),
+            self.table
+        );
+    }
+
     fn initialize(&mut self, bitstream: &mut BackwardBitParser) -> Result<(), Error> {
         assert!(!self.initialized, "already initialized");
         assert!(!self.table.states.is_empty(), "empty");

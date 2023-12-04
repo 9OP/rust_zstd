@@ -14,6 +14,9 @@ pub enum LiteralsError {
 
     #[error("Compressed size is invalid")]
     InvalidCompressedSize,
+
+    #[error("Regenerated size error")]
+    RegneratedSizeError,
 }
 use LiteralsError::*;
 
@@ -83,9 +86,11 @@ impl<'a> LiteralsSection<'a> {
                     }
 
                     Some([stream1_size, stream2_size, stream3_size]) => {
+                        let regenerated_stream_size = (block.regenerated_size + 3) / 4;
                         let idx2 = stream1_size;
                         let idx3 = idx2 + stream2_size;
                         let idx4 = idx3 + stream3_size;
+                        assert!(idx4 > idx3 && idx3 > idx2);
 
                         let data = Arc::new(Vec::from(block.data));
                         let decoder = Arc::new(huffman);
@@ -120,6 +125,13 @@ impl<'a> LiteralsSection<'a> {
                         let stream2 = h2.join().map_err(|_| ParallelDecodingError)??;
                         let stream3 = h3.join().map_err(|_| ParallelDecodingError)??;
                         let stream4 = h4.join().map_err(|_| ParallelDecodingError)??;
+
+                        if stream1.len() != regenerated_stream_size
+                            || stream2.len() != regenerated_stream_size
+                            || stream3.len() != regenerated_stream_size
+                        {
+                            return Err(Error::Literals(RegneratedSizeError));
+                        }
 
                         decoded.extend(stream1);
                         decoded.extend(stream2);
