@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use super::{BackwardBitParser, BitDecoder, Error, ForwardBitParser, Result};
 
 #[derive(Debug, thiserror::Error)]
@@ -53,6 +55,7 @@ impl FseTable {
     pub fn from_distribution(accuracy_log: u8, distribution: &[Probability]) -> Result<Self> {
         let table_length = 1 << accuracy_log;
         let mut states = vec![FseState::default(); table_length];
+        let mut set_index = HashSet::<usize>::new();
 
         let distribution: Vec<(Symbol, Probability)> = distribution
             .iter()
@@ -70,12 +73,14 @@ impl FseTable {
         // sort symbols based on lowest value first
         less_than_one.sort();
         for (i, symbol) in less_than_one.iter().enumerate() {
+            let index = table_length - 1 - i;
             let state = FseState {
                 symbol: *symbol,
                 base_line: 0,
                 num_bits: accuracy_log as usize,
             };
-            states[table_length - 1 - i] = state;
+            states[index] = state;
+            set_index.insert(index);
         }
 
         // closure iterator that generates next state index
@@ -87,7 +92,7 @@ impl FseTable {
             }
             Some(new_state)
         })
-        .filter(|&index| index < table_length - less_than_one.len());
+        .filter(|&index| !set_index.contains(&index));
 
         // Symbols with positive probabilities
         let positives: Result<Vec<(Symbol, Probability, Vec<usize>)>> = distribution
@@ -143,12 +148,12 @@ fn parse_fse_table(parser: &mut ForwardBitParser) -> Result<(u8, Vec<Probability
         }));
     }
 
-    let probability_sum = 1 << accuracy_log;
+    let probability_sum: u32 = 1 << accuracy_log;
     let mut probability_counter: u32 = 0;
     let mut probabilities: Vec<i16> = Vec::new();
 
     while probability_counter < probability_sum {
-        let max_remaining_value = probability_sum - probability_counter + 1;
+        let max_remaining_value: u32 = probability_sum + 1 - probability_counter;
         let bits_to_read = u32::BITS - max_remaining_value.leading_zeros();
 
         // Value is either encoded in: bits_to_read or bits_to_read-1
@@ -176,7 +181,7 @@ fn parse_fse_table(parser: &mut ForwardBitParser) -> Result<(u8, Vec<Probability
             }
         };
 
-        let probability = decoded_value as i16 - 1;
+        let probability = (decoded_value as i16) - 1;
 
         probability_counter += probability.unsigned_abs() as u32;
         probabilities.push(probability);

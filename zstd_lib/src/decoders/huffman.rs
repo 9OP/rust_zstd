@@ -85,7 +85,7 @@ impl<'a> HuffmanDecoder {
 
         // left_over is a clean power of 2 (ie. only one bit is set)
         // the log2 is the number of leading zeroes minus 1.
-        let last_weight = (u32::BITS - left_over.leading_zeros() - 1) + 1;
+        let last_weight = left_over.trailing_zeros() + 1;
 
         // safety check: no 2^(w-1) is greater that the sum of others
         if last_weight > weights_sum {
