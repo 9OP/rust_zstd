@@ -1,4 +1,7 @@
 use std::fs;
+use std::path::Path;
+use std::process::Command;
+
 use zstd_lib::{self, ZstdLibError};
 
 fn read_file(path: &str) -> Vec<u8> {
@@ -78,29 +81,62 @@ mod golden {
 mod decode_corpus {
     use super::*;
 
+    const SCRIPT: &str = "./tests/generate_decoded_corpus.sh";
+    const DECODED: &str = "./tests/decoded_corpus";
+    const CORPUS: &str = "./tests/corpus";
+
+    #[derive(Debug)]
+    enum TestError<'a> {
+        Zstd(ZstdLibError),
+        Other(&'a str),
+    }
+
+    fn generate_decoded_corpus() {
+        // Execute the Bash script
+        let status = Command::new("bash")
+            .arg(SCRIPT)
+            .status()
+            .expect("failed to execute script");
+
+        if status.success() {
+            println!("decoded corpus generated");
+        } else {
+            println!("decoded corpus generation failed: {}", status);
+        }
+    }
+
     #[test]
     fn test_corpus() {
-        let path = "./tests/decode_corpus";
+        // Setup the decoded corpus from zstd for cross check
+        generate_decoded_corpus();
+
         let mut errors = vec![];
 
-        for entry in fs::read_dir(path).unwrap() {
-            let entry = entry.unwrap();
-            let file_path = entry.path();
+        for entry in fs::read_dir(CORPUS).unwrap() {
+            let file_name = entry.unwrap().file_name();
+            let file_name_str = file_name.to_string_lossy();
 
-            if file_path.is_file() {
-                let p = file_path.into_os_string().into_string().unwrap();
+            // Create paths for the input and output files
+            let base_name = file_name_str.trim_end_matches(".zst");
+            let input_file_path = Path::new(CORPUS).join(&file_name);
+            let expected_output_file_path = Path::new(DECODED).join(format!("{}.bin", base_name));
 
-                match decode_file(p.as_str()) {
-                    Ok(_) => (),
-                    Err(err) => errors.push((p, err)),
+            match decode_file(input_file_path.to_str().unwrap()) {
+                Ok(decoded) => {
+                    let expected = read_file(expected_output_file_path.to_str().unwrap());
+                    if expected != decoded {
+                        errors.push((input_file_path, TestError::Other("expected != decoded")));
+                    }
                 }
+                Err(err) => errors.push((input_file_path, TestError::Zstd(err))),
             }
         }
 
-        for (p, err) in &errors {
-            println!("{p}: {err}");
-        }
+        // Error reporting
         if errors.len() > 0 {
+            for (p, err) in &errors {
+                println!("{p:?}: {err:?}");
+            }
             panic!("failed: {} corpus", errors.len());
         }
     }
