@@ -1,5 +1,6 @@
 use super::{BackwardBitParser, BitDecoder, Error};
 
+#[derive(Debug)]
 pub struct RLEDecoder {
     symbol: u16,
 }

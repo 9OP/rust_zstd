@@ -22,31 +22,39 @@ use SequencesError::*;
 #[derive(Debug)]
 pub struct Sequences<'a> {
     number_of_sequences: usize,
-    literal_lengths_mode: SymbolCompressionMode,
-    offsets_mode: SymbolCompressionMode,
-    match_lengths_mode: SymbolCompressionMode,
+    literal_lengths_mode: SymbolCompressor,
+    offsets_mode: SymbolCompressor,
+    match_lengths_mode: SymbolCompressor,
     bitstream: &'a [u8],
 }
 
-pub struct SequenceCommand {
-    pub literal_length: usize,
-    pub match_length: usize,
-    pub offset: usize,
+#[derive(Debug)]
+struct SymbolCompressor {
+    compression_mode: CompressionMode,
+    symbol_type: SymbolType,
 }
 
 #[derive(Debug)]
-enum SymbolCompressionMode {
+enum CompressionMode {
     Predefined,
     Rle(u8),
     FseCompressed(FseTable),
     Repeat,
 }
+use CompressionMode::*;
 
 #[derive(Debug)]
 enum SymbolType {
-    LiteralsLengths,
+    LiteralsLength,
     MatchLength,
     Offset,
+}
+use SymbolType::*;
+
+pub struct SequenceCommand {
+    pub literal_length: usize,
+    pub match_length: usize,
+    pub offset: usize,
 }
 
 struct DefaultDistribution<'a> {
@@ -74,72 +82,80 @@ const OFFSET_CODE_DEFAULT_DISTRIBUTION: DefaultDistribution<'_> = DefaultDistrib
         1, 1, 1, 1, 1, 1, 2, 2, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, -1, -1, -1, -1, -1,
     ],
 };
-impl SymbolCompressionMode {
+
+impl SymbolCompressor {
     /// Parse the compression mode
-    fn parse(mode: u8, input: &mut ForwardByteParser, symbol_type: SymbolType) -> Result<Self> {
-        match mode {
-            0 => Ok(Self::Predefined),
-            1 => Ok(Self::Rle(input.u8()?)),
+    fn parse(mode: u8, symbol_type: SymbolType, input: &mut ForwardByteParser) -> Result<Self> {
+        let compression_mode = match mode {
+            0 => Predefined,
+            1 => Rle(input.u8()?),
             2 => {
                 let mut parser = ForwardBitParser::from(*input);
                 let fse_table = FseTable::parse(&mut parser)?;
-
-                // Not sure about this part, from the doc:
-                //      Note that the maximum allowed accuracy log for literals length code and match length code tables is 9,
-                //      and the maximum accuracy log for the offset code table is 8.
-                //      This mode must not be used when only one symbol is present;
-                //      RLE_Mode should be used instead (although any other mode will work).
-                let max_al = match symbol_type {
-                    SymbolType::MatchLength | SymbolType::LiteralsLengths => 9,
-                    SymbolType::Offset => 8,
-                };
-                if fse_table.accuracy_log() > max_al {
-                    return Err(Error::Sequences(ALTooLarge));
-                }
-                if fse_table.accuracy_log() == 0 {
-                    return Ok(Self::Predefined);
-                }
-
                 *input = ForwardByteParser::from(parser);
-                Ok(Self::FseCompressed(fse_table))
+                FseCompressed(fse_table)
             }
-            3 => Ok(Self::Repeat),
+            3 => Repeat,
             _ => panic!("unexpected compression mode value {mode}"),
-        }
+        };
+
+        Ok(Self {
+            compression_mode,
+            symbol_type,
+        })
     }
 
     /// Parse the compression mode respective decoder
     fn parse_decoder(
         &self,
-        symbol_type: SymbolType,
+        context: &mut DecodingContext,
         parser: &mut BackwardBitParser,
-    ) -> Result<Option<Box<SymbolDecoder>>> {
-        let decoder = match &self {
-            SymbolCompressionMode::Predefined => {
+    ) -> Result<Box<SymbolDecoder>> {
+        let decoder = match &self.compression_mode {
+            Predefined => {
                 let DefaultDistribution {
                     accuracy_log,
                     distribution,
-                } = match symbol_type {
-                    SymbolType::LiteralsLengths => LITERALS_LENGTH_DEFAULT_DISTRIBUTION,
-                    SymbolType::MatchLength => MATCH_LENGTH_DEFAULT_DISTRIBUTION,
-                    SymbolType::Offset => OFFSET_CODE_DEFAULT_DISTRIBUTION,
+                } = match &self.symbol_type {
+                    LiteralsLength => LITERALS_LENGTH_DEFAULT_DISTRIBUTION,
+                    MatchLength => MATCH_LENGTH_DEFAULT_DISTRIBUTION,
+                    Offset => OFFSET_CODE_DEFAULT_DISTRIBUTION,
                 };
 
                 let fse_table = FseTable::from_distribution(accuracy_log, distribution)?;
                 let mut fse_decoder = FseDecoder::new(fse_table);
                 fse_decoder.initialize(parser)?;
-                Some(Box::new(fse_decoder) as Box<SymbolDecoder>)
+                Box::new(fse_decoder) as Box<SymbolDecoder>
             }
-            SymbolCompressionMode::Rle(byte) => {
+            Rle(byte) => {
                 let rle_decoder = RLEDecoder::new(*byte as u16);
-                Some(Box::new(rle_decoder) as Box<SymbolDecoder>)
+                Box::new(rle_decoder) as Box<SymbolDecoder>
             }
-            SymbolCompressionMode::FseCompressed(fse_table) => {
+            FseCompressed(fse_table) => {
                 let mut fse_decoder = FseDecoder::new(fse_table.clone());
                 fse_decoder.initialize(parser)?;
-                Some(Box::new(fse_decoder) as Box<SymbolDecoder>)
+                Box::new(fse_decoder) as Box<SymbolDecoder>
             }
-            SymbolCompressionMode::Repeat => None,
+            Repeat => {
+                let mut repeat_decoder = match &self.symbol_type {
+                    LiteralsLength => context
+                        .literals_lengths_decoder
+                        .take()
+                        .ok_or(MissingSequenceDecoder)?,
+                    MatchLength => context
+                        .offsets_decoder
+                        .take()
+                        .ok_or(MissingSequenceDecoder)?,
+                    Offset => context
+                        .match_lengths_decoder
+                        .take()
+                        .ok_or(MissingSequenceDecoder)?,
+                };
+
+                repeat_decoder.reset();
+                repeat_decoder.initialize(parser)?;
+                repeat_decoder
+            }
         };
 
         Ok(decoder)
@@ -162,11 +178,7 @@ impl<'a> Sequences<'a> {
 
     fn parse_compression_modes(
         input: &mut ForwardByteParser,
-    ) -> Result<(
-        SymbolCompressionMode,
-        SymbolCompressionMode,
-        SymbolCompressionMode,
-    )> {
+    ) -> Result<(SymbolCompressor, SymbolCompressor, SymbolCompressor)> {
         let modes = input.u8()?;
 
         let ll_mode = (modes & 0b1100_0000) >> 6;
@@ -174,9 +186,9 @@ impl<'a> Sequences<'a> {
         let ml_mode = (modes & 0b0000_1100) >> 2;
 
         // Parse order: [literal][offset][match]
-        let ll = SymbolCompressionMode::parse(ll_mode, input, SymbolType::LiteralsLengths)?;
-        let of = SymbolCompressionMode::parse(of_mode, input, SymbolType::Offset)?;
-        let ml = SymbolCompressionMode::parse(ml_mode, input, SymbolType::MatchLength)?;
+        let ll = SymbolCompressor::parse(ll_mode, LiteralsLength, input)?;
+        let of = SymbolCompressor::parse(of_mode, Offset, input)?;
+        let ml = SymbolCompressor::parse(ml_mode, MatchLength, input)?;
 
         let reserved = modes & 0b11;
         if reserved != 0 {
@@ -192,9 +204,18 @@ impl<'a> Sequences<'a> {
         if number_of_sequences == 0 {
             return Ok(Sequences {
                 number_of_sequences: 0,
-                literal_lengths_mode: SymbolCompressionMode::Predefined,
-                offsets_mode: SymbolCompressionMode::Predefined,
-                match_lengths_mode: SymbolCompressionMode::Predefined,
+                literal_lengths_mode: SymbolCompressor {
+                    compression_mode: Predefined,
+                    symbol_type: LiteralsLength,
+                },
+                offsets_mode: SymbolCompressor {
+                    compression_mode: Predefined,
+                    symbol_type: Offset,
+                },
+                match_lengths_mode: SymbolCompressor {
+                    compression_mode: Predefined,
+                    symbol_type: MatchLength,
+                },
                 bitstream: &[],
             });
         }
@@ -212,19 +233,6 @@ impl<'a> Sequences<'a> {
         })
     }
 
-    #[rustfmt::skip]
-    fn parse_symbol_decoder(
-        &self,
-        parser: &mut BackwardBitParser,
-        symbol_type: SymbolType,
-    ) -> Result<Option<Box<SymbolDecoder>>> {
-        match symbol_type {
-            SymbolType::LiteralsLengths => self.literal_lengths_mode.parse_decoder(symbol_type, parser),
-            SymbolType::Offset => self.offsets_mode.parse_decoder(symbol_type, parser),
-            SymbolType::MatchLength => self.match_lengths_mode.parse_decoder(symbol_type, parser),
-        }
-    }
-
     /// Parse the symbol decoders and update the context
     fn parse_sequence_decoder(
         &'a self,
@@ -232,12 +240,13 @@ impl<'a> Sequences<'a> {
         context: &'a mut DecodingContext,
     ) -> Result<SequenceDecoder<'_>> {
         // initialize order: literals > offsets > match
-        let ll_decoder = self.parse_symbol_decoder(parser, SymbolType::LiteralsLengths)?;
-        let of_decoder = self.parse_symbol_decoder(parser, SymbolType::Offset)?;
-        let ml_decoder: Option<Box<dyn BitDecoder<u16, crate::decoders::DecoderError>>> =
-            self.parse_symbol_decoder(parser, SymbolType::MatchLength)?;
+        let ll_decoder = self.literal_lengths_mode.parse_decoder(context, parser)?;
+        let of_decoder = self.offsets_mode.parse_decoder(context, parser)?;
+        let ml_decoder = self.match_lengths_mode.parse_decoder(context, parser)?;
 
-        context.update_decoders(parser, ll_decoder, of_decoder, ml_decoder)?;
+        context.literals_lengths_decoder = Some(ll_decoder);
+        context.offsets_decoder = Some(of_decoder);
+        context.match_lengths_decoder = Some(ml_decoder);
 
         Ok(context.get_sequence_decoder()?)
     }

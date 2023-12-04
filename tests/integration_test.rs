@@ -76,7 +76,8 @@ mod golden {
 */
 #[cfg(test)]
 mod decode_corpus {
-    // use super::*;
+    use super::*;
+
     // #[test]
     // fn test_corpus() {
     //     let path = "./tests/decode_corpus";

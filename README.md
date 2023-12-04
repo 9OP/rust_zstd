@@ -20,3 +20,5 @@ Decompress a file:
 
 Fuzzing:
 - `cargo fuzz run fuzz_decode -- -timeout=10`
+
+TODO: decode frames in parallel

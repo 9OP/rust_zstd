@@ -1,7 +1,4 @@
-use super::{
-    BackwardBitParser, Error, HuffmanDecoder, Result, SequenceCommand, SequenceDecoder,
-    SymbolDecoder,
-};
+use super::{Error, HuffmanDecoder, Result, SequenceCommand, SequenceDecoder, SymbolDecoder};
 
 #[derive(Debug, thiserror::Error)]
 pub enum ContextError {
@@ -110,61 +107,6 @@ impl DecodingContext {
         })
     }
 
-    /// Decode an offset and properly maintain the three repeat offsets
-    fn compute_offset(&mut self, offset: usize, literals_length: usize) -> Result<usize> {
-        let offset = self.repeat_offsets.compute_offset(offset, literals_length);
-        let total_output = self.decoded.len();
-
-        if offset > self.window_size || offset > total_output {
-            return Err(Error::Context(OffsetError));
-        }
-
-        Ok(offset)
-    }
-
-    pub fn update_decoders(
-        &mut self,
-        parser: &mut BackwardBitParser,
-        ll: Option<Box<SymbolDecoder>>,
-        of: Option<Box<SymbolDecoder>>,
-        ml: Option<Box<SymbolDecoder>>,
-    ) -> Result<()> {
-        if ll.is_some() {
-            self.literals_lengths_decoder = ll;
-        } else {
-            let decoder = self
-                .literals_lengths_decoder
-                .as_mut()
-                .ok_or(Error::Context(MissingSymbolDecoder))?;
-            decoder.reset();
-            decoder.initialize(parser)?;
-        }
-
-        if of.is_some() {
-            self.offsets_decoder = of;
-        } else {
-            let decoder = self
-                .offsets_decoder
-                .as_mut()
-                .ok_or(Error::Context(MissingSymbolDecoder))?;
-            decoder.reset();
-            decoder.initialize(parser)?
-        }
-
-        if ml.is_some() {
-            self.match_lengths_decoder = ml;
-        } else {
-            let decoder = self
-                .match_lengths_decoder
-                .as_mut()
-                .ok_or(Error::Context(MissingSymbolDecoder))?;
-            decoder.reset();
-            decoder.initialize(parser)?
-        }
-
-        Ok(())
-    }
-
     pub fn get_sequence_decoder(&mut self) -> Result<SequenceDecoder<'_>> {
         Ok(SequenceDecoder::new(
             self.literals_lengths_decoder
@@ -177,6 +119,18 @@ impl DecodingContext {
                 .as_mut()
                 .ok_or(Error::Context(MissingSymbolDecoder))?,
         ))
+    }
+
+    /// Decode an offset and properly maintain the three repeat offsets
+    fn compute_offset(&mut self, offset: usize, literals_length: usize) -> Result<usize> {
+        let offset = self.repeat_offsets.compute_offset(offset, literals_length);
+        let total_output = self.decoded.len();
+
+        if offset > self.window_size || offset > total_output {
+            return Err(Error::Context(OffsetError));
+        }
+
+        Ok(offset)
     }
 
     /// Execute the sequences while updating the offsets
