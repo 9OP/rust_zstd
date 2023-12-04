@@ -12,11 +12,13 @@ use literals::*;
 use parsing::*;
 use sequences::*;
 
+use std::thread;
+
 /*
     ZstdLib only export 2+1 things:
-    - pub fn decode
-    - ZstdLibError
-    (- parsing module)
+        - pub fn decode
+        - ZstdLibError
+        (- parsing module)
 
     I think this is a clean design because as a user of the library I dont
     want to know the inner implementation details. I only want a handle to decode
@@ -45,18 +47,41 @@ pub enum ZstdLibError {
 
     #[error(transparent)]
     Sequences(#[from] SequencesError),
+
+    #[error("Parallel decoding panicked")]
+    ParallelDecodingError,
 }
 type Error = ZstdLibError;
 type Result<T, E = ZstdLibError> = std::result::Result<T, E>;
 
-pub fn decode(bytes: Vec<u8>, info: bool) -> Result<Vec<u8>> {
-    let mut decoded: Vec<u8> = Vec::new();
-    for frame in frame::FrameIterator::new(bytes.as_slice()) {
+fn parse_frames(bytes: &[u8], info: bool) -> Result<Vec<Frame>> {
+    let mut frames = Vec::new();
+    for frame in frame::FrameIterator::new(bytes) {
         let frame = frame?;
         if info {
             println!("{:#x?}", frame);
         }
-        decoded.extend(frame.decode()?);
+        frames.push(frame);
     }
+    Ok(frames)
+}
+
+pub fn decode(bytes: Vec<u8>, info: bool) -> Result<Vec<u8>> {
+    let mut decoded: Vec<u8> = Vec::new();
+    let frames = parse_frames(bytes.as_slice(), info)?;
+
+    thread::scope(|s| -> Result<(), ZstdLibError> {
+        let handles = frames
+            .into_iter()
+            .map(|frame| s.spawn(move || frame.decode()));
+
+        for handle in handles {
+            let result = handle.join().map_err(|_| Error::ParallelDecodingError)??;
+            decoded.extend(result);
+        }
+
+        Ok(())
+    })?;
+
     Ok(decoded)
 }

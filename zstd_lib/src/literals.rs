@@ -74,6 +74,7 @@ impl<'a> LiteralsSection<'a> {
                     context.huffman = Some(huffman);
                 }
 
+                // We need to clone the decoder to send it to move it to threads
                 let huffman = context.huffman.clone().ok_or(MissingHuffmanDecoder)?;
 
                 match block.jump_table {

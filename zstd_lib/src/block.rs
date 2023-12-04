@@ -99,6 +99,7 @@ impl<'a> Block<'a> {
                 literals,
                 sequences,
             } => {
+                // TODO: decode in parrallel
                 let literals = literals.decode(context)?;
                 let sequences = sequences.decode(context)?;
 

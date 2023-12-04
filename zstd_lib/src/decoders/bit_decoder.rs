@@ -2,9 +2,6 @@ use super::BackwardBitParser;
 
 /// A (possibly) stateful bit-level decoder
 pub trait BitDecoder<T, E> {
-    // // #[cfg(dev)]
-    // fn debug(&self);
-
     /// Initialize the state.
     ///
     /// # Panics

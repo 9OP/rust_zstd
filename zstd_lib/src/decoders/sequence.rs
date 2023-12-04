@@ -22,8 +22,6 @@ impl<'a> SequenceDecoder<'a> {
 }
 
 impl BitDecoder<(u16, u16, u16), Error> for SequenceDecoder<'_> {
-    // fn debug(&self) {}
-
     fn initialize(&mut self, _: &mut BackwardBitParser) -> Result<(), Error> {
         unimplemented!("initialize not supported for SequenceDecoder")
     }

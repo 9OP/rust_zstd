@@ -173,7 +173,6 @@ impl SymbolCompressor {
 
                 repeat_decoder.reset();
                 repeat_decoder.initialize(parser)?;
-                // repeat_decoder.debug();
                 repeat_decoder
             }
         };
@@ -279,7 +278,6 @@ impl<'a> Sequences<'a> {
     ) -> Result<SequenceCommand> {
         // decode order: offset > match > literals
         let (literals_symbol, offset_symbol, match_symbol) = decoder.symbol();
-        // println!("{literals_symbol} {offset_symbol} {match_symbol} {_i}");
 
         if offset_symbol > 31 {
             // >31: from reference implementation

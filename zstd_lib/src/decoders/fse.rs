@@ -23,7 +23,7 @@ pub struct FseTable {
 type Symbol = u16;
 type Probability = i16;
 
-#[derive(Debug, Default, Clone, Copy)]
+#[derive(Debug, Default, Clone)]
 pub struct FseState {
     symbol: Symbol,
     base_line: usize,
@@ -72,10 +72,10 @@ impl FseTable {
 
         // sort symbols based on lowest value first
         less_than_one.sort();
-        for (i, symbol) in less_than_one.iter().enumerate() {
+        for (i, symbol) in less_than_one.into_iter().enumerate() {
             let index = table_length - 1 - i;
             let state = FseState {
-                symbol: *symbol,
+                symbol,
                 base_line: 0,
                 num_bits: accuracy_log as usize,
             };
@@ -96,10 +96,10 @@ impl FseTable {
 
         // Symbols with positive probabilities
         let positives: Result<Vec<(Symbol, Probability, Vec<usize>)>> = distribution
-            .iter()
+            .into_iter()
             .filter(|&e| e.1 > 0)
             .map(|(symbol, probability)| {
-                let proba = *probability as usize;
+                let proba = probability as usize;
                 let mut symbol_states: Vec<usize> = state_index.by_ref().take(proba).collect();
 
                 symbol_states.sort();
@@ -109,7 +109,7 @@ impl FseTable {
                     return Err(Error::Fse(DistributionCorrupted));
                 }
 
-                Ok((*symbol, *probability, symbol_states))
+                Ok((symbol, probability, symbol_states))
             })
             .collect();
 
@@ -228,17 +228,6 @@ impl FseDecoder {
 
 // Refactor it, use initialized boolean var
 impl BitDecoder<Symbol, Error> for FseDecoder {
-    // fn debug(&self) {
-    //     println!(
-    //         "{:?} {:?} {:?} al:{} {}",
-    //         self.base_line,
-    //         self.symbol,
-    //         self.num_bits,
-    //         self.table.accuracy_log(),
-    //         self.table
-    //     );
-    // }
-
     fn initialize(&mut self, bitstream: &mut BackwardBitParser) -> Result<(), Error> {
         assert!(!self.initialized, "already initialized");
         assert!(!self.table.states.is_empty(), "empty");
