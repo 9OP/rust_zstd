@@ -71,9 +71,11 @@ pub fn decode(bytes: Vec<u8>, info: bool) -> Result<Vec<u8>> {
     let frames = parse_frames(bytes.as_slice(), info)?;
 
     thread::scope(|s| -> Result<(), ZstdLibError> {
-        let handles = frames
+        let handles: Vec<_> = frames
             .into_iter()
-            .map(|frame| s.spawn(move || frame.decode()));
+            .enumerate()
+            .map(|frame| s.spawn(move || frame.1.decode()))
+            .collect();
 
         for handle in handles {
             let result = handle.join().map_err(|_| Error::ParallelDecodingError)??;
