@@ -211,6 +211,7 @@ fn update_decoder(
     if let Some(huffman) = block_huffman {
         ctx.huffman = Some(huffman);
     }
+
     // We need to clone the decoder to send it to move it to threads
     let huffman = ctx.huffman.clone().ok_or(MissingHuffmanDecoder)?;
     Ok(huffman)

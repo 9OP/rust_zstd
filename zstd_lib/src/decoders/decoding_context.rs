@@ -133,6 +133,39 @@ impl DecodingContext {
         Ok(offset)
     }
 
+    /// Execute a single sequence
+    fn execute_sequence(&mut self, sequence: &SequenceCommand, literals: &[u8]) -> Result<()> {
+        let SequenceCommand {
+            offset,
+            literal_length,
+            match_length,
+        } = *sequence;
+
+        if literal_length > literals.len() {
+            return Err(Error::Context(NotEnoughBytes {
+                requested: literal_length,
+                available: literals.len(),
+            }));
+        }
+
+        // Copy from literals
+        self.decoded.extend_from_slice(&literals[..literal_length]);
+
+        // Offset + match copy
+        let mut index = self.decoded.len() - self.compute_offset(offset, literal_length)?;
+
+        for _ in 0..match_length {
+            let byte = self
+                .decoded
+                .get(index)
+                .ok_or(Error::Context(CopyMatchError))?;
+            self.decoded.push(*byte);
+            index += 1;
+        }
+
+        Ok(())
+    }
+
     /// Execute the sequences while updating the offsets
     pub fn execute_sequences(
         &mut self,
@@ -141,36 +174,12 @@ impl DecodingContext {
     ) -> Result<()> {
         let mut position = 0;
 
-        for seq in sequences {
-            let start = position;
-            position += seq.literal_length;
-
-            if position > literals.len() {
-                return Err(Error::Context(NotEnoughBytes {
-                    requested: seq.literal_length,
-                    available: literals.len(),
-                }));
-            }
-
-            // Copy from literals
-            self.decoded.extend_from_slice(&literals[start..position]);
-
-            // Offset + match copy
-            let mut index =
-                self.decoded.len() - self.compute_offset(seq.offset, seq.literal_length)?;
-
-            for _ in 0..seq.match_length {
-                let byte = self
-                    .decoded
-                    .get(index)
-                    .ok_or(Error::Context(CopyMatchError))?;
-                self.decoded.push(*byte);
-                index += 1;
-            }
+        for sequence in sequences {
+            self.execute_sequence(&sequence, &literals[position..])?;
+            position += sequence.literal_length;
         }
 
         self.decoded.extend_from_slice(&literals[position..]);
-
         Ok(())
     }
 }
