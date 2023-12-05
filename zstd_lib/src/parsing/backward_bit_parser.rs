@@ -113,12 +113,11 @@ impl<'a> BackwardBitParser<'a> {
         if len == 0 {
             return Ok(0);
         }
-        assert!(len <= 64, "unexpected len: {len} > 64");
-
-        if len > self.available_bits() {
+        let available_bits = std::cmp::min(self.available_bits(), 64);
+        if len > available_bits {
             return Err(Error::NotEnoughBits {
                 requested: len,
-                available: self.available_bits(),
+                available: available_bits,
             });
         }
 
@@ -249,11 +248,26 @@ mod tests {
         use super::*;
 
         #[test]
-        #[should_panic(expected = "unexpected len: 65 > 64")]
         fn test_take_overflow() {
             let bitstream: &[u8; 2] = &[0b0011_1100, 0b0001_0111];
             let mut parser = BackwardBitParser::new(bitstream).unwrap();
-            let _ = parser.take(65);
+            assert!(matches!(
+                parser.take(65),
+                Err(Error::NotEnoughBits {
+                    requested: 65,
+                    available: 12
+                })
+            ));
+
+            let bitstream = &[0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF];
+            let mut parser = BackwardBitParser::new(bitstream).unwrap();
+            assert!(matches!(
+                parser.take(65),
+                Err(Error::NotEnoughBits {
+                    requested: 65,
+                    available: 64
+                })
+            ));
         }
 
         #[test]

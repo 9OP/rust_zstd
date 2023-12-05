@@ -22,9 +22,10 @@ Decompress a file:
 - `cargo run tests/fixtures/txt/mobydick.zst `
 
 Fuzzing:
-- `cargo fuzz run fuzz_decode -- -timeout=10`
+- `cargo fuzz run fuzz_decode -- -timeout=10 -seed_inputs=@fuzz/seed_inputs.txt`
 
-**Note:** Fuzzing was ran for more than 30minutes without finding any pathological input
+**Note:** Fuzzing was ran for more than 30minutes without finding any pathological input. 
+Fuzz use the decode corpus as inputs to guide the fuzzer.
 
 Install pre-commit:
 - `pre-commit install`

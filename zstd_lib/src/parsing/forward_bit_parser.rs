@@ -101,9 +101,7 @@ impl<'a> ForwardBitParser<'a> {
         if len == 0 {
             return Ok(0);
         }
-        assert!(len <= 64, "unexpected len: {len} > 64");
-
-        let available_bits = self.available_bits();
+        let available_bits = std::cmp::min(self.available_bits(), 64);
         if len > available_bits {
             return Err(Error::NotEnoughBits {
                 requested: len,
@@ -207,11 +205,20 @@ mod tests {
         use super::*;
 
         #[test]
-        #[should_panic(expected = "unexpected len: 65 > 64")]
         fn test_take_overflow() {
             let bitstream: &[u8; 2] = &[0b1010_0110, 0b0111_0100];
             let mut parser = ForwardBitParser::new(bitstream);
             let _ = parser.take(65);
+
+            let bitstream = &[0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF];
+            let mut parser = BackwardBitParser::new(bitstream).unwrap();
+            assert!(matches!(
+                parser.take(65),
+                Err(Error::NotEnoughBits {
+                    requested: 65,
+                    available: 64
+                })
+            ));
         }
 
         #[test]
