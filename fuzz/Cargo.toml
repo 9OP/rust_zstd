@@ -11,9 +11,6 @@ cargo-fuzz = true
 libfuzzer-sys = "0.4"
 zstd_lib = {path = "../zstd_lib"}
 
-[dependencies.net7212]
-path = ".."
-
 # Prevent this from interfering with workspaces
 [workspace]
 members = ["."]

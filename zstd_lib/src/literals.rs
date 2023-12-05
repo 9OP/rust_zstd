@@ -57,94 +57,12 @@ impl<'a> LiteralsSection<'a> {
     /// Huffman table inside).
     pub fn decode(self, shared_context: Arc<Mutex<&mut DecodingContext>>) -> Result<Vec<u8>> {
         match self {
-            LiteralsSection::Raw(block) => {
-                let decoded = Vec::from(block.0);
-                Ok(decoded)
-            }
-
-            LiteralsSection::Rle(block) => {
-                let decoded = vec![block.byte; block.repeat];
-                Ok(decoded)
-            }
-
-            LiteralsSection::Compressed(block) => {
-                let mut decoded = vec![];
-
-                if let Some(huffman) = block.huffman {
-                    let mut ctx = shared_context.lock().unwrap();
-                    ctx.huffman = Some(huffman);
-                }
-
-                // We need to clone the decoder to send it to move it to threads
-                let ctx = shared_context.lock().unwrap();
-                let huffman = ctx.huffman.clone().ok_or(MissingHuffmanDecoder)?;
-
-                match block.jump_table {
-                    None => {
-                        let mut bitstream = BackwardBitParser::new(block.data)?;
-
-                        while bitstream.available_bits() > 0 {
-                            decoded.push(huffman.decode(&mut bitstream)?);
-                        }
-                    }
-
-                    Some([stream1_size, stream2_size, stream3_size]) => {
-                        let regenerated_stream_size = (block.regenerated_size + 3) / 4;
-                        let idx2 = stream1_size;
-                        let idx3 = idx2 + stream2_size;
-                        let idx4 = idx3 + stream3_size;
-                        assert!(idx4 > idx3 && idx3 > idx2);
-
-                        let data = Arc::new(Vec::from(block.data));
-                        let decoder = Arc::new(huffman);
-
-                        fn process(
-                            decoder: Arc<HuffmanDecoder>,
-                            data: Arc<Vec<u8>>,
-                            range: (usize, usize),
-                        ) -> thread::JoinHandle<Result<Vec<u8>>> {
-                            thread::spawn(move || -> Result<Vec<u8>> {
-                                let mut decoded = vec![];
-                                let mut stream =
-                                    BackwardBitParser::new(&data.as_slice()[range.0..range.1])?;
-                                while stream.available_bits() > 0 {
-                                    decoded.push(decoder.decode(&mut stream)?)
-                                }
-                                Ok(decoded)
-                            })
-                        }
-
-                        let r1 = (0, idx2);
-                        let r2 = (idx2, idx3);
-                        let r3 = (idx3, idx4);
-                        let r4 = (idx4, data.len());
-
-                        let h1 = process(Arc::clone(&decoder), Arc::clone(&data), r1);
-                        let h2 = process(Arc::clone(&decoder), Arc::clone(&data), r2);
-                        let h3 = process(Arc::clone(&decoder), Arc::clone(&data), r3);
-                        let h4 = process(Arc::clone(&decoder), Arc::clone(&data), r4);
-
-                        let stream1 = h1.join().map_err(|_| Error::ParallelDecodingError)??;
-                        let stream2 = h2.join().map_err(|_| Error::ParallelDecodingError)??;
-                        let stream3 = h3.join().map_err(|_| Error::ParallelDecodingError)??;
-                        let stream4 = h4.join().map_err(|_| Error::ParallelDecodingError)??;
-
-                        if stream1.len() != regenerated_stream_size
-                            || stream2.len() != regenerated_stream_size
-                            || stream3.len() != regenerated_stream_size
-                        {
-                            return Err(Error::Literals(RegneratedSizeError));
-                        }
-
-                        decoded.extend(stream1);
-                        decoded.extend(stream2);
-                        decoded.extend(stream3);
-                        decoded.extend(stream4);
-                    }
-                }
-
-                Ok(decoded)
-            }
+            LiteralsSection::Raw(block) => Ok(Vec::from(block.0)),
+            LiteralsSection::Rle(block) => Ok(vec![block.byte; block.repeat]),
+            LiteralsSection::Compressed(block) => match block.jump_table {
+                None => decode_1_stream(shared_context, block),
+                Some(jump_table) => decode_4_streams(jump_table, shared_context, block),
+            },
         }
     }
 
@@ -283,6 +201,91 @@ impl<'a> LiteralsSection<'a> {
             _ => panic!("unexpected block_type {block_type}"),
         }
     }
+}
+
+fn update_decoder(
+    shared_context: Arc<Mutex<&mut DecodingContext>>,
+    block_huffman: Option<HuffmanDecoder>,
+) -> Result<HuffmanDecoder> {
+    let mut ctx = shared_context.lock().unwrap();
+    if let Some(huffman) = block_huffman {
+        ctx.huffman = Some(huffman);
+    }
+    // We need to clone the decoder to send it to move it to threads
+    let huffman = ctx.huffman.clone().ok_or(MissingHuffmanDecoder)?;
+    Ok(huffman)
+}
+
+fn decode_1_stream(
+    shared_context: Arc<Mutex<&mut DecodingContext>>,
+    block: CompressedLiteralsBlock,
+) -> Result<Vec<u8>> {
+    let mut decoded = vec![];
+    let huffman = update_decoder(shared_context, block.huffman)?;
+    let mut bitstream = BackwardBitParser::new(block.data)?;
+
+    while bitstream.available_bits() > 0 {
+        decoded.push(huffman.decode(&mut bitstream)?);
+    }
+
+    Ok(decoded)
+}
+
+fn decode_4_streams(
+    jump_table: [usize; 3],
+    shared_context: Arc<Mutex<&mut DecodingContext>>,
+    block: CompressedLiteralsBlock,
+) -> Result<Vec<u8>> {
+    let mut decoded = vec![];
+    let huffman = update_decoder(shared_context, block.huffman)?;
+
+    let idx2 = jump_table[0];
+    let idx3 = idx2 + jump_table[1];
+    let idx4 = idx3 + jump_table[2];
+    assert!(idx4 > idx3 && idx3 > idx2);
+
+    let ranges: [(usize, usize); 4] = [
+        (0, idx2),
+        (idx2, idx3),
+        (idx3, idx4),
+        (idx4, block.data.len()),
+    ];
+
+    let regenerated_stream_size = (block.regenerated_size + 3) / 4;
+    let data = Arc::new(Vec::from(block.data));
+    let decoder = Arc::new(huffman);
+
+    let handles: Vec<_> = ranges
+        .into_iter()
+        .map(|r| {
+            let data = Arc::clone(&data);
+            let decoder = Arc::clone(&decoder);
+
+            thread::spawn(move || -> Result<Vec<u8>> {
+                let mut decoded = vec![];
+                let mut stream = BackwardBitParser::new(&data[r.0..r.1])?;
+                while stream.available_bits() > 0 {
+                    decoded.push(decoder.decode(&mut stream)?)
+                }
+
+                Ok(decoded)
+            })
+        })
+        .collect();
+
+    assert!(handles.len() == 4);
+
+    for (id, handle) in handles.into_iter().enumerate() {
+        let stream = handle.join().map_err(|_| Error::ParallelDecodingError)??;
+
+        if id < 3 && stream.len() != regenerated_stream_size {
+            return Err(Error::Literals(RegneratedSizeError));
+        }
+
+        decoded.extend(stream)
+    }
+
+    Ok(decoded)
 }
 
 #[cfg(test)]

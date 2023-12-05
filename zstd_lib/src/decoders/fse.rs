@@ -306,7 +306,7 @@ impl BitDecoder<Symbol, Error> for FseDecoder {
     }
 }
 
-// #[cfg(test)]
+#[cfg(test)]
 impl std::fmt::Display for FseTable {
     fn fmt(&self, fmt: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         writeln!(fmt, "State,Sym,BL,NB").ok();
