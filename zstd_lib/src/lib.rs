@@ -55,25 +55,26 @@ type Error = ZstdLibError;
 type Result<T, E = ZstdLibError> = std::result::Result<T, E>;
 
 fn parse_frames(bytes: &[u8], info: bool) -> Result<Vec<Frame>> {
-    let mut frames = Vec::new();
-    for frame in frame::FrameIterator::new(bytes) {
-        let frame = frame?;
-        if info {
-            println!("{:#x?}", frame);
+    let frames = FrameIterator::new(bytes).collect::<Result<Vec<Frame>>>()?;
+
+    if info {
+        for frame in frames {
+            println!("{:#?}", frame)
         }
-        frames.push(frame);
+        Ok(vec![])
+    } else {
+        Ok(frames)
     }
-    Ok(frames)
 }
 
 pub fn decode(bytes: Vec<u8>, info: bool) -> Result<Vec<u8>> {
-    let mut decoded: Vec<u8> = Vec::new();
-    let frames = parse_frames(bytes.as_slice(), info)?;
+    thread::scope(|s| -> Result<Vec<u8>> {
+        let frames = parse_frames(bytes.as_slice(), info)?;
+        let mut decoded: Vec<u8> = Vec::new();
 
-    thread::scope(|s| -> Result<(), ZstdLibError> {
         let handles: Vec<_> = frames
             .into_iter()
-            .map(|frame| s.spawn(move || frame.decode()))
+            .map(|frame| s.spawn(|| frame.decode()))
             .collect();
 
         for handle in handles {
@@ -81,8 +82,6 @@ pub fn decode(bytes: Vec<u8>, info: bool) -> Result<Vec<u8>> {
             decoded.extend(result);
         }
 
-        Ok(())
-    })?;
-
-    Ok(decoded)
+        Ok(decoded)
+    })
 }

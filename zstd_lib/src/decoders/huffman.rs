@@ -236,6 +236,8 @@ impl<'a> HuffmanDecoder {
         let mut backward_bit_parser = BackwardBitParser::try_from(forward_bit_parser)?;
         decoder.initialize(&mut backward_bit_parser)?;
 
+        // symbol is u16, but huffman weight is u8. Return an error in case of
+        // uint overflow
         fn get_huffman_weight(decoder: &mut AlternatingDecoder) -> Result<u8> {
             let symbol = decoder.symbol();
             <u8>::try_from(symbol).map_err(|_| Error::Huffman(WeightCorruption))

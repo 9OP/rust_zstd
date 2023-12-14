@@ -110,8 +110,8 @@ impl<'a> Block<'a> {
                     let lit_ctx = Arc::clone(&context);
                     let seq_ctx = Arc::clone(&context);
 
-                    let lit_h = s.spawn(move || literals.decode(lit_ctx));
-                    let seq_h = s.spawn(move || sequences.decode(seq_ctx));
+                    let lit_h = s.spawn(|| literals.decode(lit_ctx));
+                    let seq_h = s.spawn(|| sequences.decode(seq_ctx));
 
                     let literals = lit_h.join().map_err(|_| Error::ParallelDecodingError)??;
                     let sequences = seq_h.join().map_err(|_| Error::ParallelDecodingError)??;
