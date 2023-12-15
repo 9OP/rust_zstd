@@ -165,7 +165,7 @@ fn parse_fse_table(parser: &mut ForwardBitParser) -> Result<(u8, Vec<Probability
 
     let probability_sum: u32 = 1 << accuracy_log;
     let mut probability_counter: u32 = 0;
-    let mut probabilities: Vec<i16> = Vec::new();
+    let mut probabilities: Vec<Probability> = Vec::new();
 
     while probability_counter < probability_sum {
         let max_remaining_value: u32 = probability_sum + 1 - probability_counter;
@@ -196,7 +196,8 @@ fn parse_fse_table(parser: &mut ForwardBitParser) -> Result<(u8, Vec<Probability
             }
         };
 
-        let probability = (decoded_value as i16) - 1;
+        let probability =
+            <i16>::try_from(decoded_value).map_err(|_| Error::Fse(DistributionCorrupted))? - 1;
 
         probability_counter += probability.unsigned_abs() as u32;
         probabilities.push(probability);
