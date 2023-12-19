@@ -8,13 +8,13 @@ Pure rust implementation of zstd decompression algorithm: https://www.rfc-editor
 - `cargo modules generate tree --lib --types --package zstd_lib`
 
 Run all tests:
-- `cargo test --workspace -- --nocapture `
+- `cargo test --workspace -- --nocapture`
 
 **Note:** The `corpus` (generated via decodecorpus tool) is a bit large (~ 1000 files). Feel free to remove some of them 
 to accelerate the testing
 
 Generate coverage report:
-- `cargo tarpaulin --tests --workspace --count --line  --out htm`
+- `cargo tarpaulin --tests --workspace --count --line  --out html`
 
 **ZstdLib coverage ~82% yay!**
 
@@ -55,10 +55,6 @@ Install pre-commit hooks:
 Run pre-commit hooks manually:
 - `pre-commit run --all-files`
 
-### Notes:
-
-- Clean literals.rs
-
 #### What have been done:
 So far everything, including the "optimization" with parallel decoding of the frames and parallel decoding of streams and of literals and sequences.
 Only the dictionnary feature is missing.
@@ -68,7 +64,8 @@ Understanding FSE parsing/decoding was difficult. The most difficult part was de
 Hoppefully I was able to fix my implementation in the end.
 
 #### How rust made it easy to write safe code:
-It is difficult to say because the Rust compiler hardly never got into my way or prevented me to do anything. Sometimes the LSP gave me error squiggle but it was quickly fixed. I felt very confortable working with Rust because the compiler always tried to help me and the online documentation is full of examples and Q/A.
-The most difficult Rust part was the parallelism part at the end of the project.
+It is difficult to say because the Rust compiler hardly ever got into my way or prevented me to do anything. Sometimes the LSP gave me error squiggle but it was quickly fixed. I felt very confortable working with Rust because the compiler always tried to help me and the online documentation is full of examples and Q/A. I loved the `match` case so much that I might have used it even when it was not necessary (checking boolean condition with `match` instead of `if`)
 
-To be fair, I think that the overral architecture of the project made it easier, I would not have had such easiness without the Guide from the course.
+I also used `pre-commit` to run rust-fmt and clippy on commit hooks to ensure standard lint rules on the codebase.
+
+To be fair, I think that the overral architecture of the project made it easier, I would not have had such easiness without the project Guide.
