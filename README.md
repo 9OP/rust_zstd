@@ -55,6 +55,15 @@ Install pre-commit hooks:
 Run pre-commit hooks manually:
 - `pre-commit run --all-files`
 
+#### Note about the code
+I tried my best to ensure best coding pratice based on my own developer experience in Go, Python, Typescript, Ruby, and from the feedback of cargo check and cargo lint and from Clean Code book.
+
+Notably I used the mode clippy::pedantic after the project presentation on 19th december and converted almost all `as usize` to the safer `usize::try_from(...).unwrap()`. This is debatable wether using `as` or `try_from` is better. The issue with `as` is that it will not detect overlflow/underflow in `release` build. The issue with `try_from` is the verbosity, code obfuscation and performance overhead.
+
+Anyway `clippy::pedantic` should know better than me, so I switch the `as` to `try_from + unwrap` where it was necessary.
+
+I also denied some clippy rules that I feel are a bit too restrictives in my opinion, espcially naming and wildcards import. Again this is debatable, I do believe that those lint rules exist for reason. I just feel that those reason might not apply in the specific case of my small zstd_lib package.
+
 #### What have been done:
 So far everything, including the "optimization" with parallel decoding of the frames and parallel decoding of streams and of literals and sequences.
 Only the dictionnary feature is missing.

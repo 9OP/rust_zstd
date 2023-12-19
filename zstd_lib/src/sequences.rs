@@ -289,15 +289,16 @@ impl<'a> Sequences<'a> {
         }
 
         // offset
-        let offset_code = (1_u64 << offset_symbol) + input.take(offset_symbol.into())?;
+        let offset_code = (1_usize << offset_symbol)
+            + usize::try_from(input.take(offset_symbol.into())?).unwrap();
 
         // match
         let (value, num_bits) = match_lengths_code_lookup(match_symbol)?;
-        let match_code = value + input.take(num_bits)? as usize;
+        let match_code = value + usize::try_from(input.take(num_bits)?).unwrap();
 
         // literals
         let (value, num_bits) = literals_lengths_code_lookup(literals_symbol)?;
-        let literals_code = value + input.take(num_bits)? as usize;
+        let literals_code = value + usize::try_from(input.take(num_bits)?).unwrap();
 
         // update bits if it is not the last sequence
         if !is_last {
@@ -307,7 +308,7 @@ impl<'a> Sequences<'a> {
         Ok(SequenceCommand {
             literal_length: literals_code,
             match_length: match_code,
-            offset: offset_code as usize,
+            offset: offset_code,
         })
         // sequence_decoder.update_bits(&mut parser)?;
     }

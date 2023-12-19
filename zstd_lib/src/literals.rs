@@ -255,19 +255,19 @@ fn decode_4_streams(
 
     let regenerated_stream_size = (block.regenerated_size + 3) / 4;
     let data = Arc::new(Vec::from(block.data));
-    let decoder = Arc::new(huffman);
+    let huffman_decoder = Arc::new(huffman);
 
     let handles: Vec<_> = ranges
         .into_iter()
         .map(|r| {
             let data = Arc::clone(&data);
-            let decoder = Arc::clone(&decoder);
+            let huffman_decoder = Arc::clone(&huffman_decoder);
 
             thread::spawn(move || -> Result<Vec<u8>> {
                 let mut decoded = vec![];
                 let mut stream = BackwardBitParser::new(&data[r.0..r.1])?;
                 while stream.available_bits() > 0 {
-                    decoded.push(decoder.decode(&mut stream)?);
+                    decoded.push(huffman_decoder.decode(&mut stream)?);
                 }
 
                 Ok(decoded)

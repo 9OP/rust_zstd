@@ -63,7 +63,7 @@ impl FseTable {
         let distribution: Vec<(Symbol, Probability)> = distribution
             .iter()
             .enumerate()
-            .map(|(symbol, &probability)| (symbol as Symbol, probability))
+            .map(|(symbol, &probability)| (Symbol::try_from(symbol).unwrap(), probability))
             .collect();
 
         // Symbols with "less than 1" probabilities
@@ -98,17 +98,22 @@ impl FseTable {
         .filter(|&index| !set_index.contains(&index));
 
         // Symbols with positive probabilities
-        let positives: Result<Vec<(Symbol, Probability, Vec<usize>)>> = distribution
+        let positives: Result<Vec<(Symbol, u16, Vec<usize>)>> = distribution
             .into_iter()
             .filter(|&e| e.1 > 0)
             .map(|(symbol, probability)| {
-                let proba = probability as usize;
-                let mut symbol_states: Vec<usize> = state_index.by_ref().take(proba).collect();
+                // probability is > 0, casting does not loose sign
+                let probability = u16::try_from(probability).unwrap();
+
+                let mut symbol_states: Vec<usize> = state_index
+                    .by_ref()
+                    .take(usize::from(probability))
+                    .collect();
 
                 symbol_states.sort_unstable();
 
                 // invariant
-                if symbol_states.len() != proba {
+                if symbol_states.len() != usize::from(probability) {
                     return Err(Error::Fse(DistributionCorrupted));
                 }
 
@@ -119,8 +124,9 @@ impl FseTable {
         let positives = positives?;
 
         for (symbol, probability, symbol_states) in positives {
-            let p = (probability as usize).next_power_of_two();
-            let b = (table_length / p).trailing_zeros() as usize; // log2(R/p)
+            // probability is > 0, casting does not loose sign
+            let p = probability.next_power_of_two() as usize;
+            let b = usize::try_from((table_length / p).trailing_zeros()).unwrap(); // log2(R/p)
             let e = p - probability as usize;
 
             let mut base_line = 0;
@@ -155,7 +161,9 @@ impl FseTable {
 }
 
 fn parse_fse_table(parser: &mut ForwardBitParser) -> Result<(u8, Vec<Probability>)> {
-    let accuracy_log = parser.take(4)? as u8 + ACC_LOG_OFFSET; // accuracy log
+    // will not panic as 4bits value < u8::MAX
+    let accuracy_log = u8::try_from(parser.take(4)?).unwrap() + ACC_LOG_OFFSET;
+
     if accuracy_log > ACC_LOG_MAX {
         return Err(Error::Fse(ALTooLarge {
             log: accuracy_log,
@@ -172,7 +180,7 @@ fn parse_fse_table(parser: &mut ForwardBitParser) -> Result<(u8, Vec<Probability
         let bits_to_read = u32::BITS - max_remaining_value.leading_zeros();
 
         // Value is either encoded in: bits_to_read or bits_to_read-1
-        let small_value = parser.take((bits_to_read - 1) as usize)? as u32;
+        let small_value = u32::try_from(parser.take((bits_to_read - 1) as usize)?).unwrap();
 
         // The MSB peeked (not consumed) because value is in: bits_to_read or bits_to_read-1
         let unchecked_value = (u32::from(parser.peek()?) << (bits_to_read - 1)) | small_value;
@@ -198,13 +206,13 @@ fn parse_fse_table(parser: &mut ForwardBitParser) -> Result<(u8, Vec<Probability
         let probability =
             <i16>::try_from(decoded_value).map_err(|_| Error::Fse(DistributionCorrupted))? - 1;
 
-        probability_counter += probability.unsigned_abs() as u32;
+        probability_counter += u32::from(probability.unsigned_abs());
         probabilities.push(probability);
 
         if probability == 0 {
             loop {
-                let num_zeroes = parser.take(2)?;
-                probabilities.extend_from_slice(&vec![0; num_zeroes as usize]);
+                let num_zeroes = usize::try_from(parser.take(2)?).unwrap();
+                probabilities.extend_from_slice(&vec![0; num_zeroes]);
                 if num_zeroes != 0b11 {
                     break;
                 }
@@ -250,7 +258,7 @@ impl BitDecoder<Symbol, Error> for FseDecoder {
         self.initialized = true;
 
         let index = bitstream.take(self.table.accuracy_log() as usize)?;
-        let state = self.table.get(index as usize)?;
+        let state = self.table.get(usize::try_from(index).unwrap())?;
 
         self.symbol = Some(state.symbol);
         self.num_bits = state.num_bits;
@@ -286,7 +294,7 @@ impl BitDecoder<Symbol, Error> for FseDecoder {
             (index + self.base_line as u64, true)
         };
 
-        let state = self.table.get(index as usize)?;
+        let state = self.table.get(usize::try_from(index).unwrap())?;
 
         self.symbol = Some(state.symbol);
         self.num_bits = state.num_bits;
