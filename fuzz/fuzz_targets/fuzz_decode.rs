@@ -4,5 +4,5 @@ use libfuzzer_sys::fuzz_target;
 use zstd_lib;
 
 fuzz_target!(|data: &[u8]| {
-    let _ = zstd_lib::decode(data.to_vec(), false);
+    let _ = zstd_lib::decode(data, false);
 });
