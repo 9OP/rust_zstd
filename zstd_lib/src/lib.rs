@@ -1,3 +1,11 @@
+#![allow(
+    clippy::missing_errors_doc,
+    clippy::module_name_repetitions,
+    clippy::enum_glob_use,
+    clippy::wildcard_imports,
+    clippy::redundant_field_names
+)]
+
 mod block;
 mod decoders;
 mod frame;
@@ -59,7 +67,7 @@ fn parse_frames(bytes: &[u8], info: bool) -> Result<Vec<Frame>> {
 
     if info {
         for frame in frames {
-            println!("{:#?}", frame)
+            println!("{frame:#?}");
         }
         Ok(vec![])
     } else {
@@ -67,9 +75,9 @@ fn parse_frames(bytes: &[u8], info: bool) -> Result<Vec<Frame>> {
     }
 }
 
-pub fn decode(bytes: Vec<u8>, info: bool) -> Result<Vec<u8>> {
+pub fn decode(bytes: &[u8], info: bool) -> Result<Vec<u8>> {
     thread::scope(|s| -> Result<Vec<u8>> {
-        let frames = parse_frames(bytes.as_slice(), info)?;
+        let frames = parse_frames(bytes, info)?;
         let mut decoded: Vec<u8> = Vec::new();
 
         let handles: Vec<_> = frames

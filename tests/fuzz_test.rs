@@ -20,7 +20,7 @@ fn test_fuzz_1() {
         40, 181, 47, 253, 32, 4, 36, 76, 3, 39, 17, 1, 26, 0, 0, 0, 0, 0, 0, 0, 255, 1, 39, 234,
         13, 65, 173, 17, 74,
     ];
-    let _ = zstd_lib::decode(input.to_vec(), false);
+    let _ = zstd_lib::decode(&input, false);
 }
 
 #[test]
@@ -30,7 +30,7 @@ fn test_fuzz_2() {
     let input = [
         40, 181, 47, 253, 32, 12, 36, 39, 20, 0, 36, 24, 0, 0, 0, 0, 0, 0, 0, 233, 233,
     ];
-    let _ = zstd_lib::decode(input.to_vec(), false);
+    let _ = zstd_lib::decode(&input, false);
 }
 
 #[test]
@@ -41,7 +41,7 @@ fn test_fuzz_3() {
         40, 181, 47, 253, 32, 12, 36, 1, 0, 0, 0, 0, 32, 40, 181, 47, 253, 32, 1, 36, 4, 253, 47,
         181, 40, 181, 47, 12, 12, 12, 12, 12, 24, 40, 130, 1,
     ];
-    let _ = zstd_lib::decode(input.to_vec(), false);
+    let _ = zstd_lib::decode(&input, false);
 }
 
 #[test]
@@ -54,7 +54,7 @@ fn test_fuzz_4() {
         255, 255, 255, 255, 255, 255, 255, 255, 255, 0, 0, 0, 175, 255, 255, 255, 255, 255, 255,
         255, 255, 0, 0, 0, 0, 0, 51, 51, 191, 176, 0,
     ];
-    let _ = zstd_lib::decode(input.to_vec(), false);
+    let _ = zstd_lib::decode(&input, false);
 }
 
 #[test]
@@ -66,7 +66,7 @@ fn test_fuzz_5() {
         0, 0, 0, 0, 0, 0, 0, 0, 0, 162, 162, 1, 0, 0, 0, 0, 0, 2, 162, 162, 162, 162, 162, 162,
         162, 162,
     ];
-    let _ = zstd_lib::decode(input.to_vec(), false);
+    let _ = zstd_lib::decode(&input, false);
 }
 
 #[test]
@@ -77,7 +77,7 @@ fn test_fuzz_6() {
         40, 181, 47, 253, 32, 12, 36, 39, 46, 181, 0, 0, 0, 64, 32, 40, 0, 0, 0, 0, 27, 237, 115,
         115, 0, 196, 196, 196, 40, 181, 47, 253, 32, 196, 0, 196, 196,
     ];
-    let _ = zstd_lib::decode(input.to_vec(), false);
+    let _ = zstd_lib::decode(&input, false);
 }
 
 #[test]
@@ -90,7 +90,7 @@ fn test_fuzz_7() {
         0, 0, 235, 235, 235, 235, 235, 235, 235, 235, 235, 255, 255, 255, 255, 255, 255, 255, 255,
         255, 0,
     ];
-    let _ = zstd_lib::decode(input.to_vec(), false);
+    let _ = zstd_lib::decode(&input, false);
 }
 
 #[test]
@@ -103,7 +103,7 @@ fn test_fuzz_8() {
         255, 255, 255, 255, 255, 255, 6, 255, 173, 74, 255, 255, 255, 255, 255, 255, 32, 12, 36,
         39, 12, 36, 20, 32, 176, 39, 20, 16, 36,
     ];
-    let _ = zstd_lib::decode(input.to_vec(), false);
+    let _ = zstd_lib::decode(&input, false);
 }
 
 #[test]
@@ -116,7 +116,7 @@ fn test_fuzz_9() {
         235, 235, 235, 235, 235, 235, 235, 235, 235, 235, 235, 71, 0, 255, 255, 1, 4, 255, 255, 8,
         255, 255, 255, 251, 40, 181, 47, 255,
     ];
-    let _ = zstd_lib::decode(input.to_vec(), false);
+    let _ = zstd_lib::decode(&input, false);
 }
 
 #[test]
@@ -128,7 +128,7 @@ fn test_fuzz_10() {
         23, 0, 250, 161, 60, 166, 162, 162, 162, 162, 45, 162, 162, 162, 122, 162, 33, 0, 58, 58,
         226, 0, 58, 58, 94, 94, 94, 94, 94, 94, 94, 35, 94, 94, 94, 162, 94,
     ];
-    let _ = zstd_lib::decode(input.to_vec(), false);
+    let _ = zstd_lib::decode(&input, false);
 }
 
 #[test]
@@ -168,5 +168,5 @@ fn test_fuzz_11() {
         138, 138, 138, 138, 138, 138, 138, 138, 138, 138, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
         0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 138, 0, 0, 0, 61, 0, 0, 4, 0, 250, 0, 0, 47, 0,
     ];
-    let _ = zstd_lib::decode(input.to_vec(), false);
+    let _ = zstd_lib::decode(&input, false);
 }

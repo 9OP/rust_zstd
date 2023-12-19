@@ -18,11 +18,12 @@ pub enum SequencesError {
     #[error("FSE AL is too large")]
     ALTooLarge,
 }
-use SequencesError::*;
+use SequencesError::{ALTooLarge, InvalidDataError, MissingDecoder, SymbolCodeUnknown};
 
+#[allow(clippy::redundant_field_names)]
 #[derive(Debug)]
 pub struct Sequences<'a> {
-    number_of_sequences: usize,
+    number: usize,
     literal_lengths_mode: SymbolCompressor,
     offsets_mode: SymbolCompressor,
     match_lengths_mode: SymbolCompressor,
@@ -50,7 +51,7 @@ pub enum SymbolType {
     MatchLength,
     Offset,
 }
-use SymbolType::*;
+use SymbolType::{LiteralsLength, MatchLength, Offset};
 
 #[derive(Debug)]
 pub struct SequenceCommand {
@@ -148,7 +149,7 @@ impl SymbolCompressor {
                 Box::new(fse_decoder) as Box<SymbolDecoder>
             }
             Rle(byte) => {
-                let rle_decoder = RLEDecoder::new(*byte as u16);
+                let rle_decoder = RLEDecoder::new(u16::from(*byte));
                 Box::new(rle_decoder) as Box<SymbolDecoder>
             }
             FseCompressed(fse_table) => {
@@ -220,10 +221,10 @@ impl<'a> Sequences<'a> {
 
     /// Parse the sequences data from the stream
     pub fn parse(input: &mut ForwardByteParser<'a>) -> Result<Self> {
-        let number_of_sequences = Self::parse_number_of_sequences(input)?;
-        if number_of_sequences == 0 {
+        let number = Self::parse_number_of_sequences(input)?;
+        if number == 0 {
             return Ok(Sequences {
-                number_of_sequences: 0,
+                number: 0,
                 literal_lengths_mode: SymbolCompressor {
                     compression_mode: Predefined,
                     symbol_type: LiteralsLength,
@@ -245,7 +246,7 @@ impl<'a> Sequences<'a> {
         let bitstream = <&[u8]>::from(*input);
 
         Ok(Sequences {
-            number_of_sequences,
+            number,
             literal_lengths_mode: ll,
             offsets_mode: of,
             match_lengths_mode: ml,
@@ -313,9 +314,9 @@ impl<'a> Sequences<'a> {
     /// decoding context with the tables if appropriate.
     pub fn decode(
         self,
-        shared_context: Arc<Mutex<&mut DecodingContext>>,
+        shared_context: &Arc<Mutex<&mut DecodingContext>>,
     ) -> Result<Vec<SequenceCommand>> {
-        if self.number_of_sequences == 0 {
+        if self.number == 0 {
             return Ok(vec![]);
         }
 
@@ -324,8 +325,8 @@ impl<'a> Sequences<'a> {
         let mut parser = BackwardBitParser::new(self.bitstream)?;
         let mut sequence_decoder = self.parse_sequence_decoder(&mut parser, *ctx)?;
 
-        for i in 0..self.number_of_sequences {
-            let is_last = i == self.number_of_sequences - 1;
+        for i in 0..self.number {
+            let is_last = i == self.number - 1;
             let command = Self::decode_sequence(&mut sequence_decoder, &mut parser, is_last, i)?;
             decoded_sequences.push(command);
         }

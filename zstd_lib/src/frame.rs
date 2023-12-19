@@ -34,9 +34,10 @@ pub struct ZstandardFrame<'a> {
 }
 
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct SkippableFrame<'a> {
-    _magic: u32,
-    _data: &'a [u8],
+    magic: u32,
+    data: &'a [u8],
 }
 
 #[derive(Debug)]
@@ -52,19 +53,16 @@ impl<'a> Frame<'a> {
     pub fn parse(input: &mut ForwardByteParser<'a>) -> Result<Self> {
         let magic = input.le_u32()?;
 
-        match magic {
-            STANDARD_MAGIC_NUMBER => Ok(Self::ZstandardFrame(ZstandardFrame::parse(input)?)),
-            _ => {
-                if magic >> 4 == SKIPPABLE_MAGIC_NUMBER {
-                    let len = input.le_u32()?;
-                    let data = input.slice(len as usize)?;
-                    return Ok(Self::SkippableFrame(SkippableFrame {
-                        _magic: magic,
-                        _data: data,
-                    }));
-                }
-                Err(Error::Frame(UnrecognizedMagic(magic)))
+        // Note: if more magic numbers to check use match case instead
+        if magic == STANDARD_MAGIC_NUMBER {
+            Ok(Self::ZstandardFrame(ZstandardFrame::parse(input)?))
+        } else {
+            if magic >> 4 == SKIPPABLE_MAGIC_NUMBER {
+                let len = input.le_u32()?;
+                let data = input.slice(len as usize)?;
+                return Ok(Self::SkippableFrame(SkippableFrame { magic, data }));
             }
+            Err(Error::Frame(UnrecognizedMagic(magic)))
         }
     }
 
@@ -105,9 +103,10 @@ impl<'a> ZstandardFrame<'a> {
             }
         }
 
-        let checksum = match frame_header.content_checksum_flag {
-            true => Some(input.le_u32()?),
-            false => None,
+        let checksum = if frame_header.content_checksum_flag {
+            Some(input.le_u32()?)
+        } else {
+            None
         };
 
         Ok(ZstandardFrame {
@@ -161,23 +160,22 @@ impl FrameHeader {
         }
 
         let frame_content_size = match frame_content_size_flag {
-            0 => input.le(single_segment_flag as usize)?,
+            0 => input.le(usize::from(single_segment_flag))?,
             1 => input.le(2)? + 256,
             2 => input.le(4)?,
             3 => input.le(8)?,
             _ => panic!("unexpected frame_content_size_flag {frame_content_size_flag}"),
         };
 
-        let window_size = if !single_segment_flag {
+        let mut window_size = frame_content_size;
+        if !single_segment_flag {
             let exponent: usize = ((window_descriptor & 0b1111_1000) >> 3).into();
             let mantissa: usize = (window_descriptor & 0b0000_0111).into();
 
             let window_base = 1_usize << (10 + exponent);
             let window_add = (window_base / 8) * mantissa;
-            window_base + window_add
-        } else {
-            frame_content_size
-        };
+            window_size = window_base + window_add;
+        }
 
         Ok(FrameHeader {
             window_size,
@@ -245,8 +243,8 @@ mod tests {
                 let Frame::SkippableFrame(skippable) = Frame::parse(&mut parser).unwrap() else {
                     panic!("unexpected frame type")
                 };
-                assert_eq!(skippable._magic, 0x184d2a53);
-                assert_eq!(skippable._data, &[0x10, 0x20, 0x30]);
+                assert_eq!(skippable.magic, 0x184d2a53);
+                assert_eq!(skippable.data, &[0x10, 0x20, 0x30]);
                 assert_eq!(parser.len(), 1);
             }
 
@@ -316,8 +314,8 @@ mod tests {
             #[test]
             fn test_decode_skippable() {
                 let frame = Frame::SkippableFrame(SkippableFrame {
-                    _magic: 0,
-                    _data: &[],
+                    magic: 0,
+                    data: &[],
                 });
                 assert_eq!(frame.decode().unwrap(), Vec::new());
             }
@@ -457,8 +455,8 @@ mod tests {
             let Frame::SkippableFrame(frame) = iterator.next().unwrap().unwrap() else {
                 panic!("unexpected frame type")
             };
-            assert_eq!(frame._magic, 0x184d2a53);
-            assert_eq!(frame._data, &[0x10, 0x20, 0x30]);
+            assert_eq!(frame.magic, 0x184d2a53);
+            assert_eq!(frame.data, &[0x10, 0x20, 0x30]);
 
             let Frame::ZstandardFrame(frame) = iterator.next().unwrap().unwrap() else {
                 panic!("unexpected frame type")

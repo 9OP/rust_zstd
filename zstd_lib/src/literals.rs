@@ -55,7 +55,7 @@ impl<'a> LiteralsSection<'a> {
     /// Decompress the literals section. Update the Huffman decoder in
     /// `context` if appropriate (compressed literals block with a
     /// Huffman table inside).
-    pub fn decode(self, shared_context: Arc<Mutex<&mut DecodingContext>>) -> Result<Vec<u8>> {
+    pub fn decode(self, shared_context: &Arc<Mutex<&mut DecodingContext>>) -> Result<Vec<u8>> {
         match self {
             LiteralsSection::Raw(block) => Ok(Vec::from(block.0)),
             LiteralsSection::Rle(block) => Ok(vec![block.byte; block.repeat]),
@@ -66,6 +66,7 @@ impl<'a> LiteralsSection<'a> {
         }
     }
 
+    #[allow(clippy::too_many_lines)]
     pub fn parse(input: &mut ForwardByteParser<'a>) -> Result<Self> {
         let header = input.u8()?;
         let block_type = header & 0b0000_0011;
@@ -204,7 +205,7 @@ impl<'a> LiteralsSection<'a> {
 }
 
 fn update_decoder(
-    shared_context: Arc<Mutex<&mut DecodingContext>>,
+    shared_context: &Arc<Mutex<&mut DecodingContext>>,
     block_huffman: Option<HuffmanDecoder>,
 ) -> Result<HuffmanDecoder> {
     let mut ctx = shared_context.lock().unwrap();
@@ -218,7 +219,7 @@ fn update_decoder(
 }
 
 fn decode_1_stream(
-    shared_context: Arc<Mutex<&mut DecodingContext>>,
+    shared_context: &Arc<Mutex<&mut DecodingContext>>,
     block: CompressedLiteralsBlock,
 ) -> Result<Vec<u8>> {
     let mut decoded = vec![];
@@ -234,7 +235,7 @@ fn decode_1_stream(
 
 fn decode_4_streams(
     jump_table: [usize; 3],
-    shared_context: Arc<Mutex<&mut DecodingContext>>,
+    shared_context: &Arc<Mutex<&mut DecodingContext>>,
     block: CompressedLiteralsBlock,
 ) -> Result<Vec<u8>> {
     let mut decoded = vec![];
@@ -266,7 +267,7 @@ fn decode_4_streams(
                 let mut decoded = vec![];
                 let mut stream = BackwardBitParser::new(&data[r.0..r.1])?;
                 while stream.available_bits() > 0 {
-                    decoded.push(decoder.decode(&mut stream)?)
+                    decoded.push(decoder.decode(&mut stream)?);
                 }
 
                 Ok(decoded)
@@ -283,7 +284,7 @@ fn decode_4_streams(
             return Err(Error::Literals(RegneratedSizeError));
         }
 
-        decoded.extend(stream)
+        decoded.extend(stream);
     }
 
     Ok(decoded)

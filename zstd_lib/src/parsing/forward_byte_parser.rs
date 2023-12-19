@@ -4,13 +4,15 @@ use super::{Error, ForwardBitParser, Result};
 pub struct ForwardByteParser<'a>(&'a [u8]);
 
 impl<'a> ForwardByteParser<'a> {
-    /// Create a new ForwardByteParse instance from a byte slice
+    /// Create a new `ForwardByteParser` instance from a byte slice
+    #[must_use]
     pub fn new(data: &'a [u8]) -> Self {
         Self(data)
     }
 
     /// Consume and return u8 from the byte slice
     /// or `NotEnoughByte` error when the byte slice is empty.
+    ///
     /// # Example
     /// ```
     /// # use zstd_lib::parsing::{ForwardByteParser, ParsingError};
@@ -30,6 +32,7 @@ impl<'a> ForwardByteParser<'a> {
     }
 
     /// Return the number of bytes still unparsed
+    ///
     /// # Example
     /// ```
     /// # use zstd_lib::parsing::{ForwardByteParser};
@@ -38,11 +41,13 @@ impl<'a> ForwardByteParser<'a> {
     /// parser.u8();
     /// assert_eq!(parser.len(), 2);
     /// ```
+    #[must_use]
     pub fn len(&self) -> usize {
         self.0.len()
     }
 
     /// Return `true` if the byte slice is exhausted
+    ///
     /// # Example
     /// ```
     /// # use zstd_lib::parsing::{ForwardByteParser};
@@ -51,11 +56,13 @@ impl<'a> ForwardByteParser<'a> {
     /// parser.u8();
     /// assert_eq!(parser.is_empty(), true);
     /// ```
+    #[must_use]
     pub fn is_empty(&self) -> bool {
         self.len() == 0
     }
 
-    /// Return `len` bytes as a sub slice or NotEnoughByte when len > parser.len()
+    /// Return `len` bytes as a sub slice or `NotEnoughByte` when len > parser.len()
+    ///
     /// # Example
     /// ```
     /// # use zstd_lib::parsing::{ForwardByteParser, ParsingError::{self, *}};
@@ -82,7 +89,8 @@ impl<'a> ForwardByteParser<'a> {
         Ok(slice)
     }
 
-    /// Consume and return a u32 in little-endian format or NotEnoughByte error.
+    /// Consume and return a u32 in little-endian format or `NotEnoughByte` error.
+    ///
     /// # Example
     /// ```
     /// # use zstd_lib::parsing::{ForwardByteParser, ParsingError};
@@ -90,14 +98,19 @@ impl<'a> ForwardByteParser<'a> {
     /// assert_eq!(parser.le_u32()?, 0x0403_0201);
     /// # Ok::<(), ParsingError>(())
     /// ```
+    #[allow(clippy::missing_panics_doc)]
     pub fn le_u32(&mut self) -> Result<u32> {
-        Ok(self.le(4)? as u32)
+        // Will never panic because 4 < 8 and 4bytes can be casted to 32bits
+        Ok(u32::try_from(self.le(4)?).unwrap())
     }
 
-    /// Consume and return a usize in little-endian format or NotEnoughByte error
+    /// Consume and return a usize in little-endian format or `NotEnoughByte` error
     /// of `size` number of bytes.
-    /// # Panic
+    ///
+    /// # Panics
+    ///
     /// This function panics when `size > 8` for obvious reason.
+    ///
     /// # Example
     /// ```
     /// # use zstd_lib::parsing::{ForwardByteParser, ParsingError};

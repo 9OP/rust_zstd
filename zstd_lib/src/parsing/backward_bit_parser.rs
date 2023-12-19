@@ -60,9 +60,10 @@ impl<'a> BackwardBitParser<'a> {
     /// # Ok::<(), ParsingError>(())
     /// ```
     #[allow(dead_code)]
+    #[must_use]
     pub fn len(&self) -> usize {
         let include_last = self.position == 7;
-        self.bitstream.len() - 1 + include_last as usize
+        self.bitstream.len() - 1 + usize::from(include_last)
     }
 
     /// Check if the bitstream is exhausted
@@ -73,6 +74,7 @@ impl<'a> BackwardBitParser<'a> {
     /// assert_eq!(parser.is_empty(), true);
     /// # Ok::<(), ParsingError>(())
     /// ```
+    #[must_use]
     pub fn is_empty(&self) -> bool {
         self.bitstream.len() == 0
     }
@@ -87,6 +89,7 @@ impl<'a> BackwardBitParser<'a> {
     /// assert_eq!(parser.available_bits(), 6);
     /// # Ok::<(), ParsingError>(())
     /// ```
+    #[must_use]
     pub fn available_bits(&self) -> usize {
         if self.is_empty() {
             return 0;
@@ -142,7 +145,7 @@ impl<'a> BackwardBitParser<'a> {
             result <<= bits_to_read;
 
             // merge read bits into result;
-            result |= bits as u64;
+            result |= u64::from(bits);
 
             // update remaining bits count to read
             bits_remaining -= bits_to_read;
@@ -162,7 +165,7 @@ impl<'a> BackwardBitParser<'a> {
         let remaining_bytes = self.bitstream.len() - byte_read;
         let (new_bitstream, _) = self
             .bitstream
-            .split_at(remaining_bytes + include_last_byte as usize);
+            .split_at(remaining_bytes + usize::from(include_last_byte));
         self.bitstream = new_bitstream;
 
         Ok(result)

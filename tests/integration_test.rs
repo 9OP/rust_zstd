@@ -11,7 +11,7 @@ fn read_file(path: &str) -> Vec<u8> {
 
 fn decode_file(path: &str) -> Result<Vec<u8>, ZstdLibError> {
     let bytes = read_file(path);
-    zstd_lib::decode(bytes, false)
+    zstd_lib::decode(bytes.as_slice(), false)
 }
 
 #[cfg(test)]

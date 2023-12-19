@@ -57,6 +57,6 @@ impl BitDecoder<u16, Error> for AlternatingDecoder {
     }
 
     fn reset(&mut self) {
-        self.mut_decoder().reset()
+        self.mut_decoder().reset();
     }
 }

@@ -28,6 +28,6 @@ repos:
         description: Lint rust sources
         entry: cargo clippy
         language: system
-        args: ["--", "-D", "warnings"]
+        args: ["--", "-D", "clippy::pedantic"]
         types: [rust]
         pass_filenames: false

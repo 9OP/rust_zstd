@@ -262,7 +262,7 @@ pub struct HuffmanDecoderIterator<'a> {
 impl<'a> HuffmanDecoderIterator<'a> {
     pub fn new(tree: &'a HuffmanDecoder) -> Self {
         Self {
-            nodes: vec![(tree, String::from(""))],
+            nodes: vec![(tree, String::new())],
         }
     }
 }

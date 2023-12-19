@@ -8,6 +8,7 @@ pub struct ForwardBitParser<'a> {
 impl<'a> ForwardBitParser<'a> {
     /// Create a new `ForwardBitParser` instance from a byte slice.
     /// Consumes bits from LSB to MSB and from first byte to last byte
+    #[must_use]
     pub fn new(bitstream: &'a [u8]) -> Self {
         Self {
             bitstream,
@@ -30,9 +31,10 @@ impl<'a> ForwardBitParser<'a> {
     /// assert_eq!(parser.len(), 0);    // no bytes are left fully unparsed
     /// # Ok::<(), ParsingError>(())
     /// ```
+    #[must_use]
     pub fn len(&self) -> usize {
         let include_first = self.position == 0;
-        self.bitstream.len() + include_first as usize - 1
+        self.bitstream.len() + usize::from(include_first) - 1
     }
 
     /// Check if the bitstream is exhausted
@@ -42,6 +44,7 @@ impl<'a> ForwardBitParser<'a> {
     /// let mut parser = ForwardBitParser::new(&[]);
     /// assert_eq!(parser.is_empty(), true);
     /// ```
+    #[must_use]
     pub fn is_empty(&self) -> bool {
         self.bitstream.len() == 0
     }
@@ -56,6 +59,7 @@ impl<'a> ForwardBitParser<'a> {
     /// assert_eq!(parser.available_bits(), 6);
     /// # Ok::<(), ParsingError>(())
     /// ```
+    #[must_use]
     pub fn available_bits(&self) -> usize {
         if self.is_empty() {
             return 0;
@@ -83,7 +87,7 @@ impl<'a> ForwardBitParser<'a> {
             });
         }
         let is_bit_set = (self.bitstream[0] & (0x0000_0001 << self.position)) != 0;
-        Ok(is_bit_set as u8)
+        Ok(u8::from(is_bit_set))
     }
 
     /// Return a u64 made of `len` bits read forward: LSB to MSB and first byte to last byte.
@@ -127,7 +131,7 @@ impl<'a> ForwardBitParser<'a> {
             let bits = bits >> (8 - bits_to_read);
 
             // merge read bits into result;
-            result |= (bits as u64) << (len - bits_remaining);
+            result |= u64::from(bits) << (len - bits_remaining);
 
             // update remaining bits count to read
             bits_remaining -= bits_to_read;
@@ -145,7 +149,7 @@ impl<'a> ForwardBitParser<'a> {
         let include_first_byte = self.position != 0;
         let (_, new_bitstream) = self
             .bitstream
-            .split_at(byte_read - include_first_byte as usize);
+            .split_at(byte_read - usize::from(include_first_byte));
         self.bitstream = new_bitstream;
 
         Ok(result)

@@ -18,7 +18,7 @@ fn main() -> eyre::Result<()> {
     let args = Args::parse();
     let bytes = fs::read(args.source)?;
 
-    let decoded = zstd_lib::decode(bytes, args.info)?;
+    let decoded = zstd_lib::decode(bytes.as_slice(), args.info)?;
 
     let mut stdout = std::io::stdout().lock();
     stdout.write_all(decoded.as_slice()).unwrap();
