@@ -3,7 +3,7 @@
     clippy::module_name_repetitions,
     clippy::enum_glob_use,
     clippy::wildcard_imports,
-    clippy::redundant_field_names
+    clippy::struct_field_names
 )]
 
 mod block;

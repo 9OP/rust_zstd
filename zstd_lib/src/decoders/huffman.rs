@@ -2,7 +2,6 @@ use super::{
     AlternatingDecoder, BackwardBitParser, BitDecoder, Error, ForwardBitParser, ForwardByteParser,
     FseTable, Result,
 };
-
 use std::fmt;
 
 #[derive(Debug, thiserror::Error)]
@@ -36,15 +35,22 @@ pub enum HuffmanDecoder {
 
 const MAX_NUM_BITS: u32 = 11;
 const MAX_FSE_AL: u32 = 6;
+const MAX_NUM_WEIGTHS: usize = 256;
 
 impl<'a> HuffmanDecoder {
-    fn from_number_of_bits(widths: Vec<u8>) -> Self {
+    /// # Panics
+    /// Panics when `widths.len() > MAX_NUM_WEIGTHS`
+    fn from_number_of_bits(widths: &[u8]) -> Self {
+        assert!(widths.len() <= MAX_NUM_WEIGTHS);
+
         // Build a list of symbols and their widths
+        // `u8::try_from(symbol).unwrap()` will not panic
+        // because of above assertion
         let mut symbols: Vec<(u8, u8)> = widths
             .iter()
             .enumerate()
             .filter(|(_, &width)| width > 0)
-            .map(|(symbol, &width)| (symbol as u8, width))
+            .map(|(symbol, &width)| (u8::try_from(symbol).unwrap(), width))
             .collect();
 
         // Sort symbols based on highest width and lowest symbol value
@@ -73,6 +79,8 @@ impl<'a> HuffmanDecoder {
                 max: MAX_NUM_BITS,
             }));
         }
+        // will not panic because max_width < MAX_NUM_BITS < u8::MAX
+        let max_width = u8::try_from(max_width).unwrap();
 
         // since: weights_sum + 2^(last_weigth-1) = 2^max_width
         // last_weight = log2(2^max_width - weight_sum) + 1
@@ -91,18 +99,20 @@ impl<'a> HuffmanDecoder {
         if last_weight > weights_sum {
             return Err(Error::Huffman(ComputeMissingWeight));
         }
+        // will not panic because last_weight < u32::MAX.trailing_zeros+1 = 33 < u8::MAX
+        let last_weight = u8::try_from(last_weight).unwrap();
 
-        Ok((last_weight as u8, max_width as u8))
+        Ok((last_weight, max_width))
     }
 
-    fn from_weights(weights: Vec<u8>) -> Result<Self> {
-        let mut weights = weights.clone();
+    fn from_weights(weights: &[u8]) -> Result<Self> {
+        let mut weights = weights.to_owned();
 
         let mut weights_sum: u32 = 0;
         for w in &weights {
-            if *w as u32 > MAX_NUM_BITS {
+            if u32::from(*w) > MAX_NUM_BITS {
                 return Err(Error::Huffman(WeightTooBig {
-                    weight: *w as u32,
+                    weight: u32::from(*w),
                     max: MAX_NUM_BITS,
                 }));
             }
@@ -120,12 +130,12 @@ impl<'a> HuffmanDecoder {
         let (missing_weight, max_width) = Self::compute_last_weight(weights_sum)?;
         weights.push(missing_weight);
 
-        let widths = weights
+        let widths: Vec<u8> = weights
             .iter()
             .map(|w| if *w > 0 { max_width + 1 - *w } else { 0 })
             .collect();
 
-        Ok(Self::from_number_of_bits(widths))
+        Ok(Self::from_number_of_bits(widths.as_slice()))
     }
 
     fn insert(&mut self, symbol: u8, width: u8) -> bool {
@@ -181,11 +191,11 @@ impl<'a> HuffmanDecoder {
             Self::parse_direct(input, header as usize - 127)?
         };
 
-        if weights.len() > 255 {
+        if weights.len() > MAX_NUM_WEIGTHS {
             return Err(Error::Huffman(TooManyWeights));
         }
 
-        Self::from_weights(weights)
+        Self::from_weights(weights.as_slice())
     }
 
     /// Parse the Huffman table weights directly from the stream, 4
@@ -219,6 +229,13 @@ impl<'a> HuffmanDecoder {
     /// the Huffman table weights. `compressed_size` bytes will be
     /// consumed from the `input` stream.
     fn parse_fse(input: &mut ForwardByteParser, compressed_size: u8) -> Result<Vec<u8>> {
+        // symbol is u16, but huffman weight is u8. Return an error in case of
+        // uint overflow
+        fn get_huffman_weight(decoder: &mut AlternatingDecoder) -> Result<u8> {
+            let symbol = decoder.symbol();
+            <u8>::try_from(symbol).map_err(|_| Error::Huffman(WeightCorruption))
+        }
+
         let mut weights = Vec::<u8>::new();
 
         let bitstream = input.slice(compressed_size as usize)?;
@@ -235,13 +252,6 @@ impl<'a> HuffmanDecoder {
         let mut decoder = AlternatingDecoder::new(&fse_table);
         let mut backward_bit_parser = BackwardBitParser::try_from(forward_bit_parser)?;
         decoder.initialize(&mut backward_bit_parser)?;
-
-        // symbol is u16, but huffman weight is u8. Return an error in case of
-        // uint overflow
-        fn get_huffman_weight(decoder: &mut AlternatingDecoder) -> Result<u8> {
-            let symbol = decoder.symbol();
-            <u8>::try_from(symbol).map_err(|_| Error::Huffman(WeightCorruption))
-        }
 
         loop {
             weights.push(get_huffman_weight(&mut decoder)?);
@@ -335,7 +345,7 @@ mod tests {
     #[test]
     fn test_from_number_of_bits() {
         let widths: Vec<u8> = std::iter::repeat(0).take(65).chain([2, 1, 2]).collect();
-        let tree = HuffmanDecoder::from_number_of_bits(widths);
+        let tree = HuffmanDecoder::from_number_of_bits(widths.as_slice());
         assert_eq!(
             format!("{:?}", tree),
             "HuffmanDecoder { 1: 66, 01: 67, 00: 65 }"
@@ -362,7 +372,7 @@ mod tests {
     #[test]
     fn test_from_weights() {
         let weights: Vec<_> = std::iter::repeat(0).take(65).chain([1, 2]).collect();
-        let tree = HuffmanDecoder::from_weights(weights).unwrap();
+        let tree = HuffmanDecoder::from_weights(weights.as_slice()).unwrap();
         assert_eq!(
             format!("{:?}", tree),
             "HuffmanDecoder { 1: 66, 01: 67, 00: 65 }"
@@ -373,7 +383,7 @@ mod tests {
     fn test_decode() {
         // 0 repeated 65 times, 1, 2
         let weights: Vec<_> = std::iter::repeat(0).take(65).chain([1, 2]).collect();
-        let decoder = HuffmanDecoder::from_weights(weights).unwrap();
+        let decoder = HuffmanDecoder::from_weights(weights.as_slice()).unwrap();
         let mut parser = BackwardBitParser::new(&[0x97, 0x01]).unwrap();
         let mut result = String::new();
         while !parser.is_empty() {

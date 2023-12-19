@@ -20,16 +20,18 @@ impl AlternatingDecoder {
     }
 
     fn mut_decoder(&mut self) -> &mut FseDecoder {
-        match self.last_used {
-            false => &mut self.decoder_1,
-            true => &mut self.decoder_2,
+        if self.last_used {
+            &mut self.decoder_2
+        } else {
+            &mut self.decoder_1
         }
     }
 
     fn decoder(&self) -> &FseDecoder {
-        match self.last_used {
-            false => &self.decoder_1,
-            true => &self.decoder_2,
+        if self.last_used {
+            &self.decoder_2
+        } else {
+            &self.decoder_1
         }
     }
 }

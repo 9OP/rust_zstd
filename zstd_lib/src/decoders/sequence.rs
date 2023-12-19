@@ -8,6 +8,7 @@ pub struct SequenceDecoder<'d> {
 }
 
 impl<'a> SequenceDecoder<'a> {
+    #[allow(clippy::similar_names)]
     pub fn new(
         ll_d: &'a mut Box<SymbolDecoder>,
         o_d: &'a mut Box<SymbolDecoder>,

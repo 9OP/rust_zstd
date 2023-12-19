@@ -23,8 +23,8 @@ pub enum Frame<'a> {
     SkippableFrame(SkippableFrame<'a>),
 }
 
-const STANDARD_MAGIC_NUMBER: u32 = 0xFD2FB528;
-const SKIPPABLE_MAGIC_NUMBER: u32 = 0x184D2A5; // last 4bits: 0x0 to 0xF
+const STANDARD_MAGIC_NUMBER: u32 = 0xFD2F_B528;
+const SKIPPABLE_MAGIC_NUMBER: u32 = 0x0184_D2A5;
 
 #[derive(Debug)]
 pub struct ZstandardFrame<'a> {

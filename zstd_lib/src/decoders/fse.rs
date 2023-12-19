@@ -74,7 +74,7 @@ impl FseTable {
             .collect();
 
         // sort symbols based on lowest value first
-        less_than_one.sort();
+        less_than_one.sort_unstable();
         for (i, symbol) in less_than_one.into_iter().enumerate() {
             let index = table_length - 1 - i;
             let state = FseState {
@@ -105,7 +105,7 @@ impl FseTable {
                 let proba = probability as usize;
                 let mut symbol_states: Vec<usize> = state_index.by_ref().take(proba).collect();
 
-                symbol_states.sort();
+                symbol_states.sort_unstable();
 
                 // invariant
                 if symbol_states.len() != proba {
@@ -175,7 +175,7 @@ fn parse_fse_table(parser: &mut ForwardBitParser) -> Result<(u8, Vec<Probability
         let small_value = parser.take((bits_to_read - 1) as usize)? as u32;
 
         // The MSB peeked (not consumed) because value is in: bits_to_read or bits_to_read-1
-        let unchecked_value = ((parser.peek()? as u32) << (bits_to_read - 1)) | small_value;
+        let unchecked_value = (u32::from(parser.peek()?) << (bits_to_read - 1)) | small_value;
 
         // Threshold above wich value is encoded in bits_to_read, below which encoded in bits_to_read-1
         let low_threshold = ((1 << bits_to_read) - 1) - (max_remaining_value);
@@ -183,16 +183,15 @@ fn parse_fse_table(parser: &mut ForwardBitParser) -> Result<(u8, Vec<Probability
         // Used to divide in two halves the range of values encoded in bits_to_read
         let mask = (1 << (bits_to_read - 1)) - 1;
 
-        let decoded_value = match small_value < low_threshold {
-            true => small_value,
-            false => {
-                // consumme MSB peeked bit in unchecked_value
-                let _ = parser.take(1)?;
-                if unchecked_value > mask {
-                    unchecked_value - low_threshold
-                } else {
-                    unchecked_value
-                }
+        let decoded_value = if small_value < low_threshold {
+            small_value
+        } else {
+            // consumme MSB peeked bit in unchecked_value
+            let _ = parser.take(1)?;
+            if unchecked_value > mask {
+                unchecked_value - low_threshold
+            } else {
+                unchecked_value
             }
         };
 
@@ -278,16 +277,13 @@ impl BitDecoder<Symbol, Error> for FseDecoder {
         let available_bits = bitstream.available_bits();
         let expected_bits = self.expected_bits();
 
-        let (index, zeroes) = match expected_bits <= available_bits {
-            true => {
-                let index = bitstream.take(expected_bits)?;
-                (index + self.base_line as u64, false)
-            }
-            false => {
-                let diff = expected_bits - available_bits;
-                let index = bitstream.take(available_bits)? << diff;
-                (index + self.base_line as u64, true)
-            }
+        let (index, zeroes) = if expected_bits <= available_bits {
+            let index = bitstream.take(expected_bits)?;
+            (index + self.base_line as u64, false)
+        } else {
+            let diff = expected_bits - available_bits;
+            let index = bitstream.take(available_bits)? << diff;
+            (index + self.base_line as u64, true)
         };
 
         let state = self.table.get(index as usize)?;

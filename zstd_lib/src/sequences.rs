@@ -197,6 +197,7 @@ impl<'a> Sequences<'a> {
         Ok(number_of_sequences)
     }
 
+    #[allow(clippy::similar_names)]
     fn parse_compression_modes(
         input: &mut ForwardByteParser,
     ) -> Result<(SymbolCompressor, SymbolCompressor, SymbolCompressor)> {
@@ -255,6 +256,7 @@ impl<'a> Sequences<'a> {
     }
 
     /// Parse the symbol decoders and update the context
+    #[allow(clippy::similar_names)]
     fn parse_sequence_decoder(
         &'a self,
         parser: &mut BackwardBitParser,
