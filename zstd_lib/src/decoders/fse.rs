@@ -12,9 +12,6 @@ pub enum FseError {
 
     #[error("FSE distribution is corrupted")]
     DistributionCorrupted,
-
-    #[error("FSE loop hole state")]
-    LoopHoleState,
 }
 use FseError::*;
 
@@ -142,18 +139,6 @@ impl FseTable {
                 state.base_line = base_line;
                 base_line += 1 << state.num_bits;
             }
-        }
-
-        // see fuzz_test_9: Huffman FSE compressed loops endlessly.
-        //  - if all states have NB 0, it never consume bits.
-        //  - if a state has NB = 0 and baseline == index it never consume and never progress
-        if states.iter().all(|s| s.num_bits == 0)
-            || states
-                .iter()
-                .enumerate()
-                .any(|(i, s)| i == s.base_line && s.num_bits == 0)
-        {
-            return Err(Error::Fse(LoopHoleState));
         }
 
         Ok(Self { states })

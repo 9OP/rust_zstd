@@ -9,6 +9,9 @@ use std::{
 pub enum BlockError {
     #[error("Reserved block type")]
     ReservedBlockType,
+
+    #[error("block size ({got} bytes) exceeds maximum allowed ({allowed} bytes)")]
+    MaxBlockSize { got: usize, allowed: usize },
 }
 use BlockError::*;
 
@@ -68,7 +71,12 @@ impl<'a> Block<'a> {
                 // The size of Block_Content is limited by the smallest of:
                 // window_size or 128 KB
                 let max_block_size = std::cmp::min(BLOCK_SIZE_MAX, window_size);
-                let block_size = std::cmp::min(block_size, max_block_size);
+                if block_size > max_block_size {
+                    return Err(Error::Block(MaxBlockSize {
+                        got: block_size,
+                        allowed: max_block_size,
+                    }));
+                }
 
                 let compressed_data = input.slice(block_size)?;
                 let mut parser = ForwardByteParser::new(compressed_data);
