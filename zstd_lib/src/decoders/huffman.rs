@@ -130,6 +130,10 @@ impl<'a> HuffmanDecoder {
         let (missing_weight, max_width) = Self::compute_last_weight(weights_sum)?;
         weights.push(missing_weight);
 
+        if weights.len() > MAX_NUM_WEIGTHS {
+            return Err(Error::Huffman(TooManyWeights));
+        }
+
         let widths: Vec<u8> = weights
             .iter()
             .map(|w| if *w > 0 { max_width + 1 - *w } else { 0 })
@@ -190,10 +194,6 @@ impl<'a> HuffmanDecoder {
         } else {
             Self::parse_direct(input, header as usize - 127)?
         };
-
-        if weights.len() > MAX_NUM_WEIGTHS {
-            return Err(Error::Huffman(TooManyWeights));
-        }
 
         Self::from_weights(weights.as_slice())
     }

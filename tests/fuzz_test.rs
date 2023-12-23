@@ -133,3 +133,15 @@ fn test_fuzz_10() {
     ];
     let _ = zstd_lib::decode(&input, false);
 }
+
+#[test]
+fn test_fuzz_11() {
+    // git log: 1cc6b2b52e0419815e9f1399e6c8ef4ebdbf94fe
+    // panicked at zstd_lib/src/decoders/huffman.rs:44:9: assertion failed: widths.len() <= MAX_NUM_WEIGTHS
+    let input = [
+        40, 181, 47, 253, 48, 40, 181, 0, 0, 42, 0, 165, 45, 16, 0, 254, 0, 23, 255, 255, 255, 255,
+        255, 255, 0, 0, 255, 255, 255, 255, 0, 0, 0, 255, 255, 247, 0, 0, 28, 12, 90, 255, 239,
+        185, 0, 45,
+    ];
+    let _ = zstd_lib::decode(&input, false);
+}
