@@ -253,7 +253,8 @@ impl<'a> HuffmanDecoder {
         let mut backward_bit_parser = BackwardBitParser::try_from(forward_bit_parser)?;
         decoder.initialize(&mut backward_bit_parser)?;
 
-        loop {
+        // see fuzz_test_10
+        while weights.len() < MAX_NUM_WEIGTHS {
             weights.push(get_huffman_weight(&mut decoder)?);
 
             if decoder.update_bits(&mut backward_bit_parser)? {
